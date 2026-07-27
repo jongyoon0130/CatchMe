@@ -1,0 +1,92 @@
+import type { UserAlarm } from './userAlarms'
+import { normalizeTaskTime } from './goalTaskTime'
+
+export interface ClockAlarmTrigger {
+  alarmId: string
+  label: string
+  time: string
+  dateKey: string
+}
+
+export function dateKeyFrom(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/** 오늘 이 알람이 울려야 하는 요일인지 */
+export function userAlarmActiveOnDate(alarm: UserAlarm, date: Date): boolean {
+  if (!alarm.enabled) return false
+  const time = normalizeTaskTime(alarm.time)
+  if (!time) return false
+  const days = alarm.repeatDays.length ? alarm.repeatDays : [0, 1, 2, 3, 4, 5, 6]
+  return days.includes(date.getDay())
+}
+
+export function collectClockAlarms(alarms: UserAlarm[], date: Date): ClockAlarmTrigger[] {
+  const dateKey = dateKeyFrom(date)
+  const out: ClockAlarmTrigger[] = []
+  for (const alarm of alarms) {
+    if (!userAlarmActiveOnDate(alarm, date)) continue
+    const time = normalizeTaskTime(alarm.time)
+    if (!time) continue
+    out.push({ alarmId: alarm.id, label: alarm.label, time, dateKey })
+  }
+  return out
+}
+
+export function clockAlarmDedupKey(trigger: ClockAlarmTrigger): string {
+  return `clock:${trigger.dateKey}:${trigger.alarmId}:${trigger.time}`
+}
+
+export function isClockAlarmDue(
+  trigger: ClockAlarmTrigger,
+  now: Date,
+  opts?: { graceMinutes?: number },
+): boolean {
+  const graceMinutes = opts?.graceMinutes ?? 2
+  if (trigger.dateKey !== dateKeyFrom(now)) return false
+
+  const [hour, minute] = trigger.time.split(':').map(Number)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false
+
+  const target = new Date(now)
+  target.setHours(hour, minute, 0, 0)
+  const diffMs = now.getTime() - target.getTime()
+  return diffMs >= 0 && diffMs < graceMinutes * 60 * 1000
+}
+
+export function filterDueClockAlarms(
+  triggers: ClockAlarmTrigger[],
+  now: Date,
+  fired: ReadonlySet<string>,
+): ClockAlarmTrigger[] {
+  return triggers.filter((t) => !fired.has(clockAlarmDedupKey(t)) && isClockAlarmDue(t, now))
+}
+
+export function findNextClockAlarm(
+  alarms: UserAlarm[],
+  now: Date,
+  fired: ReadonlySet<string>,
+): ClockAlarmTrigger | null {
+  let best: { trigger: ClockAlarmTrigger; at: number } | null = null
+
+  for (let offset = 0; offset < 8; offset++) {
+    const day = new Date(now)
+    day.setDate(day.getDate() + offset)
+    for (const trigger of collectClockAlarms(alarms, day)) {
+      if (fired.has(clockAlarmDedupKey(trigger))) continue
+      const [hour, minute] = trigger.time.split(':').map(Number)
+      const at = new Date(day)
+      at.setHours(hour, minute, 0, 0)
+      if (at.getTime() <= now.getTime()) continue
+      if (!best || at.getTime() < best.at) {
+        best = { trigger, at: at.getTime() }
+      }
+    }
+    if (best) break
+  }
+
+  return best?.trigger ?? null
+}

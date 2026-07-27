@@ -41,6 +41,28 @@ function HomeIcon({ active }: { active: boolean }) {
   )
 }
 
+function AlarmIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={active ? 2 : 1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="13" r="7" />
+      <path d="M12 9V13l2.5 2.5" />
+      <path d="M5 3 2 6" />
+      <path d="m19 3 3 3" />
+      <path d="M5 20h14" />
+    </svg>
+  )
+}
+
 function ProfileIcon({ active }: { active: boolean }) {
   return (
     <svg
@@ -61,8 +83,9 @@ function ProfileIcon({ active }: { active: boolean }) {
 }
 
 const TABS: { id: MainTab; label: string; Icon: typeof ChatIcon }[] = [
-  { id: 'chat', label: '채팅', Icon: ChatIcon },
   { id: 'home', label: '홈', Icon: HomeIcon },
+  { id: 'chat', label: '채팅', Icon: ChatIcon },
+  { id: 'alarm', label: '알람', Icon: AlarmIcon },
   { id: 'profile', label: '프로필', Icon: ProfileIcon },
 ]
 

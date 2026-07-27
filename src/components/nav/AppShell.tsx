@@ -9,12 +9,13 @@ interface Props {
   showNav: boolean
   chat: ReactNode
   home: ReactNode
+  alarm: ReactNode
   profile: ReactNode
 }
 
 const BOTTOM_NAV_HEIGHT = '5.25rem'
 
-export function AppShell({ activeTab, onTabChange, showNav, chat, home, profile }: Props) {
+export function AppShell({ activeTab, onTabChange, showNav, chat, home, alarm, profile }: Props) {
   return (
     <div className="h-full relative">
       <div
@@ -27,6 +28,7 @@ export function AppShell({ activeTab, onTabChange, showNav, chat, home, profile 
           enabled={showNav}
           chat={chat}
           home={home}
+          alarm={alarm}
           profile={profile}
         />
       </div>

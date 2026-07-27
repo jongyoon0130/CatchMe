@@ -245,8 +245,8 @@ body::before {
   pointer-events: auto;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 2px;
+  padding: 8px 8px;
   margin-bottom: 10px;
   background: color-mix(in srgb, var(--au-surface) 86%, transparent);
   backdrop-filter: saturate(1.8) blur(22px);
@@ -295,7 +295,7 @@ body::before {
 }
 
 .app-bottom-nav-label {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--au-muted-2);
   letter-spacing: -0.01em;
@@ -428,50 +428,6 @@ body::before {
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 2px;
-}
-
-/* 배터리 → 완료율 타일 */
-.goal-app .goal-battery {
-  width: auto;
-}
-
-.goal-app .goal-battery-cap {
-  display: none;
-}
-
-.goal-app .goal-battery-body {
-  width: 27px;
-  height: 27px;
-  border: none;
-  border-radius: 9px;
-  background: var(--au-surface-3);
-  padding: 0;
-  box-shadow: none;
-  transition: box-shadow 0.18s var(--au-ease), background 0.18s;
-}
-
-/* 할 일이 없는 날은 타일을 거의 비운다 — 격자가 시끄러워지지 않게 */
-.goal-app .goal-battery-body:not(:has(.goal-battery-fill)) {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--au-line-soft);
-}
-
-.goal-app .goal-battery-fill {
-  border-radius: 0;
-  transition: height 0.32s var(--au-ease), background 0.2s;
-}
-
-.goal-app .goal-mc-cell.selected .goal-battery-body {
-  box-shadow: 0 0 0 2px var(--au-ink);
-}
-
-/* 빈 날짜를 고른 경우엔 링을 그리지 않는다 — 날짜 배지만으로 충분하다 */
-.goal-app .goal-mc-cell.selected .goal-battery-body:not(:has(.goal-battery-fill)) {
-  box-shadow: inset 0 0 0 1.5px var(--au-line-soft);
-}
-
-.goal-app .goal-mc-cell.out-range .goal-battery-body {
-  opacity: 0.45;
 }
 
 /* ── 9. 섹션 헤더 ────────────────────────────────────────────────────── */
@@ -1090,8 +1046,9 @@ body::before {
 /* ── 19. 채팅 ────────────────────────────────────────────────────────── */
 
 .chat-bubble-me {
-  background: var(--au-ink);
-  color: #fff;
+  background: var(--au-gold-soft);
+  color: var(--au-ink);
+  border: 1px solid color-mix(in srgb, var(--au-gold) 32%, transparent);
   border-radius: 20px 20px 7px 20px;
   box-shadow: var(--au-sh-xs);
 }

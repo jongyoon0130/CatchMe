@@ -4,6 +4,7 @@ import { ChatOnboarding } from './components/onboarding/ChatOnboarding'
 import { ChatScreen } from './components/chat/ChatScreen'
 import { ProfileListScreen } from './components/list/ProfileListScreen'
 import { HomeScreen } from './components/home/HomeScreen'
+import { AlarmScreen } from './components/alarm/AlarmScreen'
 import { ProfileScreen } from './components/profile/ProfileScreen'
 import { AppShell } from './components/nav/AppShell'
 import { DEFAULT_MAIN_TAB, type MainTab } from './components/nav/types'
@@ -11,6 +12,8 @@ import { AuthScreen } from './components/auth/AuthScreen'
 import { APP_NAME } from './lib/brand'
 import { FutureMeLogo } from './components/brand/FutureMeLogo'
 import { useAuth } from './contexts/AuthContext'
+import { useAlarmScheduler } from './hooks/useAlarmScheduler'
+import { AlarmDismissProvider } from './components/alarm/AlarmDismissProvider'
 import { subscribeCloudPushStatus, isCloudPushFailing } from './lib/syncStatus'
 import {
   ensureMigrated,
@@ -33,6 +36,7 @@ type Screen = 'list' | 'onboarding' | 'chat'
 
 export default function App() {
   const { configured, loading: authLoading, syncing, session } = useAuth()
+  useAlarmScheduler()
   const cloudPushFailing = useSyncExternalStore(subscribeCloudPushStatus, isCloudPushFailing)
   const [activeTab, setActiveTab] = useState<MainTab>(DEFAULT_MAIN_TAB)
   // 탭 전환 때마다 증가 — 프로필 탭이 최신 데이터를 다시 읽게 하는 신호
@@ -194,6 +198,7 @@ export default function App() {
   }
 
   return (
+    <AlarmDismissProvider>
     <div className="goal-app h-full bg-void">
       {configured && session && syncing && (
         <div
@@ -237,6 +242,7 @@ export default function App() {
               }}
             />
           }
+          alarm={<AlarmScreen />}
           profile={
             <ProfileScreen
               refreshKey={navSeq}
@@ -277,5 +283,6 @@ export default function App() {
         )}
       </div>
     </div>
+    </AlarmDismissProvider>
   )
 }

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getGoalAppProfile } from '../../lib/goalAppOwner'
+import { useAlarmScheduler } from '../../hooks/useAlarmScheduler'
+import { AlarmDismissProvider } from '../alarm/AlarmDismissProvider'
 import { loadGoalPlans } from '../../lib/goalPlanStore'
 import { importGoalPlansSnapshot } from '../../lib/goalPlanSnapshot'
 import { GoalPlanSheet } from './GoalPlanSheet'
@@ -14,6 +16,7 @@ export function GoalApp({
 }) {
   const profile = useMemo(() => getGoalAppProfile(), [])
   const [ready, setReady] = useState(false)
+  useAlarmScheduler()
 
   useEffect(() => {
     let cancelled = false
@@ -42,11 +45,16 @@ export function GoalApp({
 
   if (!ready) return null
 
-  if (embedded) return <GoalPlanSheet profile={profile} embedded onTellFuture={onTellFuture} />
+  if (embedded) {
+    return (
+      <AlarmDismissProvider>
+        <GoalPlanSheet profile={profile} embedded onTellFuture={onTellFuture} />
+      </AlarmDismissProvider>
+    )
+  }
 
-  // 단독 실행(goals.html) — 메인 앱으로 돌아갈 길이 없으면 막다른 페이지가 되므로
-  // 상단에 얇은 복귀 배너를 둔다. (홈 탭에 임베드될 때는 하단 네비가 그 역할)
   return (
+    <AlarmDismissProvider>
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <a
         href="/"
@@ -68,5 +76,6 @@ export function GoalApp({
         <GoalPlanSheet profile={profile} embedded={false} />
       </div>
     </div>
+    </AlarmDismissProvider>
   )
 }

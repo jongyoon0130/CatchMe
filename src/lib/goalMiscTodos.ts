@@ -56,6 +56,7 @@ export function saveMiscTodos(profileId: string, items: MiscTodoItem[]): void {
   localStorage.setItem(storageKey(profileId), JSON.stringify(items))
   if (!isApplyingRemoteGoalData()) {
     void import('./goalDataSync').then(({ scheduleGoalDataSync }) => scheduleGoalDataSync())
+    void import('./alarmScheduler').then(({ notifyGoalDataChanged }) => notifyGoalDataChanged())
   }
 }
 

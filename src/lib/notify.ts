@@ -100,6 +100,42 @@ export type TestNotifyResult =
   | { ok: true }
   | { ok: false; reason: 'unsupported' | 'denied' | 'no_worker' | 'failed'; detail?: string }
 
+export type AlarmNotifyPayload = {
+  title: string
+  body: string
+  tag: string
+  url?: string
+}
+
+export type AlarmNotifyResult = TestNotifyResult
+
+/** 할 일 시간 알람 — 서비스 워커로 띄운다 (iOS PWA 포함) */
+export async function showAlarmNotification(payload: AlarmNotifyPayload): Promise<AlarmNotifyResult> {
+  const env = readNotifyEnv()
+  if (!env.supportsNotification || !env.supportsServiceWorker) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (env.permission !== 'granted') {
+    return { ok: false, reason: 'denied' }
+  }
+
+  const reg = await readyNotifyWorker()
+  if (!reg) return { ok: false, reason: 'no_worker' }
+
+  try {
+    await reg.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: payload.tag,
+      data: { url: payload.url ?? '/index.html' },
+    })
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, reason: 'failed', detail: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 /**
  * 테스트 알림 — delayMs 뒤에 뜬다.
  * 기다리는 동안 앱을 닫아보면, 앱이 꺼져도 알림이 오는지까지 확인할 수 있다.

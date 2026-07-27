@@ -280,6 +280,7 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
             </div>
           )}
         </section>
+
       </div>
     </div>
   )

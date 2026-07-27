@@ -1,0 +1,102 @@
+/** 사용자가 직접 만드는 알람 — 핸드폰 시계 앱처럼 */
+export interface UserAlarm {
+  id: string
+  /** 24h HH:mm */
+  time: string
+  label: string
+  enabled: boolean
+  /** 0=일 … 6=토. 비어 있으면 매일 */
+  repeatDays: number[]
+  createdAt: number
+  updatedAt: number
+}
+
+const STORAGE_KEY = 'futureme-user-alarms'
+export const USER_ALARMS_CHANGE = 'futureme-user-alarms-change'
+
+const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const
+
+export function describeRepeatDays(days: number[]): string {
+  if (!days.length || days.length === 7) return '매일'
+  const sorted = [...days].sort((a, b) => a - b)
+  if (sorted.length === 5 && sorted.join(',') === '1,2,3,4,5') return '평일'
+  if (sorted.length === 2 && sorted.join(',') === '0,6') return '주말'
+  return sorted.map((d) => DOW_LABELS[d] ?? '?').join(' ')
+}
+
+export function formatAlarmClockTime(time24: string): string {
+  const [hStr, mStr] = time24.split(':')
+  const h24 = Number(hStr)
+  const m = Number(mStr)
+  if (!Number.isFinite(h24) || !Number.isFinite(m)) return time24
+  const period = h24 >= 12 ? '오후' : '오전'
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
+  return `${period} ${h12}:${String(m).padStart(2, '0')}`
+}
+
+export function loadUserAlarms(): UserAlarm[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const list = JSON.parse(raw) as UserAlarm[]
+    if (!Array.isArray(list)) return []
+    return list
+      .filter((a) => a?.id && a?.time)
+      .sort((a, b) => a.time.localeCompare(b.time) || a.createdAt - b.createdAt)
+  } catch {
+    return []
+  }
+}
+
+function saveAll(alarms: UserAlarm[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(alarms))
+  window.dispatchEvent(new CustomEvent(USER_ALARMS_CHANGE))
+}
+
+export function addUserAlarm(partial?: Partial<Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>>): UserAlarm {
+  const now = Date.now()
+  const alarm: UserAlarm = {
+    id: crypto.randomUUID(),
+    time: partial?.time ?? defaultNewAlarmTime(),
+    label: partial?.label?.trim() || '알람',
+    enabled: true,
+    repeatDays: partial?.repeatDays ?? [0, 1, 2, 3, 4, 5, 6],
+    createdAt: now,
+    updatedAt: now,
+  }
+  const next = [...loadUserAlarms(), alarm]
+  saveAll(next)
+  return alarm
+}
+
+export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' | 'createdAt'>>): UserAlarm | null {
+  const list = loadUserAlarms()
+  const idx = list.findIndex((a) => a.id === id)
+  if (idx < 0) return null
+  const next: UserAlarm = {
+    ...list[idx]!,
+    ...patch,
+    label: patch.label !== undefined ? patch.label.trim() || '알람' : list[idx]!.label,
+    updatedAt: Date.now(),
+  }
+  list[idx] = next
+  saveAll(list)
+  return next
+}
+
+export function deleteUserAlarm(id: string): void {
+  saveAll(loadUserAlarms().filter((a) => a.id !== id))
+}
+
+export function toggleUserAlarm(id: string, enabled: boolean): void {
+  updateUserAlarm(id, { enabled })
+}
+
+function defaultNewAlarmTime(): string {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() + 2 - (d.getMinutes() % 5))
+  d.setSeconds(0, 0)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+export { DOW_LABELS }
