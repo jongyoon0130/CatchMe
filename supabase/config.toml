@@ -1,0 +1,5 @@
+[project]
+id = "future-me-studio"
+
+[functions.alarm-push]
+verify_jwt = false

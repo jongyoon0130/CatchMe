@@ -2,7 +2,23 @@
 
 앱이 꺼져 있거나 잠금 화면일 때 알람을 보내려면 **Supabase Edge Function + 웹 푸시**가 필요합니다.
 
-## 1. SQL 실행
+**Vercel `future-me-studio`:** `VITE_VAPID_PUBLIC_KEY` 는 Production/Preview/Development에 이미 설정됨.
+
+## 빠른 설정 (CLI)
+
+```bash
+cd FutureMe-studio
+bunx supabase login
+cp alarm-push.env.example .env.alarm-push.local
+# VAPID: bunx web-push generate-vapid-keys
+# SUPABASE_PROJECT_REF = Dashboard URL의 project ref
+nano .env.alarm-push.local
+./scripts/setup-alarm-push.sh
+```
+
+그다음 `supabase/migrations/20260727190100_alarm_push_cron.sql` 을 SQL Editor에서 실행 (YOUR_PROJECT, YOUR_ALARM_CRON_SECRET 치환).
+
+## 1. SQL 실행 (수동)
 
 Supabase SQL Editor에서 `supabase/schema.sql` **맨 아래 알람·푸시 블록**을 실행하세요.
 
