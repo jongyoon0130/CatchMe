@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { AlarmDismissOverlay } from './AlarmDismissOverlay'
+import { openAlarmDismissFromDeepLink } from '../../lib/alarmDeepLink'
 import {
   getRingingAlarm,
   loadPendingDismiss,
@@ -13,6 +14,7 @@ export function AlarmDismissProvider({ children }: { children: React.ReactNode }
   const ringing = useSyncExternalStore(subscribeRingingAlarm, getRingingAlarm, () => null)
 
   useEffect(() => {
+    if (openAlarmDismissFromDeepLink()) return
     const pending = loadPendingDismiss()
     if (pending && !getRingingAlarm()) {
       startRingingAlarm(pending.trigger, pending.phrase)

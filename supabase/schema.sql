@@ -56,3 +56,52 @@ alter table public.futureme_goal_data enable row level security;
 
 create policy "goal data own" on public.futureme_goal_data
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 알람 · 다짐 문장 (클라우드 동기화 + 서버 스케줄러용)
+create table if not exists public.futureme_alarm_data (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  alarms jsonb not null default '[]'::jsonb,
+  dismiss_phrases jsonb not null default '[]'::jsonb,
+  alarm_settings jsonb not null default '{"enabled": true}'::jsonb,
+  timezone text not null default 'Asia/Seoul',
+  updated_at bigint not null
+);
+
+alter table public.futureme_alarm_data enable row level security;
+
+create policy "alarm data own" on public.futureme_alarm_data
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 웹 푸시 구독 (기기별)
+create table if not exists public.futureme_push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  endpoint text not null,
+  subscription jsonb not null,
+  timezone text not null default 'Asia/Seoul',
+  enabled boolean not null default true,
+  updated_at bigint not null,
+  unique (user_id, endpoint)
+);
+
+alter table public.futureme_push_subscriptions enable row level security;
+
+create policy "push subs own" on public.futureme_push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 중복 푸시 방지
+create table if not exists public.futureme_alarm_push_sent (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  alarm_id text not null,
+  date_key text not null,
+  alarm_time text not null,
+  sent_at bigint not null,
+  primary key (user_id, alarm_id, date_key, alarm_time)
+);
+
+alter table public.futureme_alarm_push_sent enable row level security;
+
+create policy "alarm push sent own" on public.futureme_alarm_push_sent
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists futureme_push_subscriptions_user on public.futureme_push_subscriptions (user_id, enabled);

@@ -15,6 +15,21 @@ function storageKey(alarmId: string, dateKey: string): string {
   return `${STORAGE_PREFIX}${alarmId}:${dateKey}`
 }
 
+export function phraseRecordKey(alarmId: string, dateKey: string): string {
+  return `${alarmId}:${dateKey}`
+}
+
+/** AI·폴백 출력을 3줄 다짐 형태로 정리 */
+export function normalizeDismissPhrase(raw: string): string {
+  const lines = raw
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+  return lines.join('\n')
+}
+
 export function loadDismissPhrase(alarmId: string, dateKey: string): AlarmDismissPhrase | null {
   try {
     const raw = localStorage.getItem(storageKey(alarmId, dateKey))
@@ -34,17 +49,31 @@ export function saveDismissPhrase(record: AlarmDismissPhrase): void {
     storageKey(record.alarmId, record.dateKey),
     JSON.stringify({ ...record, phrase }),
   )
+  void import('./alarmDataSync').then(({ scheduleAlarmDataSync }) => scheduleAlarmDataSync())
 }
 
-/** AI·폴백 출력을 3줄 다짐 형태로 정리 */
-export function normalizeDismissPhrase(raw: string): string {
-  const lines = raw
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-  return lines.join('\n')
+export function loadAllDismissPhrases(): AlarmDismissPhrase[] {
+  const out: AlarmDismissPhrase[] = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key?.startsWith(STORAGE_PREFIX)) continue
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const data = JSON.parse(raw) as AlarmDismissPhrase
+      if (!data?.phrase?.trim() || !data.alarmId || !data.dateKey) continue
+      out.push({ ...data, phrase: normalizeDismissPhrase(data.phrase) })
+    }
+  } catch {
+    /* ignore */
+  }
+  return out
+}
+
+export function applyDismissPhrases(records: AlarmDismissPhrase[]): void {
+  for (const record of records) {
+    saveDismissPhrase(record)
+  }
 }
 
 export function isDismissPhraseComplete(phrase: string, typed: string): boolean {

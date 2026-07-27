@@ -57,6 +57,31 @@ export type RemoteGoalDataRow = {
   updated_at: number
 }
 
+export type RemoteAlarmDataRow = {
+  alarms: unknown[]
+  dismiss_phrases: unknown[]
+  alarm_settings: unknown
+  timezone: string
+  updated_at: number
+}
+
+export type RemotePushSubscriptionRow = {
+  id: string
+  endpoint: string
+  subscription: PushSubscriptionJSON
+  timezone: string
+  enabled: boolean
+  updated_at: number
+}
+
+export type AlarmDataPayload = {
+  alarms: unknown[]
+  dismissPhrases: unknown[]
+  settings: unknown
+  timezone: string
+  updatedAt: number
+}
+
 export type GoalDataPayload = {
   ownerId: string
   plans: unknown[]
@@ -163,6 +188,75 @@ export async function fetchRemoteGoalData(userId: string): Promise<RemoteGoalDat
     .maybeSingle()
   if (error) throw error
   return (data as RemoteGoalDataRow | null) ?? null
+}
+
+export async function pushAlarmDataToCloud(payload: AlarmDataPayload): Promise<void> {
+  const ctx = requireClient()
+  if (!ctx) return
+
+  const { error } = await ctx.client.from('futureme_alarm_data').upsert(
+    {
+      user_id: ctx.userId,
+      alarms: payload.alarms,
+      dismiss_phrases: payload.dismissPhrases,
+      alarm_settings: payload.settings,
+      timezone: payload.timezone,
+      updated_at: payload.updatedAt,
+    },
+    { onConflict: 'user_id' },
+  )
+  if (error) {
+    noteCloudPushFailure()
+    throw error
+  }
+  noteCloudPushSuccess()
+}
+
+export async function fetchRemoteAlarmData(userId: string): Promise<RemoteAlarmDataRow | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('futureme_alarm_data')
+    .select('alarms, dismiss_phrases, alarm_settings, timezone, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return (data as RemoteAlarmDataRow | null) ?? null
+}
+
+export async function upsertPushSubscriptionToCloud(
+  subscription: PushSubscriptionJSON,
+  timezone: string,
+): Promise<void> {
+  const ctx = requireClient()
+  if (!ctx || !subscription.endpoint) return
+
+  const { error } = await ctx.client.from('futureme_push_subscriptions').upsert(
+    {
+      user_id: ctx.userId,
+      endpoint: subscription.endpoint,
+      subscription,
+      timezone,
+      enabled: true,
+      updated_at: Date.now(),
+    },
+    { onConflict: 'user_id,endpoint' },
+  )
+  if (error) {
+    noteCloudPushFailure()
+    throw error
+  }
+  noteCloudPushSuccess()
+}
+
+export async function fetchRemotePushSubscriptions(userId: string): Promise<RemotePushSubscriptionRow[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('futureme_push_subscriptions')
+    .select('id, endpoint, subscription, timezone, enabled, updated_at')
+    .eq('user_id', userId)
+    .eq('enabled', true)
+  if (error) throw error
+  return (data ?? []) as RemotePushSubscriptionRow[]
 }
 
 /**

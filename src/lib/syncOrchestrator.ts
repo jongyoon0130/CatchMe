@@ -30,6 +30,7 @@ import {
   deleteProfileLocally,
 } from './storage'
 import { hasLocalGoalData, pushLocalGoalData, syncGoalDataOnLogin } from './goalDataSync'
+import { hasLocalAlarmData, pushLocalAlarmData, syncAlarmDataOnLogin } from './alarmDataSync'
 
 /** tombstone이 제거된, 실제 프로필 데이터가 담긴 행 */
 type LiveRemoteProfileRow = RemoteProfileRow & { profile_data: SelfProfile }
@@ -42,7 +43,7 @@ export type SyncResult = {
 let syncInFlight: Promise<SyncResult> | null = null
 
 export function hasLocalData(): boolean {
-  return loadProfileSummaries().length > 0 || hasLocalGoalData()
+  return loadProfileSummaries().length > 0 || hasLocalGoalData() || hasLocalAlarmData()
 }
 
 function chatTimestamp(messages: ChatMessage[]): number {
@@ -113,6 +114,7 @@ async function uploadAllLocal(): Promise<number> {
   }
   await pushSettingsToCloud(loadModel())
   await pushLocalGoalData().catch(() => {})
+  await pushLocalAlarmData().catch(() => {})
   return summaries.length
 }
 
@@ -245,6 +247,7 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
     if (!localHas && remoteHas) {
       const count = await downloadAllRemote(remoteProfiles, remoteChats)
       await syncGoalDataOnLogin(userId)
+      await syncAlarmDataOnLogin(userId)
       invalidateChatLoadCache()
       const settings = await fetchRemoteSettings(userId)
       if (settings?.gemini_model) {
@@ -260,6 +263,7 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
     if (localHas && remoteHas) {
       await mergeLocalAndRemote(remoteProfiles, remoteChats)
       await syncGoalDataOnLogin(userId)
+      await syncAlarmDataOnLogin(userId)
       invalidateChatLoadCache()
       const settings = await fetchRemoteSettings(userId)
       if (settings?.gemini_model) {
@@ -272,6 +276,7 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
       return { mode: 'merged', count: remoteProfiles.length }
     }
 
+    await syncAlarmDataOnLogin(userId).catch(() => {})
     return { mode: 'empty', count: 0 }
   })()
 

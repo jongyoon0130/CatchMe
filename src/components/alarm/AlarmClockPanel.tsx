@@ -14,8 +14,8 @@ import { getNextAlarmPreview } from '../../lib/alarmScheduler'
 import { loadDismissPhrase } from '../../lib/alarmDismissPhrase'
 import {
   describeNotifyBlocker,
+  enableAlarmNotifications,
   readNotifyEnv,
-  requestNotifyPermission,
   type NotifyEnv,
 } from '../../lib/notify'
 import { AlarmEditSheet } from './AlarmEditSheet'
@@ -56,8 +56,14 @@ export function AlarmClockPanel() {
   const needPermission = env.permission !== 'granted'
 
   const handleEnableNotify = async () => {
-    await requestNotifyPermission()
+    const { permission, push } = await enableAlarmNotifications()
     refresh()
+    if (permission !== 'granted') return
+    if (push?.ok) {
+      window.alert('알림·푸시를 켰어요. 잠금 화면에서도 알람을 받을 수 있어요.')
+    } else if (push?.reason === 'no_vapid') {
+      window.alert('알림은 켰어요. 서버 푸시 키가 설정되면 잠금 화면 알람도 활성화돼요.')
+    }
   }
 
   const handleSave = (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>) => {
@@ -84,7 +90,7 @@ export function AlarmClockPanel() {
 
       <p className="text-[11px] text-muted/75 mb-3 leading-relaxed">
         전날 밤 AI가 만든 다짐을 <strong className="font-medium text-ink/80">오타 없이</strong> 따라 쳐야 꺼져요.
-        앱이 켜져 있을 때 울립니다 (로컬 테스트).
+        로그인 + 알림 허용 + (iPhone) 홈 화면 추가 시 잠금 화면에서도 알림이 와요.
       </p>
 
       {needPermission ? (

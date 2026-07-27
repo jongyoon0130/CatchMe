@@ -15,6 +15,7 @@ import {
 } from './alarmStore'
 import { startAlarmSoundLoop } from './alarmSound'
 import { showAlarmNotification } from './notify'
+import { buildAlarmDeepLinkUrl } from './alarmDeepLink'
 import { loadUserAlarms, USER_ALARMS_CHANGE } from './userAlarms'
 import { dismissPhraseForTrigger } from './alarmDismissPhrase'
 import { generateDismissPhraseWithAI, ensureDismissPhrasesForAlarms } from './alarmDismissPhraseEngine'
@@ -53,7 +54,7 @@ async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
     title: trigger.label || '알람',
     body: '다짐을 따라 쳐야 꺼져요 — Future Me',
     tag: dedup,
-    url: '/index.html',
+    url: buildAlarmDeepLinkUrl(trigger),
   })
 
   if (!result.ok && result.reason !== 'denied') {

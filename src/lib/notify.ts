@@ -176,10 +176,75 @@ export function describeNotifyBlocker(env: NotifyEnv): string | null {
     return '이 브라우저는 알림을 지원하지 않아'
   }
   if (env.isIOS && !env.standalone) {
-    return '아이폰은 홈 화면에 추가한 뒤에만 알림을 켤 수 있어'
+    return '아이폰은 Safari 공유(↑) → 홈 화면에 추가한 뒤, 그 아이콘으로 열어야 알림·알람이 와요'
   }
   if (env.permission === 'denied') {
     return '알림이 차단돼 있어 — 브라우저(또는 iOS 설정 → 알림)에서 허용으로 바꿔야 해'
   }
   return null
+}
+
+function vapidPublicKey(): string | null {
+  const raw = import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim()
+  return raw || null
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  const out = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i)
+  return out
+}
+
+export type PushSubscribeResult =
+  | { ok: true }
+  | { ok: false; reason: 'unsupported' | 'denied' | 'no_worker' | 'no_vapid' | 'failed'; detail?: string }
+
+/** 웹 푸시 구독 — 서버에서 잠금 화면 알람을 보낼 때 필요 */
+export async function subscribeWebPush(): Promise<PushSubscribeResult> {
+  const env = readNotifyEnv()
+  if (!env.supportsPush || !env.supportsServiceWorker) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (env.permission !== 'granted') {
+    return { ok: false, reason: 'denied' }
+  }
+  const vapid = vapidPublicKey()
+  if (!vapid) return { ok: false, reason: 'no_vapid' }
+
+  const reg = await readyNotifyWorker()
+  if (!reg) return { ok: false, reason: 'no_worker' }
+
+  try {
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
+      })
+    }
+    const { upsertPushSubscriptionToCloud, isCloudSyncAvailable } = await import('./cloudSync')
+    if (isCloudSyncAvailable()) {
+      await upsertPushSubscriptionToCloud(
+        sub.toJSON(),
+        Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+      )
+    }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, reason: 'failed', detail: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** 알림 권한 + (가능하면) 웹 푸시 구독까지 */
+export async function enableAlarmNotifications(): Promise<{
+  permission: NotifyPermission
+  push: PushSubscribeResult | null
+}> {
+  const permission = await requestNotifyPermission()
+  if (permission !== 'granted') return { permission, push: null }
+  const push = await subscribeWebPush()
+  return { permission, push }
 }
