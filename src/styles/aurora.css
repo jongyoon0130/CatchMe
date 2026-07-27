@@ -1,0 +1,1154 @@
+/* ==========================================================================
+   Aurora — Future Me 비주얼 시스템
+   --------------------------------------------------------------------------
+   goal-app.css / index.css 다음에 로드된다. 레이아웃 구조는 건드리지 않고
+   토큰·타이포·깊이·컴포넌트 외형만 다시 정의한다.
+
+   브랜드 축: 잉크 블랙(#141414) + 골드(#F5C542) — 로고에서 가져옴
+   보조 축:   바이올렛(주간) · 에메랄드(월간)
+   ========================================================================== */
+
+/* ── 1. 토큰 ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* 중성 — 차갑고 선명한 종이 위 잉크 */
+  --au-ink: #14161c;
+  --au-ink-soft: #383d4a;
+  --au-muted: #6b7280;
+  --au-muted-2: #9ca3af;
+  --au-line: #e9eaf0;
+  --au-line-soft: #f1f2f7;
+  --au-bg: #f4f5f9;
+  --au-surface: #ffffff;
+  --au-surface-2: #f6f7fb;
+  --au-surface-3: #eef0f6;
+
+  /* 브랜드 */
+  --au-gold: #f5c542;
+  --au-gold-deep: #d9a520;
+  --au-gold-soft: #fff6dc;
+
+  /* 티어 */
+  --au-day: #f0a92c;
+  --au-day-soft: #fff4e0;
+  --au-week: #8b5cf6;
+  --au-week-soft: #f1ecfe;
+  --au-month: #10b981;
+  --au-month-soft: #e2f7ef;
+
+  /* 상태 */
+  --au-ok: #10b981;
+  --au-danger: #ef4444;
+  --au-danger-soft: #fdeceb;
+  --au-sat: #4a90e2;
+  --au-sun: #ef5d5d;
+
+  /* 깊이 — 여러 겹으로 쌓아 부드럽게 */
+  --au-sh-xs: 0 1px 2px rgba(16, 18, 24, 0.04);
+  --au-sh-sm: 0 1px 2px rgba(16, 18, 24, 0.04), 0 2px 8px rgba(16, 18, 24, 0.04);
+  --au-sh-md: 0 2px 6px rgba(16, 18, 24, 0.04), 0 10px 28px rgba(16, 18, 24, 0.07);
+  --au-sh-lg: 0 4px 12px rgba(16, 18, 24, 0.06), 0 24px 56px rgba(16, 18, 24, 0.13);
+  --au-sh-ink: 0 6px 20px rgba(20, 22, 28, 0.24);
+
+  /* 모서리 */
+  --au-r-xs: 10px;
+  --au-r-sm: 14px;
+  --au-r-md: 18px;
+  --au-r-lg: 24px;
+  --au-r-xl: 30px;
+
+  /* 모션 */
+  --au-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --au-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --au-font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --au-serif: "Noto Serif KR", "Nanum Myeongjo", serif;
+}
+
+/* goal-app 내부 변수 재정의 — 기존 규칙들이 자동으로 새 팔레트를 쓴다 */
+.goal-app {
+  --goal-ink: var(--au-ink);
+  --goal-muted: var(--au-muted);
+  --goal-muted-light: var(--au-muted-2);
+  --goal-line: var(--au-line);
+  --goal-bg: var(--au-bg);
+  --goal-surface: var(--au-surface);
+  --goal-accent: var(--au-month);
+  --goal-accent-soft: var(--au-month-soft);
+  --goal-accent-deep: #0e9f70;
+  --goal-violet: var(--au-week);
+  --goal-violet-soft: var(--au-week-soft);
+  --goal-warn: var(--au-day);
+  --goal-warn-soft: var(--au-day-soft);
+  --goal-ok: var(--au-ok);
+  --goal-stroke: var(--au-ink);
+  --goal-sat: var(--au-sat);
+  --goal-sun: var(--au-sun);
+
+  --goal-font: var(--au-font);
+  --goal-display: var(--au-font);
+  --goal-radius-sm: var(--au-r-xs);
+  --goal-radius-md: var(--au-r-sm);
+  --goal-radius-lg: var(--au-r-md);
+  --goal-radius-xl: var(--au-r-lg);
+  --goal-shadow: var(--au-sh-sm);
+
+  --color-surface-2: var(--au-surface-2);
+
+  font-feature-settings: "ss01", "cv01", "tnum" 0;
+  letter-spacing: -0.011em;
+}
+
+/* ── 2. 기본 타이포 ──────────────────────────────────────────────────── */
+
+body,
+.goal-app {
+  font-family: var(--au-font);
+  background: var(--au-bg);
+  color: var(--au-ink);
+  letter-spacing: -0.011em;
+}
+
+/* 앱 배경 — 아주 옅은 그라데이션으로 깊이감만 준다 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(90rem 50rem at 50% -20%, rgba(245, 197, 66, 0.09), transparent 60%),
+    radial-gradient(70rem 44rem at 8% 108%, rgba(139, 92, 246, 0.07), transparent 62%),
+    var(--au-bg);
+}
+
+.font-serif {
+  font-family: var(--au-serif);
+  letter-spacing: -0.005em;
+}
+
+/* 숫자는 항상 폭이 같게 — 카운터·날짜가 흔들리지 않는다 */
+.goal-app .goal-count,
+.goal-app .goal-mc-day,
+.goal-app .goal-branch-pct,
+.goal-app .goal-chk-time,
+.goal-app .goal-routine-day-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 3. 셸 / 화면 ────────────────────────────────────────────────────── */
+
+.goal-app,
+.goal-app .goal-screen,
+.goal-app .goal-stack {
+  background: transparent;
+}
+
+.goal-app .goal-screen {
+  transition: transform 0.38s var(--au-ease), opacity 0.38s var(--au-ease);
+}
+
+.goal-app .goal-screen.behind {
+  transform: translateX(-22%) scale(0.97);
+  opacity: 0.55;
+}
+
+.goal-app .goal-scroll {
+  padding: 4px 18px 148px;
+  scrollbar-width: none;
+}
+
+.goal-app .goal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── 4. 상단 내비 ────────────────────────────────────────────────────── */
+
+.goal-app .goal-nav {
+  gap: 12px;
+  padding: 14px 18px 10px;
+  min-height: 56px;
+  background: transparent;
+  backdrop-filter: saturate(1.6) blur(18px);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  border-bottom: none;
+}
+
+.goal-app .goal-nav-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: none;
+  background: var(--au-surface);
+  color: var(--au-ink);
+  box-shadow: var(--au-sh-xs);
+  transition: transform 0.16s var(--au-ease), background 0.16s;
+}
+
+.goal-app .goal-nav-back:active {
+  transform: scale(0.93);
+  background: var(--au-surface-3);
+}
+
+.goal-app .goal-crumb-lv {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.goal-app .goal-crumb h1 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.goal-app .goal-nav-btn {
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  min-width: 38px;
+  padding: 8px 14px;
+  background: var(--au-surface);
+  color: var(--au-ink);
+  box-shadow: var(--au-sh-xs);
+  transition: transform 0.18s var(--au-spring), background 0.16s;
+}
+
+.goal-app .goal-nav-btn:active {
+  transform: scale(0.93);
+  background: var(--au-surface-3);
+}
+
+.goal-app .goal-nav-btn.violet {
+  background: var(--au-week-soft);
+  color: #6d3fe0;
+}
+
+.goal-app .goal-nav-btn.warn {
+  background: var(--au-day-soft);
+  color: #b47712;
+}
+
+/* ── 5. 하단 도크 내비 ───────────────────────────────────────────────── */
+
+.app-bottom-nav {
+  background: transparent;
+  border-top: none;
+  box-shadow: none;
+  padding-inline: 16px;
+  pointer-events: none;
+}
+
+.app-bottom-nav-inner {
+  pointer-events: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: color-mix(in srgb, var(--au-surface) 86%, transparent);
+  backdrop-filter: saturate(1.8) blur(22px);
+  -webkit-backdrop-filter: saturate(1.8) blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  box-shadow:
+    0 2px 8px rgba(16, 18, 24, 0.06),
+    0 14px 34px rgba(16, 18, 24, 0.14);
+}
+
+.app-bottom-nav-item {
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+  padding: 6px 0 5px;
+  border-radius: 999px;
+  transition: background 0.18s var(--au-ease);
+}
+
+.app-bottom-nav-item-home {
+  margin-top: 0;
+}
+
+.app-bottom-nav-icon,
+.app-bottom-nav-icon.home {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--au-muted-2);
+  transition: color 0.18s, background 0.18s, transform 0.24s var(--au-spring);
+}
+
+.app-bottom-nav-icon.on,
+.app-bottom-nav-icon.home.on {
+  color: var(--au-ink);
+  background: transparent;
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+/* 활성 탭은 알약 배경으로 표시 */
+.app-bottom-nav-item:has(.app-bottom-nav-icon.on) {
+  background: var(--au-surface-3);
+}
+
+.app-bottom-nav-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--au-muted-2);
+  letter-spacing: -0.01em;
+}
+
+.app-bottom-nav-label.on {
+  color: var(--au-ink);
+  font-weight: 700;
+}
+
+/* ── 6. 홈 헤더 ──────────────────────────────────────────────────────── */
+
+.goal-app .goal-home-title {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  color: var(--au-ink);
+}
+
+.goal-app .goal-home-sub {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--au-muted);
+  margin: 6px 0 18px;
+  letter-spacing: -0.01em;
+}
+
+/* ── 7. 카드 공통 ────────────────────────────────────────────────────── */
+
+.goal-app .goal-mini-cal,
+.goal-app .goal-chk-row,
+.goal-app .goal-branch,
+.goal-app .goal-hero,
+.goal-app .goal-section-card,
+.goal-app .goal-routine-hero,
+.goal-app .goal-motivation-card,
+.goal-app .goal-motivation-block,
+.goal-app .goal-date-add,
+.goal-app .goal-week-card,
+.goal-app .goal-tier-add,
+.goal-app .goal-tier-repeat {
+  border-color: color-mix(in srgb, var(--au-line) 70%, transparent);
+  box-shadow: var(--au-sh-sm);
+}
+
+/* ── 8. 미니 캘린더 ──────────────────────────────────────────────────── */
+
+.goal-app .goal-mini-cal {
+  padding: 18px 16px 14px;
+  border-radius: var(--au-r-lg);
+  margin-bottom: 20px;
+}
+
+.goal-app .goal-cal-head {
+  margin-bottom: 10px;
+}
+
+.goal-app .goal-cal-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--au-muted-2);
+  font-size: 18px;
+  transition: background 0.16s, color 0.16s;
+}
+
+.goal-app .goal-cal-nav:hover {
+  background: var(--au-surface-2);
+  color: var(--au-ink);
+}
+
+.goal-app .goal-cal-title,
+.goal-app .goal-cal-title-static {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.goal-app .goal-cal-today {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--au-gold-deep);
+}
+
+.goal-app .goal-mini-grid {
+  gap: 8px 2px;
+  margin-top: 6px;
+}
+
+.goal-app .goal-mc-dow {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--au-muted-2);
+  padding-bottom: 8px;
+  letter-spacing: 0.02em;
+}
+
+.goal-app .goal-mc-dow.sat { color: var(--au-sat); }
+.goal-app .goal-mc-dow.sun { color: var(--au-sun); }
+
+.goal-app .goal-mc-cell {
+  gap: 6px;
+  min-height: 56px;
+}
+
+.goal-app .goal-mc-day {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--au-muted);
+}
+
+/* 오늘 — 잉크 원형 배지 */
+.goal-app .goal-mc-day.today-num {
+  width: 21px;
+  height: 21px;
+  border-radius: 999px;
+  background: var(--au-ink);
+  color: #fff;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+.goal-app .goal-mc-day.selected-num:not(.today-num) {
+  color: var(--au-ink);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}
+
+/* 배터리 → 완료율 타일 */
+.goal-app .goal-battery {
+  width: auto;
+}
+
+.goal-app .goal-battery-cap {
+  display: none;
+}
+
+.goal-app .goal-battery-body {
+  width: 27px;
+  height: 27px;
+  border: none;
+  border-radius: 9px;
+  background: var(--au-surface-3);
+  padding: 0;
+  box-shadow: none;
+  transition: box-shadow 0.18s var(--au-ease), background 0.18s;
+}
+
+/* 할 일이 없는 날은 타일을 거의 비운다 — 격자가 시끄러워지지 않게 */
+.goal-app .goal-battery-body:not(:has(.goal-battery-fill)) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--au-line-soft);
+}
+
+.goal-app .goal-battery-fill {
+  border-radius: 0;
+  transition: height 0.32s var(--au-ease), background 0.2s;
+}
+
+.goal-app .goal-mc-cell.selected .goal-battery-body {
+  box-shadow: 0 0 0 2px var(--au-ink);
+}
+
+/* 빈 날짜를 고른 경우엔 링을 그리지 않는다 — 날짜 배지만으로 충분하다 */
+.goal-app .goal-mc-cell.selected .goal-battery-body:not(:has(.goal-battery-fill)) {
+  box-shadow: inset 0 0 0 1.5px var(--au-line-soft);
+}
+
+.goal-app .goal-mc-cell.out-range .goal-battery-body {
+  opacity: 0.45;
+}
+
+/* ── 9. 섹션 헤더 ────────────────────────────────────────────────────── */
+
+.goal-app .goal-sec {
+  margin-bottom: 26px;
+}
+
+.goal-app .goal-sec-head {
+  margin-bottom: 12px;
+  gap: 10px;
+}
+
+.goal-app .goal-sec-head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.goal-app .goal-sec-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+/* 티어 뱃지 — 작은 컬러 점으로 */
+.goal-app .goal-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+
+.goal-app .goal-badge.d {
+  background: var(--au-day-soft);
+  color: #b47712;
+}
+
+.goal-app .goal-badge.w {
+  background: var(--au-week-soft);
+  color: #6d3fe0;
+}
+
+.goal-app .goal-badge.m {
+  background: var(--au-month-soft);
+  color: #078663;
+}
+
+.goal-app .goal-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--au-muted-2);
+}
+
+.goal-app .goal-sec-add {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--au-surface-3);
+  color: var(--au-ink);
+  font-size: 19px;
+  font-weight: 500;
+  box-shadow: var(--au-sh-xs);
+  transition: transform 0.18s var(--au-spring), background 0.16s;
+}
+
+.goal-app .goal-sec-add:active {
+  transform: scale(0.9);
+}
+
+.goal-app .goal-sec-add.on {
+  background: var(--au-ink);
+  color: #fff;
+  transform: rotate(45deg);
+}
+
+/* ── 10. 체크 행 ─────────────────────────────────────────────────────── */
+
+.goal-app .goal-chk-row {
+  gap: 12px;
+  padding: 14px 15px;
+  margin-bottom: 9px;
+  border-radius: var(--au-r-sm);
+  transition: box-shadow 0.18s var(--au-ease), opacity 0.2s, transform 0.16s var(--au-ease);
+}
+
+.goal-app .goal-chk-row:active {
+  transform: scale(0.995);
+}
+
+.goal-app .goal-chk-row.done {
+  opacity: 1;
+  background: var(--au-surface-2);
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.goal-app .goal-chk-row.done .goal-txt {
+  color: var(--au-muted-2);
+  text-decoration-color: var(--au-muted-2);
+  text-decoration-thickness: 1.5px;
+}
+
+.goal-app .goal-chk {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--au-line);
+  background: var(--au-surface);
+  margin-top: 1px;
+  transition: background 0.18s var(--au-ease), border-color 0.18s,
+    transform 0.24s var(--au-spring);
+}
+
+.goal-app .goal-chk:active {
+  transform: scale(0.86);
+}
+
+.goal-app .goal-chk-row.done .goal-chk {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+  color: #fff;
+}
+
+.goal-app .goal-txt {
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.012em;
+}
+
+.goal-app .goal-chk-goal,
+.goal-app .goal-chk-goal-picker-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--au-muted-2);
+}
+
+.goal-app .goal-chk-time {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--au-gold-deep);
+  letter-spacing: 0;
+}
+
+.goal-app .goal-chk-repeat {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--au-week);
+}
+
+.goal-app .goal-chk-drill:hover,
+.goal-app .goal-chk-remove:hover {
+  color: var(--au-ink);
+}
+
+.goal-app .goal-chk-remove:hover {
+  background: var(--au-danger-soft);
+  color: var(--au-danger);
+  border-radius: 9px;
+}
+
+/* ── 11. 목표 가지(브랜치) 카드 ──────────────────────────────────────── */
+
+.goal-app .goal-branch {
+  gap: 13px;
+  padding: 15px;
+  border-radius: var(--au-r-md);
+  transition: transform 0.16s var(--au-ease), box-shadow 0.18s var(--au-ease);
+}
+
+.goal-app .goal-branch:active {
+  transform: scale(0.99);
+  box-shadow: var(--au-sh-xs);
+}
+
+.goal-app .goal-branch-icon {
+  border-radius: 13px;
+  background: var(--au-surface-2);
+}
+
+.goal-app .goal-branch-info strong {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.goal-app .goal-branch-pct {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--au-muted);
+}
+
+.goal-app .goal-prog {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--au-surface-3);
+  overflow: hidden;
+}
+
+.goal-app .goal-prog i {
+  border-radius: 999px;
+  transition: width 0.5s var(--au-ease);
+}
+
+.goal-app .goal-chev {
+  color: var(--au-muted-2);
+}
+
+/* ── 12. FAB ─────────────────────────────────────────────────────────── */
+
+.goal-app .goal-fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--au-ink);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 300;
+  border: none;
+  box-shadow: var(--au-sh-ink);
+  transition: transform 0.22s var(--au-spring), box-shadow 0.2s;
+}
+
+.goal-app .goal-fab:active {
+  transform: scale(0.9);
+}
+
+/* ── 13. 하루 마감 / 타임캡슐 ────────────────────────────────────────── */
+
+.goal-dayclose {
+  border-radius: var(--au-r-md);
+  padding: 16px 18px;
+  margin: 16px 0;
+  border-color: color-mix(in srgb, var(--au-line) 70%, transparent);
+  box-shadow: var(--au-sh-sm);
+}
+
+.goal-dayclose.evening {
+  border-color: transparent;
+  background: linear-gradient(135deg, #1b1e26, #2b3040);
+  box-shadow: var(--au-sh-ink);
+}
+
+.goal-dayclose.evening .goal-dayclose-tag {
+  color: var(--au-gold);
+}
+
+.goal-dayclose.evening .goal-dayclose-sub,
+.goal-dayclose.evening .goal-dayclose-note {
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.goal-dayclose.evening .goal-dayclose-msg {
+  color: #fff;
+}
+
+.goal-dayclose.evening .goal-dayclose-btn {
+  background: var(--au-gold);
+  color: #23180a;
+}
+
+.goal-dayclose-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--au-ink);
+  letter-spacing: -0.01em;
+}
+
+.goal-dayclose-sub {
+  font-size: 12.5px;
+  color: var(--au-muted);
+}
+
+.goal-dayclose-btn {
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--au-ink);
+  color: #fff;
+  transition: transform 0.18s var(--au-spring);
+}
+
+.goal-dayclose-btn:active {
+  transform: scale(0.94);
+}
+
+.goal-dayclose-mood {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-color: var(--au-line);
+}
+
+.goal-dayclose-mood.on {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+  color: #fff;
+  font-weight: 600;
+}
+
+.goal-dayclose-input {
+  border-radius: var(--au-r-xs);
+  background: var(--au-surface-2);
+  border-color: transparent;
+  font-size: 13.5px;
+  padding: 12px 14px;
+}
+
+.goal-dayclose-input:focus {
+  border-color: var(--au-ink);
+  background: var(--au-surface);
+}
+
+.goal-dayclose-talk {
+  color: var(--au-ink);
+  font-weight: 700;
+}
+
+/* 타임캡슐 편지 — 세리프로 편지 느낌 */
+.goal-letter {
+  border-radius: var(--au-r-md);
+  padding: 18px;
+  background: linear-gradient(160deg, #fffaf0, #fff6e3);
+  border-color: color-mix(in srgb, var(--au-gold) 40%, transparent);
+  box-shadow: var(--au-sh-sm);
+}
+
+.goal-letter-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--au-gold-deep);
+}
+
+.goal-letter-body {
+  font-family: var(--au-serif);
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: #4a3b1c;
+}
+
+/* ── 14. 입력 · 칩 · 버튼 ────────────────────────────────────────────── */
+
+.goal-app .goal-tier-add,
+.goal-app .goal-tier-repeat {
+  border-radius: var(--au-r-sm);
+  padding: 12px 14px;
+}
+
+.goal-app .goal-tier-add input {
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.goal-app .goal-tier-add-btn,
+.goal-app .goal-date-add-btn,
+.goal-app .goal-add-line {
+  background: var(--au-ink);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  transition: transform 0.18s var(--au-spring), opacity 0.16s;
+}
+
+.goal-app .goal-tier-add-btn:active,
+.goal-app .goal-date-add-btn:active {
+  transform: scale(0.94);
+}
+
+.goal-app .goal-tier-add-btn:disabled {
+  background: var(--au-surface-3);
+  color: var(--au-muted-2);
+}
+
+.goal-app .goal-tier-repeat-chip,
+.goal-app .goal-routine-freq-chip,
+.goal-app .goal-cadence-tab {
+  border-radius: 999px;
+  border-color: var(--au-line);
+  background: var(--au-surface);
+  font-weight: 600;
+}
+
+.goal-app .goal-tier-repeat-chip.on,
+.goal-app .goal-routine-freq-chip.on,
+.goal-app .goal-cadence-tab.on {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+  color: #fff;
+}
+
+.goal-app .goal-tier-repeat-day.on {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+}
+
+.goal-app .goal-cta {
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 15px 20px;
+  background: var(--au-ink);
+  color: #fff;
+  border: none;
+  box-shadow: var(--au-sh-ink);
+  transition: transform 0.18s var(--au-spring);
+}
+
+.goal-app .goal-cta:active {
+  transform: scale(0.98);
+}
+
+.goal-app .goal-field input,
+.goal-app .goal-field textarea,
+.goal-app .goal-select,
+.goal-app .goal-date-add-row input {
+  border-radius: var(--au-r-xs);
+  border-color: var(--au-line);
+  background: var(--au-surface-2);
+  font-size: 14.5px;
+  padding: 12px 14px;
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.goal-app .goal-field input:focus,
+.goal-app .goal-field textarea:focus,
+.goal-app .goal-date-add-row input:focus {
+  border-color: var(--au-ink);
+  background: var(--au-surface);
+  outline: none;
+}
+
+.goal-app .goal-empty {
+  font-size: 13px;
+  color: var(--au-muted-2);
+  padding: 20px 0;
+  text-align: center;
+}
+
+/* ── 15. 트리 · 모드 카드 ────────────────────────────────────────────── */
+
+.goal-app .goal-tree-month,
+.goal-app .goal-tree-week,
+.goal-app .goal-tree-day {
+  border-radius: var(--au-r-sm);
+  border-color: color-mix(in srgb, var(--au-line) 70%, transparent);
+}
+
+.goal-app .goal-tree-head-text strong {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.goal-app .goal-tree-now {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--au-gold-deep);
+}
+
+.goal-app .goal-mode-card {
+  border-radius: var(--au-r-md);
+  padding: 16px;
+  transition: transform 0.16s var(--au-ease), box-shadow 0.18s;
+}
+
+.goal-app .goal-mode-card strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.goal-app .goal-mode-card.on {
+  border-color: var(--au-ink);
+  background: var(--au-surface);
+  box-shadow: 0 0 0 2px var(--au-ink), var(--au-sh-md);
+}
+
+/* ── 16. 시트 · 모달 ─────────────────────────────────────────────────── */
+
+.goal-app .goal-time-sheet,
+.goal-app .goal-cal-picker {
+  border-radius: var(--au-r-xl) var(--au-r-xl) 0 0;
+  box-shadow: 0 -10px 48px rgba(16, 18, 24, 0.18);
+}
+
+.goal-app .goal-cal-picker {
+  border-radius: var(--au-r-lg);
+}
+
+.goal-app .goal-time-backdrop,
+.goal-app .goal-cal-picker-backdrop {
+  background: rgba(16, 18, 24, 0.42);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.goal-app .goal-time-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.goal-app .goal-time-preview {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--au-ink);
+}
+
+.goal-app .goal-time-chip,
+.goal-app .goal-time-ampm button,
+.goal-app .goal-time-field-tabs button {
+  border-color: var(--au-line);
+  background: var(--au-surface-2);
+  font-weight: 600;
+  transition: background 0.14s, color 0.14s, transform 0.18s var(--au-spring);
+}
+
+.goal-app .goal-time-chip.on,
+.goal-app .goal-time-ampm button.on,
+.goal-app .goal-time-field-tabs button.on {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+  color: #fff;
+}
+
+.goal-app .goal-cal-picker-month {
+  border-radius: 12px;
+  border-color: var(--au-line);
+  background: var(--au-surface-2);
+  font-weight: 600;
+}
+
+.goal-app .goal-cal-picker-month.active {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+  color: #fff;
+}
+
+.goal-app .goal-cal-picker-close {
+  border-radius: 999px;
+  background: var(--au-surface-3);
+  font-weight: 700;
+}
+
+/* ── 17. 루틴 ────────────────────────────────────────────────────────── */
+
+.goal-app .goal-routine-hero {
+  border-radius: var(--au-r-md);
+  padding: 18px;
+}
+
+.goal-app .goal-routine-badge {
+  font-weight: 700;
+  background: var(--au-day-soft);
+  color: #b47712;
+}
+
+.goal-app .goal-routine-day {
+  border-radius: 12px;
+  border-color: var(--au-line);
+  background: var(--au-surface-2);
+}
+
+.goal-app .goal-routine-day.done {
+  background: var(--au-ink);
+  border-color: var(--au-ink);
+}
+
+.goal-app .goal-routine-day.done .goal-routine-day-dow,
+.goal-app .goal-routine-day.done .goal-routine-day-num {
+  color: #fff;
+}
+
+.goal-app .goal-routine-day.today {
+  box-shadow: 0 0 0 2px var(--au-gold);
+}
+
+.goal-app .goal-routine-history-bar {
+  background: var(--au-surface-3);
+}
+
+.goal-app .goal-routine-history-bar i {
+  background: var(--au-ink);
+}
+
+.goal-app .goal-routine-week-banner {
+  border-radius: var(--au-r-sm);
+  background: var(--au-gold-soft);
+  border-color: color-mix(in srgb, var(--au-gold) 45%, transparent);
+}
+
+/* ── 18. 스와이프 삭제 ───────────────────────────────────────────────── */
+
+.goal-app .goal-swipe-wrap,
+.goal-app .goal-swipe-content {
+  border-radius: var(--au-r-sm);
+}
+
+.goal-app .goal-swipe-actions {
+  background: var(--au-danger-soft);
+}
+
+.goal-app .goal-swipe-delete {
+  background: var(--au-danger);
+}
+
+/* ── 19. 채팅 ────────────────────────────────────────────────────────── */
+
+.chat-bubble-me {
+  background: var(--au-ink);
+  color: #fff;
+  border-radius: 20px 20px 7px 20px;
+  box-shadow: var(--au-sh-xs);
+}
+
+.chat-bubble-me-group-first { border-radius: 20px 20px 18px 20px; }
+.chat-bubble-me-group-mid { border-radius: 18px 7px 7px 18px; }
+.chat-bubble-me-group-last { border-radius: 18px 7px 20px 20px; }
+
+.chat-bubble-them {
+  background: var(--au-surface);
+  color: var(--au-ink);
+  border: 1px solid color-mix(in srgb, var(--au-line) 70%, transparent);
+  border-radius: 20px 20px 20px 7px;
+  box-shadow: var(--au-sh-xs);
+}
+
+.chat-bubble-them-group-first { border-radius: 20px 20px 18px 18px; }
+.chat-bubble-them-group-mid { border-radius: 7px 18px 18px 7px; }
+.chat-bubble-them-group-last { border-radius: 7px 18px 20px 20px; }
+
+.chat-avatar {
+  background: linear-gradient(140deg, #23262f, #14161c);
+  color: var(--au-gold);
+  font-weight: 700;
+  box-shadow: var(--au-sh-xs);
+}
+
+/* ── 20. 마이크로 인터랙션 ───────────────────────────────────────────── */
+
+@keyframes au-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-fade-up {
+  animation: au-rise 0.42s var(--au-ease) both;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--au-gold) 45%, transparent);
+  color: var(--au-ink);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--au-line);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
