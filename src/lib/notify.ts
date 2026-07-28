@@ -26,6 +26,7 @@ export interface NotifyEnv {
 }
 
 const SW_URL = '/sw.js'
+const PENDING_PUSH_KEY = 'futureme-pending-push-sub'
 
 function detectStandalone(): boolean {
   if (typeof window === 'undefined') return false
@@ -238,10 +239,47 @@ export async function subscribeWebPush(forceRenew = false): Promise<PushSubscrib
         sub.toJSON(),
         Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
       )
+      try {
+        localStorage.removeItem(PENDING_PUSH_KEY)
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        localStorage.setItem(
+          PENDING_PUSH_KEY,
+          JSON.stringify({
+            subscription: sub.toJSON(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+          }),
+        )
+      } catch {
+        /* ignore */
+      }
     }
     return { ok: true }
   } catch (e) {
     return { ok: false, reason: 'failed', detail: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** 로그인 후 대기 중이던 푸시 구독을 서버에 올린다 */
+export async function flushPendingPushSubscription(): Promise<void> {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const raw = localStorage.getItem(PENDING_PUSH_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw) as { subscription?: PushSubscriptionJSON; timezone?: string }
+    if (!parsed.subscription?.endpoint) return
+    const { upsertPushSubscriptionToCloud, isCloudSyncAvailable } = await import('./cloudSync')
+    if (!isCloudSyncAvailable()) return
+    await upsertPushSubscriptionToCloud(
+      parsed.subscription,
+      parsed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+    )
+    localStorage.removeItem(PENDING_PUSH_KEY)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -250,6 +288,7 @@ export async function ensureAlarmPushReady(forceRenew = false): Promise<void> {
   const env = readNotifyEnv()
   if (env.permission !== 'granted') return
   await registerNotifyWorker()
+  await flushPendingPushSubscription()
   const push = await subscribeWebPush(forceRenew)
   if (!push.ok) return
   try {

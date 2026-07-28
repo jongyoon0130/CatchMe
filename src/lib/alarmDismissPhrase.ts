@@ -1,4 +1,5 @@
 import type { ClockAlarmTrigger } from './clockAlarmEngine'
+import { phraseFullyMatched } from './alarmDismissMatch'
 
 export interface AlarmDismissPhrase {
   alarmId: string
@@ -77,7 +78,7 @@ export function applyDismissPhrases(records: AlarmDismissPhrase[]): void {
 }
 
 export function isDismissPhraseComplete(phrase: string, typed: string): boolean {
-  return typed === phrase
+  return phraseFullyMatched(phrase, typed)
 }
 
 export function dismissPhraseForTrigger(trigger: ClockAlarmTrigger): AlarmDismissPhrase | null {

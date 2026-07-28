@@ -33,7 +33,7 @@ function localParts(timezone: string, now = new Date()) {
   })
   const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]))
   const dateKey = `${parts.year}-${parts.month}-${parts.day}`
-  const hhmm = `${parts.hour}:${parts.minute}`
+  const hhmm = `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`
   const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
   const dow = dowMap[parts.weekday?.slice(0, 3) ?? ''] ?? now.getUTCDay()
   return { dateKey, hhmm, dow }
@@ -126,13 +126,14 @@ Deno.serve(async (req) => {
         time: alarm.time,
         label: alarm.label || '알람',
       })
+      if (phrase) params.set('phrase', phrase)
       const url = `/index.html?${params.toString()}`
       const payload = JSON.stringify({
         title: alarm.label || '알람',
         body: phrase ? '다짐을 따라 쳐야 꺼져요 — Future Me' : '알람 — Future Me',
         tag: `clock:${dateKey}:${alarm.id}:${alarm.time}`,
         url,
-        alarm: { alarmId: alarm.id, dateKey, time: alarm.time, label: alarm.label },
+        alarm: { alarmId: alarm.id, dateKey, time: alarm.time, label: alarm.label, phrase },
       })
 
       for (const subRow of subs) {

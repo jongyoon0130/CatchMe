@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatAlarmClockTime } from '../../lib/userAlarms'
 import { isDismissPhraseComplete } from '../../lib/alarmDismissPhrase'
-import { longestMatchingPrefix, phraseMatchStates } from '../../lib/alarmDismissMatch'
+import { dismissMatchProgress, phraseMatchStates } from '../../lib/alarmDismissMatch'
 import { stopAlarmSoundLoop } from '../../lib/alarmSound'
 import { stopRingingAlarm, type RingingAlarm } from '../../lib/alarmRingingStore'
 
@@ -155,8 +155,7 @@ export function AlarmDismissOverlay({
     [phrase, onDismissed],
   )
 
-  const matchedLen = longestMatchingPrefix(phrase, typed).length
-  const progress = phrase.length ? Math.round((matchedLen / phrase.length) * 100) : 0
+  const progress = dismissMatchProgress(phrase, typed)
   const timeLabel = formatAlarmClockTime(trigger.time)
 
   return (

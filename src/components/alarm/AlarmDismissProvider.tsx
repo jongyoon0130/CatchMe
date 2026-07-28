@@ -14,12 +14,14 @@ export function AlarmDismissProvider({ children }: { children: React.ReactNode }
   const ringing = useSyncExternalStore(subscribeRingingAlarm, getRingingAlarm, () => null)
 
   useEffect(() => {
-    if (openAlarmDismissFromDeepLink()) return
-    const pending = loadPendingDismiss()
-    if (pending && !getRingingAlarm()) {
-      startRingingAlarm(pending.trigger, pending.phrase)
-      startAlarmSoundLoop()
-    }
+    void (async () => {
+      if (await openAlarmDismissFromDeepLink()) return
+      const pending = loadPendingDismiss()
+      if (pending && !getRingingAlarm()) {
+        startRingingAlarm(pending.trigger, pending.phrase)
+        startAlarmSoundLoop()
+      }
+    })()
   }, [])
 
   const handleDismissed = useCallback(() => {

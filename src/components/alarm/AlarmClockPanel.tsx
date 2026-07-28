@@ -18,6 +18,7 @@ import {
   readNotifyEnv,
   type NotifyEnv,
 } from '../../lib/notify'
+import { isCloudSyncAvailable } from '../../lib/cloudSync'
 import { AlarmEditSheet } from './AlarmEditSheet'
 
 /** 핸드폰 시계 앱처럼 — 알람 목록 + 토글 + 추가 */
@@ -60,9 +61,17 @@ export function AlarmClockPanel() {
     refresh()
     if (permission !== 'granted') return
     if (push?.ok) {
-      window.alert('알림·푸시를 켰어요. 잠금 화면에서도 알람을 받을 수 있어요.')
+      if (isCloudSyncAvailable()) {
+        window.alert('알림·푸시를 켰어요. 앱을 닫거나 잠금해도 알람이 울려요.')
+      } else {
+        window.alert(
+          '알림은 켰어요. 잠금 화면 알람은 Google 로그인 후 다시 「알림 허용하기」를 눌러주세요.',
+        )
+      }
     } else if (push?.reason === 'no_vapid') {
       window.alert('알림은 켰어요. 서버 푸시 키가 설정되면 잠금 화면 알람도 활성화돼요.')
+    } else if (push?.reason === 'unsupported' && env.isIOS && !env.standalone) {
+      window.alert('iPhone은 Safari가 아니라 홈 화면 앱으로 열어야 잠금 알람이 와요.')
     }
   }
 

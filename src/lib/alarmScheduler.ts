@@ -56,7 +56,7 @@ async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
     title: trigger.label || '알람',
     body: '다짐을 따라 쳐야 꺼져요 — Future Me',
     tag: dedup,
-    url: buildAlarmDeepLinkUrl(trigger),
+    url: buildAlarmDeepLinkUrl(trigger, record.phrase),
   })
 
   if (!result.ok && result.reason !== 'denied') {
