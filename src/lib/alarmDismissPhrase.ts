@@ -12,6 +12,13 @@ export interface AlarmDismissPhrase {
 
 const STORAGE_PREFIX = 'futureme-alarm-dismiss-'
 
+/** 테스트용 — 따라치기 문장 고정. 실서비스 전에 제거/AI 생성으로 되돌릴 것 */
+export const TEST_DISMISS_PHRASE = '안녕'
+
+export function activeDismissPhrase(): string {
+  return TEST_DISMISS_PHRASE
+}
+
 function storageKey(alarmId: string, dateKey: string): string {
   return `${STORAGE_PREFIX}${alarmId}:${dateKey}`
 }
@@ -32,19 +39,17 @@ export function normalizeDismissPhrase(raw: string): string {
 }
 
 export function loadDismissPhrase(alarmId: string, dateKey: string): AlarmDismissPhrase | null {
-  try {
-    const raw = localStorage.getItem(storageKey(alarmId, dateKey))
-    if (!raw) return null
-    const data = JSON.parse(raw) as AlarmDismissPhrase
-    if (!data?.phrase?.trim() || data.alarmId !== alarmId || data.dateKey !== dateKey) return null
-    return { ...data, phrase: normalizeDismissPhrase(data.phrase) }
-  } catch {
-    return null
+  return {
+    alarmId,
+    dateKey,
+    phrase: activeDismissPhrase(),
+    generatedAt: Date.now(),
+    source: 'fallback',
   }
 }
 
 export function saveDismissPhrase(record: AlarmDismissPhrase): void {
-  const phrase = normalizeDismissPhrase(record.phrase)
+  const phrase = activeDismissPhrase()
   if (!phrase) return
   localStorage.setItem(
     storageKey(record.alarmId, record.dateKey),
@@ -63,7 +68,7 @@ export function loadAllDismissPhrases(): AlarmDismissPhrase[] {
       if (!raw) continue
       const data = JSON.parse(raw) as AlarmDismissPhrase
       if (!data?.phrase?.trim() || !data.alarmId || !data.dateKey) continue
-      out.push({ ...data, phrase: normalizeDismissPhrase(data.phrase) })
+      out.push({ ...data, phrase: activeDismissPhrase() })
     }
   } catch {
     /* ignore */

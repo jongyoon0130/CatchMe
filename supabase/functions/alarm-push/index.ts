@@ -48,9 +48,8 @@ function alarmActiveToday(alarm: UserAlarm, dow: number): boolean {
   return days.includes(dow)
 }
 
-function findPhrase(phrases: DismissPhrase[], alarmId: string, dateKey: string): string | null {
-  const hit = phrases.find((p) => p.alarmId === alarmId && p.dateKey === dateKey && p.phrase?.trim())
-  return hit?.phrase?.trim() ?? null
+function findPhrase(_phrases: DismissPhrase[], _alarmId: string, _dateKey: string): string | null {
+  return '안녕'
 }
 
 function normTime(value: string): string {
@@ -167,7 +166,7 @@ Deno.serve(async (req) => {
       dateKey,
       time: '00:00',
       label: '잠금 화면 테스트',
-      phrase: '잠금 화면에서도\n알람이 오면\n성공이에요',
+      phrase: '안녕',
     })
     const url = buildAlarmUrl(origin, params)
     const payload = JSON.stringify({

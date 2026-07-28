@@ -2,6 +2,7 @@ import type { ClockAlarmTrigger } from './clockAlarmEngine'
 import {
   loadDismissPhrase,
   saveDismissPhrase,
+  activeDismissPhrase,
   normalizeDismissPhrase,
   type AlarmDismissPhrase,
 } from './alarmDismissPhrase'
@@ -10,7 +11,7 @@ import { startAlarmSoundLoop } from './alarmSound'
 
 export type AlarmDeepLink = ClockAlarmTrigger & { phrase?: string }
 
-export function buildAlarmDeepLinkUrl(trigger: ClockAlarmTrigger, phrase?: string): string {
+export function buildAlarmDeepLinkUrl(trigger: ClockAlarmTrigger, _phrase?: string): string {
   const params = new URLSearchParams({
     alarm: '1',
     alarmId: trigger.alarmId,
@@ -18,8 +19,7 @@ export function buildAlarmDeepLinkUrl(trigger: ClockAlarmTrigger, phrase?: strin
     time: trigger.time,
     label: trigger.label || '알람',
   })
-  const normalized = phrase?.trim() ? normalizeDismissPhrase(phrase) : ''
-  if (normalized) params.set('phrase', normalized)
+  params.set('phrase', activeDismissPhrase())
   const base = typeof window !== 'undefined' ? window.location.pathname || '/index.html' : '/index.html'
   return `${base}?${params.toString()}`
 }
@@ -73,7 +73,7 @@ async function fetchDismissPhraseFromCloud(
       (p) => p.alarmId === alarmId && p.dateKey === dateKey && p.phrase?.trim(),
     )
     if (!hit) return null
-    return { ...hit, phrase: normalizeDismissPhrase(hit.phrase) }
+    return { ...hit, phrase: activeDismissPhrase() }
   } catch {
     return null
   }
@@ -82,7 +82,7 @@ async function fetchDismissPhraseFromCloud(
 /** 로컬 → URL → 클라우드 순으로 다짐 문장을 찾는다 */
 export async function resolvePhraseForTrigger(trigger: ClockAlarmTrigger, phraseFromUrl?: string): Promise<string | null> {
   if (phraseFromUrl?.trim()) {
-    const phrase = normalizeDismissPhrase(phraseFromUrl)
+    const phrase = activeDismissPhrase()
     saveDismissPhrase({
       alarmId: trigger.alarmId,
       dateKey: trigger.dateKey,
@@ -94,12 +94,12 @@ export async function resolvePhraseForTrigger(trigger: ClockAlarmTrigger, phrase
   }
 
   const local = loadDismissPhrase(trigger.alarmId, trigger.dateKey)
-  if (local?.phrase) return local.phrase
+  if (local?.phrase) return activeDismissPhrase()
 
   const remote = await fetchDismissPhraseFromCloud(trigger.alarmId, trigger.dateKey)
   if (remote?.phrase) {
-    saveDismissPhrase(remote)
-    return remote.phrase
+    saveDismissPhrase({ ...remote, phrase: activeDismissPhrase() })
+    return activeDismissPhrase()
   }
 
   return null
