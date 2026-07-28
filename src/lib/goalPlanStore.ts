@@ -87,13 +87,35 @@ function saveAll(profileId: string, plans: GoalPlan[]): void {
   }
 }
 
-/** 구 저장소 → 현재 owner 키로 병합 */
+/** 구 저장소 → 현재 owner 키로 병합 (최초 1회 마이그레이션만) */
 function mergeExternalPlans(profileId: string, profile?: SelfProfile): GoalPlan[] {
   const storageKey = key(profileId)
-  const current = parsePlansRaw(localStorage.getItem(storageKey))
+  const raw = localStorage.getItem(storageKey)
+  const current = parsePlansRaw(raw)
+
+  // 이미 현재 키에 저장된 적 있으면(빈 배열 포함) 그게 정본 — legacy에서 삭제한 목표를 되살리지 않는다
+  if (raw !== null) {
+    if (!current.length) return []
+    let merged = migrateList(current, profileId, profile).sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    )
+    const recovered = recoverPlansMotivation(merged)
+    merged = recovered.plans
+    const hydrated = hydratePlansFromSections(merged)
+    merged = hydrated.plans
+    if (
+      recovered.changed ||
+      hydrated.changed ||
+      needsPersistMigration(current, merged)
+    ) {
+      saveAll(profileId, merged)
+    }
+    return merged
+  }
+
   const external = scanExternalPlanSources(storageKey)
 
-  if (!external.length && !current.length) {
+  if (!external.length) {
     const fromSnapshot = restoreGoalPlansFromSnapshot(profileId)
     if (fromSnapshot?.length) {
       saveAll(profileId, migrateList(fromSnapshot, profileId, profile))

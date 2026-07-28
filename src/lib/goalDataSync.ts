@@ -86,7 +86,9 @@ export function applyLocalGoalDataBundle(bundle: GoalDataBundle): void {
   window.dispatchEvent(new CustomEvent(GOAL_DATA_SYNC_EVENT))
 }
 
-function mergePlans(local: GoalPlan[], remote: GoalPlan[]): GoalPlan[] {
+function mergePlans(local: GoalPlan[], remote: GoalPlan[], localRev: number, remoteRev: number): GoalPlan[] {
+  if (localRev > remoteRev) return [...local].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  if (remoteRev > localRev) return [...remote].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   const byId = new Map<string, GoalPlan>()
   for (const plan of remote) byId.set(plan.id, plan)
   for (const plan of local) {
@@ -136,7 +138,7 @@ export function mergeGoalDataBundles(local: GoalDataBundle, remote: GoalDataBund
   const updatedAt = Math.max(local.updatedAt, remote.updatedAt, Date.now())
   return {
     ownerId,
-    plans: mergePlans(local.plans, remote.plans),
+    plans: mergePlans(local.plans, remote.plans, local.updatedAt, remote.updatedAt),
     miscTodos: mergeMiscTodos(local.miscTodos, remote.miscTodos, local.updatedAt, remote.updatedAt),
     routines: mergeRoutines(local.routines, remote.routines, local.updatedAt, remote.updatedAt),
     updatedAt,
@@ -189,6 +191,10 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
   }
 
   if (!localHas && remoteHas) {
+    if (getGoalDataRevision() > 0) {
+      await pushLocalGoalData()
+      return 'uploaded'
+    }
     const remote = remoteRowToBundle(remoteRow)
     applyLocalGoalDataBundle(remote)
     await syncRemindersToCloud(remote.plans, remote.miscTodos)

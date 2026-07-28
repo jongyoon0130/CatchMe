@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
 
 type UserAlarm = {
@@ -275,12 +275,16 @@ Deno.serve(async (req) => {
 
   if (!stats.hhmm) stats.hhmm = localParts('Asia/Seoul', now).hhmm
 
-  await admin.from('futureme_alarm_cron_heartbeat').upsert({
-    id: 1,
-    last_run_at: Date.now(),
-    last_sent: sent,
-    last_hhmm: stats.hhmm,
-  }).catch(() => {})
+  try {
+    await admin.from('futureme_alarm_cron_heartbeat').upsert({
+      id: 1,
+      last_run_at: Date.now(),
+      last_sent: sent,
+      last_hhmm: stats.hhmm,
+    })
+  } catch {
+    /* heartbeat 실패는 발송 자체를 막지 않는다 */
+  }
 
   return new Response(JSON.stringify({ ok: true, sent, mode: 'cron', stats }), {
     headers: { ...cors, 'Content-Type': 'application/json' },

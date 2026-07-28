@@ -9,8 +9,12 @@ export interface GoalPlanSnapshot {
 }
 
 export function writeGoalPlanSnapshot(ownerId: string, plans: GoalPlan[]): void {
-  if (!plans.length) return
   try {
+    if (!plans.length) {
+      const snap = readGoalPlanSnapshot()
+      if (snap?.ownerId === ownerId) localStorage.removeItem(SNAPSHOT_KEY)
+      return
+    }
     const snap: GoalPlanSnapshot = {
       ownerId,
       plans,
