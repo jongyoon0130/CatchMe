@@ -54,6 +54,7 @@ import { addMiscTodo, loadMiscTodos } from '../../lib/goalMiscTodos'
 import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
 import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
 import { dateKeyOf, shiftDateKey, todoDraftFromMessage, type PendingTodo } from '../../lib/chatToPlan'
+import { NotifySettings } from '../settings/NotifySettings'
 
 function readInitialApiStatus(): 'idle' | ApiCheckResult {
   const key = loadApiKey()?.trim() ?? ''
@@ -711,7 +712,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
           <span className="font-medium">저장</span> 눌러주세요.
         </div>
       ) : null}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b border-border/40 bg-surface/80 backdrop-blur-xl backdrop-saturate-150 shrink-0 min-h-[56px]">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-surface shrink-0 min-h-[52px]">
         {selectMode ? (
           <>
             <button
@@ -740,14 +741,12 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
           onClick={() => setShowProfile(true)}
           className="flex items-center gap-2.5 text-left rounded-lg -ml-0.5 pl-0.5 pr-2 py-0.5 hover:bg-ink/[0.04] transition-colors"
         >
-          <div className="w-9 h-9 rounded-full chat-avatar flex items-center justify-center text-[13px]">
+          <div className="w-8 h-8 rounded-full chat-avatar flex items-center justify-center text-xs font-medium">
             {self.name[0] ?? '나'}
           </div>
           <div>
-            <h1 className="text-[15px] font-bold tracking-[-0.02em] leading-tight text-ink">
-              5년 뒤 {self.name}
-            </h1>
-            <p className="text-[11px] font-medium text-muted/80">미래의 나</p>
+            <h1 className="text-[15px] font-normal leading-tight text-ink">5년 뒤 {self.name}</h1>
+            <p className="text-[11px] text-muted">미래의 나</p>
           </div>
         </button>
         <div className="flex gap-1 items-center">
@@ -950,6 +949,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
               )
             })()}
           </div>
+          <NotifySettings />
           <div>
             <p className="text-xs text-muted mb-2">지금까지 학습한 내 말투</p>
             <div className="flex flex-wrap gap-1.5">
@@ -1182,8 +1182,8 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
           <span className="text-[11px] text-status-ok">{toast}</span>
         </div>
       )}
-      <div className="px-3 pb-3 pt-2">
-        <div className="flex gap-2 items-end rounded-[26px] border border-border/50 bg-surface p-1.5 shadow-[0_1px_2px_rgba(16,18,24,0.04),0_6px_20px_rgba(16,18,24,0.06)] focus-within:border-ink/25 transition-colors">
+      <div className="px-3 py-2.5">
+        <div className="flex gap-2 items-end">
           <textarea
             ref={textareaRef}
             value={input}
@@ -1196,17 +1196,9 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
               }
             }}
             placeholder="나에게 말 걸어봐..."
-            className="flex-1 bg-transparent px-3 py-2.5 focus:outline-none text-ink placeholder:text-muted/55 text-[15px] resize-none leading-[1.45] overflow-y-auto"
+            className="flex-1 px-3.5 py-2.5 rounded-2xl bg-surface-2 border border-border/40 focus:border-accent/40 focus:outline-none text-ink placeholder:text-muted/60 text-[15px] resize-none leading-[1.45] overflow-y-auto"
           />
-          <button
-            type="button"
-            onClick={send}
-            disabled={!input.trim() || typing || !chatReady}
-            aria-label="보내기"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ink text-surface text-lg transition-transform active:scale-90 disabled:bg-surface-2 disabled:text-muted/50 disabled:active:scale-100"
-          >
-            ↑
-          </button>
+          <Button onClick={send} disabled={!input.trim() || typing || !chatReady} className="px-4 h-[42px] rounded-2xl text-sm">→</Button>
         </div>
       </div>
       </div>

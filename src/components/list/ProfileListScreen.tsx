@@ -11,9 +11,18 @@ interface Props {
   onCreateNew: () => void
   onRestoreBackup: (file: File) => void | Promise<void>
   onDelete: (id: string) => void | Promise<void>
+  /** 지금의 "나" — 홈·프로필 탭이 보는 그 사람 */
+  primaryId: string | null
 }
 
-export function ProfileListScreen({ summaries, onSelect, onCreateNew, onRestoreBackup, onDelete }: Props) {
+export function ProfileListScreen({
+  summaries,
+  onSelect,
+  onCreateNew,
+  onRestoreBackup,
+  onDelete,
+  primaryId,
+}: Props) {
   const { configured, user, signOut, uploadLocalData, syncing, lastSync } = useAuth()
   const hasProfiles = summaries.length > 0
   const importRef = useRef<HTMLInputElement>(null)
@@ -126,75 +135,79 @@ export function ProfileListScreen({ summaries, onSelect, onCreateNew, onRestoreB
               )}
             </div>
           )}
-          <button
-            type="button"
-            onClick={onCreateNew}
-            className="goal-nav-btn"
-            title="미래의 나 추가"
-          >
-            +
-          </button>
+          {/* 미래의 나는 한 명 — 아직 하나도 없을 때만 만들 수 있다 (primaryProfile.ts) */}
+          {!hasProfiles && (
+            <button
+              type="button"
+              onClick={onCreateNew}
+              className="goal-nav-btn"
+              title="미래의 나 만들기"
+            >
+              +
+            </button>
+          )}
         </div>
       </header>
 
       {!hasProfiles ? (
-        <div className="flex-1 flex flex-col items-center justify-center px-7 pb-24 text-center animate-fade-up">
-          <div className="relative mb-9">
-            <div
-              className="absolute -inset-8 rounded-full blur-2xl opacity-45"
-              style={{ background: 'radial-gradient(circle, #f5c542 0%, transparent 68%)' }}
-              aria-hidden
-            />
-            <FutureMeLogo size={80} className="relative" />
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center animate-fade-up">
+          <div className="mb-8">
+            <FutureMeLogo size={72} />
           </div>
-          <h2 className="text-[27px] font-extrabold text-ink tracking-[-0.035em] leading-tight mb-2.5">
-            {APP_NAME}
-          </h2>
-          <p className="text-[15px] font-medium text-ink/70 mb-2">{APP_TAGLINE}</p>
-          <p className="text-sm text-muted max-w-[19rem] leading-relaxed mb-9">
+          <h2 className="text-xl font-medium text-ink mb-2">{APP_NAME}</h2>
+          <p className="text-sm text-muted mb-3">{APP_TAGLINE}</p>
+          <p className="text-sm text-muted max-w-xs leading-relaxed mb-8">
             가치관·말투까지 세팅한
             <br />
             5년 뒤 목표하는 나와 대화해보세요.
           </p>
-          <div className="w-full max-w-[19rem] space-y-2.5">
-            <button type="button" onClick={onCreateNew} className="goal-cta w-full">
+          <div className="w-full max-w-xs space-y-3">
+            <button type="button" onClick={onCreateNew} className="goal-cta">
               미래의 나 만들기
             </button>
             <button
               type="button"
               disabled={importStatus === 'loading'}
               onClick={() => importRef.current?.click()}
-              className="w-full rounded-full border border-border bg-surface px-5 py-3.5 text-sm font-semibold text-ink/80 transition-colors hover:bg-surface-2 disabled:opacity-50"
+              className="goal-mode-card w-full"
+              style={{ alignItems: 'center', textAlign: 'center' }}
             >
-              {importStatus === 'loading' ? '불러오는 중…' : '백업에서 불러오기'}
+              {importStatus === 'loading' ? '불러오는 중…' : '백업에서 불러오기 (.json)'}
             </button>
           </div>
           {importStatus === 'fail' && (
             <p className="text-xs text-status-error mt-3">파일 형식이 맞지 않아요</p>
           )}
-          <p className="text-[11.5px] text-muted/70 mt-5 max-w-[19rem] leading-relaxed">
+          <p className="text-[11px] text-muted/60 mt-4 max-w-xs leading-relaxed">
             다른 기기·브라우저에서 내보낸 futureme-backup 파일을 바로 복원할 수 있어요.
           </p>
         </div>
       ) : (
         <>
-          <div className="px-5 pt-1 pb-2.5 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted/70">
-              채팅방 {summaries.length}
-            </span>
+          {summaries.length > 1 && (
+            <p className="px-5 pt-2.5 text-[11px] text-muted/70 leading-relaxed">
+              미래의 나는 한 명이에요. 지금 이어지고 있는 건{' '}
+              <strong className="font-medium text-ink/70">
+                {summaries.find((s) => s.id === primaryId)?.name ?? summaries[0].name}
+              </strong>
+              , 아래에서 다른 방을 열면 그쪽으로 옮겨가요.
+            </p>
+          )}
+          <p className="px-5 py-2.5 text-[11px] text-muted/80 border-b border-border/50 bg-surface-2/50 flex items-center justify-between">
+            <span>채팅방</span>
             <button
               type="button"
               disabled={importStatus === 'loading'}
               onClick={() => importRef.current?.click()}
-              className="text-[11.5px] font-semibold text-muted hover:text-ink disabled:opacity-50"
+              className="text-accent hover:underline disabled:opacity-50"
             >
               {importStatus === 'loading' ? '불러오는 중…' : '백업 가져오기'}
             </button>
-          </div>
+          </p>
           {importStatus === 'fail' && (
             <p className="px-5 py-1 text-[11px] text-status-error">파일 형식이 맞지 않아요</p>
           )}
-          <ul className="flex-1 overflow-y-auto px-3 pb-28 space-y-1.5">
+          <ul className="flex-1 overflow-y-auto divide-y divide-border/60">
             {summaries.map((s) => (
               <li key={s.id}>
                 <SwipeableListRow
@@ -206,18 +219,21 @@ export function ProfileListScreen({ summaries, onSelect, onCreateNew, onRestoreB
                   onPress={() => onSelect(s.id)}
                   onDelete={() => void handleDelete(s)}
                 >
-                  <div className="w-full flex items-center gap-3.5 rounded-2xl bg-surface px-4 py-3.5 text-left shadow-[0_1px_2px_rgba(16,18,24,0.04),0_2px_8px_rgba(16,18,24,0.04)] transition-transform active:scale-[0.99]">
-                    <div className="w-12 h-12 rounded-[15px] chat-avatar flex items-center justify-center text-[17px] shrink-0">
+                  <div className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-ink/[0.03] active:bg-ink/[0.05] transition-colors text-left">
+                    <div className="w-11 h-11 rounded-2xl chat-avatar flex items-center justify-center text-base font-medium shrink-0">
                       {s.name[0] ?? '나'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2 mb-1">
-                        <span className="font-bold tracking-[-0.02em] text-ink truncate">{s.name}</span>
-                        <span className="text-[11px] font-medium text-muted/70 shrink-0">
-                          {formatListTime(s.updatedAt)}
+                      <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                        <span className="font-medium text-ink truncate">
+                          {s.name}
+                          {s.id === primaryId && summaries.length > 1 ? (
+                            <span className="ml-1.5 text-[10px] font-normal text-accent align-middle">지금의 나</span>
+                          ) : null}
                         </span>
+                        <span className="text-[11px] text-muted shrink-0">{formatListTime(s.updatedAt)}</span>
                       </div>
-                      <p className="text-[13.5px] text-muted truncate leading-snug">{s.preview}</p>
+                      <p className="text-sm text-muted truncate leading-snug">{s.preview}</p>
                     </div>
                   </div>
                 </SwipeableListRow>

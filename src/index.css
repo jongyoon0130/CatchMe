@@ -1,29 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
-    system-ui, "Apple SD Gothic Neo", sans-serif;
+  --font-sans: "M PLUS Rounded 1c", "Pretendard Variable", Pretendard, system-ui, -apple-system, sans-serif;
   --font-serif: "Noto Serif KR", "Nanum Myeongjo", serif;
 
-  /* Aurora 팔레트 — styles/aurora.css 와 동일하게 유지할 것 */
-  --color-void: #f4f5f9;
+  /* goals.html / goal-app.css 와 동일한 팔레트 */
+  --color-void: #f7f8fa;
   --color-surface: #ffffff;
-  --color-surface-2: #f6f7fb;
-  --color-border: #e9eaf0;
-  --color-ink: #14161c;
-  --color-muted: #6b7280;
-  --color-accent: #14161c;
-  --color-accent-dim: #2b2f3a;
-  --color-glow: #f5c542;
-  --color-glow-dim: #d9a520;
-  --color-bubble-me: #fff6dc;
+  --color-surface-2: #f1f3f6;
+  --color-border: #e8ebf0;
+  --color-ink: #3a4048;
+  --color-muted: #6b7583;
+  --color-accent: #62d98a;
+  --color-accent-dim: #4bc878;
+  --color-glow: #8ee8ae;
+  --color-glow-dim: #62d98a;
+  --color-bubble-me: #e9fbf0;
   --color-bubble-them: #ffffff;
-  --color-avatar: #14161c;
-  --color-avatar-ink: #f5c542;
-  --color-status-ok: #10b981;
-  --color-status-warn: #f0a92c;
-  --color-status-error: #ef4444;
-  --color-scrollbar: #e9eaf0;
+  --color-avatar: #62d98a;
+  --color-avatar-ink: #ffffff;
+  --color-status-ok: #62d98a;
+  --color-status-warn: #ffc861;
+  --color-status-error: #f08080;
+  --color-scrollbar: #dde2e8;
 }
 
 * {

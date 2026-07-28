@@ -206,11 +206,7 @@ export function MiniCalendar({
                 hasTasks={hasTasks}
                 inRange={inRange}
               />
-              <span
-                className={`goal-mc-day ${isToday ? 'today-num' : ''} ${isSelected ? 'selected-num' : ''}`.trim()}
-              >
-                {day}
-              </span>
+              <span className={`goal-mc-day ${isSelected ? 'selected-num' : isToday ? 'today-num' : ''}`}>{day}</span>
             </>
           )
 

@@ -163,6 +163,7 @@ export async function pushLocalGoalData(): Promise<void> {
     routines: bundle.routines,
     updatedAt,
   })
+  await syncRemindersToCloud(bundle.plans, bundle.miscTodos)
 }
 
 export function scheduleGoalDataSync(): void {
@@ -187,7 +188,9 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
   }
 
   if (!localHas && remoteHas) {
-    applyLocalGoalDataBundle(remoteRowToBundle(remoteRow))
+    const remote = remoteRowToBundle(remoteRow)
+    applyLocalGoalDataBundle(remote)
+    await syncRemindersToCloud(remote.plans, remote.miscTodos)
     return 'downloaded'
   }
 
@@ -203,6 +206,7 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
         routines: merged.routines,
         updatedAt: merged.updatedAt,
       })
+      await syncRemindersToCloud(merged.plans, merged.miscTodos)
       return 'merged'
     }
     if (local.updatedAt > remote.updatedAt) {
@@ -218,6 +222,7 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
       routines: merged.routines,
       updatedAt: merged.updatedAt,
     })
+    await syncRemindersToCloud(merged.plans, merged.miscTodos)
     return 'merged'
   }
 
