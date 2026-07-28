@@ -25,7 +25,7 @@ export interface NotifyEnv {
   secure: boolean
 }
 
-const SW_URL = '/sw.js'
+const SW_URL = '/sw.js?v=4'
 const PENDING_PUSH_KEY = 'futureme-pending-push-sub'
 
 function detectStandalone(): boolean {
@@ -63,7 +63,9 @@ export function readNotifyEnv(): NotifyEnv {
 export async function registerNotifyWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null
   try {
-    return await navigator.serviceWorker.register(SW_URL, { scope: '/' })
+    const reg = await navigator.serviceWorker.register(SW_URL, { scope: '/', updateViaCache: 'none' })
+    await reg.update().catch(() => {})
+    return reg
   } catch (e) {
     console.info('[FutureMe/notify] 서비스 워커 등록 실패', e)
     return null

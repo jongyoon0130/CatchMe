@@ -84,7 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session)
       setLoading(false)
       if (data.session?.user) {
-        void runSync(data.session.user.id) // 5분 이내 재방문·탭 복귀 시 스킵
+        setActiveSyncUser(data.session.user.id)
+        void runSync(data.session.user.id)
+        void import('../lib/notify').then(({ ensureAlarmPushReady }) => ensureAlarmPushReady())
       }
     })
 
@@ -93,7 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       setSession(nextSession)
       if (event === 'SIGNED_IN' && nextSession?.user) {
+        setActiveSyncUser(nextSession.user.id)
         await runSync(nextSession.user.id, { force: true })
+        void import('../lib/notify').then(({ ensureAlarmPushReady }) => ensureAlarmPushReady(true))
       } else if (!nextSession) {
         setActiveSyncUser(null)
         setLastSync(null)

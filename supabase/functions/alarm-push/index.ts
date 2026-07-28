@@ -17,8 +17,11 @@ type DismissPhrase = {
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-alarm-cron-secret',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-alarm-cron-secret',
 }
+
+const DEFAULT_ORIGIN = 'https://future-me-studio.vercel.app'
 
 function localParts(timezone: string, now = new Date()) {
   const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -56,13 +59,68 @@ function normTime(value: string): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+function appOrigin(body: { origin?: string } | null): string {
+  const fromBody = body?.origin?.trim()
+  if (fromBody && /^https:\/\//.test(fromBody)) return fromBody.replace(/\/$/, '')
+  const fromEnv = Deno.env.get('APP_ORIGIN')?.trim()
+  if (fromEnv && /^https:\/\//.test(fromEnv)) return fromEnv.replace(/\/$/, '')
+  return DEFAULT_ORIGIN
+}
+
+function buildAlarmUrl(origin: string, params: URLSearchParams): string {
+  return `${origin}/index.html?${params.toString()}`
+}
+
+async function resolveTestUserId(
+  req: Request,
+  supabaseUrl: string,
+): Promise<string | null> {
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+  const anon = Deno.env.get('SUPABASE_ANON_KEY')
+  if (!anon) return null
+  const userClient = createClient(supabaseUrl, anon, {
+    global: { headers: { Authorization: authHeader } },
+  })
+  const { data: { user } } = await userClient.auth.getUser()
+  return user?.id ?? null
+}
+
+async function sendPushToSubs(
+  subs: { subscription: webpush.PushSubscription; id?: string }[],
+  payload: string,
+  admin: ReturnType<typeof createClient>,
+): Promise<number> {
+  let sent = 0
+  for (const subRow of subs) {
+    try {
+      await webpush.sendNotification(subRow.subscription as webpush.PushSubscription, payload)
+      sent += 1
+    } catch (e) {
+      const status = (e as { statusCode?: number })?.statusCode
+      if ((status === 404 || status === 410) && subRow.id) {
+        await admin.from('futureme_push_subscriptions').delete().eq('id', subRow.id)
+      }
+      console.error('push failed', e)
+    }
+  }
+  return sent
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
   const secret = Deno.env.get('ALARM_CRON_SECRET')
-  if (secret) {
-    const got = req.headers.get('x-alarm-cron-secret')
-    if (got !== secret) return new Response('forbidden', { status: 403, headers: cors })
+  const got = req.headers.get('x-alarm-cron-secret')
+  const isCron = !!secret && got === secret
+
+  let body: { test?: boolean; origin?: string } | null = null
+  if (req.method === 'POST') {
+    try {
+      body = await req.json()
+    } catch {
+      body = null
+    }
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -78,8 +136,53 @@ Deno.serve(async (req) => {
     })
   }
 
+  const testUserId = !isCron && body?.test ? await resolveTestUserId(req, supabaseUrl) : null
+  if (!isCron && !testUserId) {
+    return new Response('forbidden', { status: 403, headers: cors })
+  }
+
   webpush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate)
   const admin = createClient(supabaseUrl, serviceKey)
+  const origin = appOrigin(body)
+
+  if (testUserId) {
+    const { data: subs, error: subErr } = await admin
+      .from('futureme_push_subscriptions')
+      .select('id, subscription')
+      .eq('user_id', testUserId)
+      .eq('enabled', true)
+
+    if (subErr) {
+      return new Response(JSON.stringify({ ok: false, error: subErr.message }), {
+        status: 500,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const now = new Date()
+    const dateKey = now.toISOString().slice(0, 10)
+    const params = new URLSearchParams({
+      alarm: '1',
+      alarmId: 'test',
+      dateKey,
+      time: '00:00',
+      label: '잠금 화면 테스트',
+      phrase: '잠금 화면에서도\n알람이 오면\n성공이에요',
+    })
+    const url = buildAlarmUrl(origin, params)
+    const payload = JSON.stringify({
+      title: 'Future Me — 잠금 알람 테스트',
+      body: '탭하면 따라치기 화면이 열려요',
+      tag: `futureme-test-${Date.now()}`,
+      url,
+      alarm: { alarmId: 'test', dateKey, time: '00:00', label: '테스트', phrase: params.get('phrase') },
+    })
+
+    const sent = await sendPushToSubs(subs ?? [], payload, admin)
+    return new Response(JSON.stringify({ ok: true, sent, mode: 'test' }), {
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
 
   const { data: alarmRows, error: alarmErr } = await admin
     .from('futureme_alarm_data')
@@ -105,7 +208,7 @@ Deno.serve(async (req) => {
 
     const { data: subs } = await admin
       .from('futureme_push_subscriptions')
-      .select('subscription')
+      .select('id, subscription')
       .eq('user_id', row.user_id)
       .eq('enabled', true)
     if (!subs?.length) continue
@@ -127,7 +230,7 @@ Deno.serve(async (req) => {
         label: alarm.label || '알람',
       })
       if (phrase) params.set('phrase', phrase)
-      const url = `/index.html?${params.toString()}`
+      const url = buildAlarmUrl(origin, params)
       const payload = JSON.stringify({
         title: alarm.label || '알람',
         body: phrase ? '다짐을 따라 쳐야 꺼져요 — Future Me' : '알람 — Future Me',
@@ -136,18 +239,11 @@ Deno.serve(async (req) => {
         alarm: { alarmId: alarm.id, dateKey, time: alarm.time, label: alarm.label, phrase },
       })
 
-      for (const subRow of subs) {
-        try {
-          await webpush.sendNotification(subRow.subscription as webpush.PushSubscription, payload)
-          sent += 1
-        } catch (e) {
-          console.error('push failed', e)
-        }
-      }
+      sent += await sendPushToSubs(subs, payload, admin)
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, sent }), {
+  return new Response(JSON.stringify({ ok: true, sent, mode: 'cron' }), {
     headers: { ...cors, 'Content-Type': 'application/json' },
   })
 })

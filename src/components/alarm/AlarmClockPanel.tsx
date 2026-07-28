@@ -18,16 +18,29 @@ import {
   readNotifyEnv,
   type NotifyEnv,
 } from '../../lib/notify'
-import { isCloudSyncAvailable } from '../../lib/cloudSync'
+import {
+  getLockScreenAlarmStatus,
+  registerLockScreenAlarm,
+  sendLockScreenTestPush,
+  type LockScreenAlarmStatus,
+} from '../../lib/alarmPushClient'
+import { useAuth } from '../../contexts/AuthContext'
 import { AlarmEditSheet } from './AlarmEditSheet'
 
 /** 핸드폰 시계 앱처럼 — 알람 목록 + 토글 + 추가 */
 export function AlarmClockPanel() {
+  const { user } = useAuth()
   const [alarms, setAlarms] = useState<UserAlarm[]>(() => loadUserAlarms())
   const [env, setEnv] = useState<NotifyEnv>(() => readNotifyEnv())
+  const [lockStatus, setLockStatus] = useState<LockScreenAlarmStatus | null>(null)
   const [editing, setEditing] = useState<UserAlarm | null | 'new'>(null)
   const [nextLabel, setNextLabel] = useState<string | null>(null)
   const [nextPhrase, setNextPhrase] = useState<string | null>(null)
+  const [busy, setBusy] = useState<'register' | 'test' | null>(null)
+
+  const refreshLockStatus = useCallback(async () => {
+    setLockStatus(await getLockScreenAlarmStatus())
+  }, [])
 
   const refresh = useCallback(() => {
     setAlarms(loadUserAlarms())
@@ -37,7 +50,8 @@ export function AlarmClockPanel() {
     setNextPhrase(
       next ? loadDismissPhrase(next.alarmId, next.dateKey)?.phrase ?? null : null,
     )
-  }, [])
+    void refreshLockStatus()
+  }, [refreshLockStatus])
 
   useEffect(() => {
     refresh()
@@ -53,6 +67,10 @@ export function AlarmClockPanel() {
     }
   }, [refresh])
 
+  useEffect(() => {
+    if (user) void refreshLockStatus()
+  }, [user, refreshLockStatus])
+
   const blocker = describeNotifyBlocker(env)
   const needPermission = env.permission !== 'granted'
 
@@ -61,17 +79,41 @@ export function AlarmClockPanel() {
     refresh()
     if (permission !== 'granted') return
     if (push?.ok) {
-      if (isCloudSyncAvailable()) {
-        window.alert('알림·푸시를 켰어요. 앱을 닫거나 잠금해도 알람이 울려요.')
-      } else {
-        window.alert(
-          '알림은 켰어요. 잠금 화면 알람은 Google 로그인 후 다시 「알림 허용하기」를 눌러주세요.',
-        )
-      }
+      window.alert('알림을 켰어요. 이제 「잠금 알람 등록」을 눌러주세요.')
     } else if (push?.reason === 'no_vapid') {
       window.alert('알림은 켰어요. 서버 푸시 키가 설정되면 잠금 화면 알람도 활성화돼요.')
     } else if (push?.reason === 'unsupported' && env.isIOS && !env.standalone) {
       window.alert('iPhone은 Safari가 아니라 홈 화면 앱으로 열어야 잠금 알람이 와요.')
+    }
+  }
+
+  const handleRegisterLock = async () => {
+    setBusy('register')
+    try {
+      const result = await registerLockScreenAlarm()
+      refresh()
+      window.alert(
+        result.ok
+          ? '잠금 화면 알람 등록 완료! 앱을 닫아도 서버에서 알림을 보내요.'
+          : result.detail ?? '등록에 실패했어요.',
+      )
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleTestLock = async () => {
+    setBusy('test')
+    try {
+      const result = await sendLockScreenTestPush()
+      refresh()
+      window.alert(
+        result.ok
+          ? '5초 안에 앱을 완전히 닫고 잠금 화면을 확인해주세요. 알림을 탭하면 따라치기 화면이 열려요.'
+          : result.detail ?? '테스트 푸시에 실패했어요.',
+      )
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -98,24 +140,56 @@ export function AlarmClockPanel() {
       </div>
 
       <p className="text-[11px] text-muted/75 mb-3 leading-relaxed">
-        전날 밤 AI가 만든 다짐을 <strong className="font-medium text-ink/80">오타 없이</strong> 따라 쳐야 꺼져요.
-        로그인 + 알림 허용 + (iPhone) 홈 화면 추가 시 잠금 화면에서도 알림이 와요.
+        앱이 닫혀 있거나 잠금 상태에서는 <strong className="font-medium text-ink/80">서버 푸시</strong>로
+        알림이 와요. 알림을 탭하면 따라치기 화면이 열려요.
       </p>
 
-      {needPermission ? (
-        <div className="rounded-xl border border-status-warn/30 bg-status-warn/8 px-3.5 py-3 mb-3">
-          <p className="text-[12px] text-ink/85 mb-2 leading-relaxed">
-            {blocker ?? '알림 권한을 켜야 알람이 울려요.'}
-          </p>
-          {!blocker ? (
+      <div className="rounded-xl border border-border/70 bg-surface-2/40 px-3.5 py-3 mb-3 space-y-2.5">
+        <p className="text-[11px] font-semibold text-ink">잠금 화면 알람</p>
+        <ul className="text-[11px] text-muted space-y-1">
+          <li>{env.standalone || !env.isIOS ? '✓' : '○'} 홈 화면 앱으로 실행</li>
+          <li>{user ? '✓' : '○'} Google 로그인</li>
+          <li>{env.permission === 'granted' ? '✓' : '○'} 알림 허용</li>
+          <li>{lockStatus?.pushSubscription ? '✓' : '○'} 푸시 구독</li>
+          <li>{lockStatus?.alarmsOnServer ? '✓' : '○'} 서버에 알람 저장</li>
+        </ul>
+        {lockStatus?.blocker ? (
+          <p className="text-[11px] text-status-warn leading-relaxed">{lockStatus.blocker}</p>
+        ) : lockStatus?.ready ? (
+          <p className="text-[11px] text-status-ok">잠금 화면 알람 준비 완료</p>
+        ) : null}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {needPermission && !blocker ? (
             <button
               type="button"
               onClick={() => void handleEnableNotify()}
-              className="text-[12px] font-bold text-ink underline underline-offset-2"
+              className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface"
             >
               알림 허용하기
             </button>
           ) : null}
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void handleRegisterLock()}
+            className="rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-50"
+          >
+            {busy === 'register' ? '등록 중…' : '잠금 알람 등록'}
+          </button>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void handleTestLock()}
+            className="rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-50"
+          >
+            {busy === 'test' ? '전송 중…' : '잠금 화면 테스트'}
+          </button>
+        </div>
+      </div>
+
+      {needPermission && blocker ? (
+        <div className="rounded-xl border border-status-warn/30 bg-status-warn/8 px-3.5 py-3 mb-3">
+          <p className="text-[12px] text-ink/85 leading-relaxed">{blocker}</p>
         </div>
       ) : null}
 
