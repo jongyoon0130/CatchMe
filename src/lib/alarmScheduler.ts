@@ -17,9 +17,10 @@ import { startAlarmSoundLoop } from './alarmSound'
 import { showAlarmNotification } from './notify'
 import { buildAlarmDeepLinkUrl } from './alarmDeepLink'
 import { loadUserAlarms, USER_ALARMS_CHANGE } from './userAlarms'
-import { dismissPhraseForTrigger } from './alarmDismissPhrase'
+import { dismissPhraseForTrigger, activeDismissPhrase } from './alarmDismissPhrase'
 import { generateDismissPhraseWithAI, ensureDismissPhrasesForAlarms } from './alarmDismissPhraseEngine'
 import { startRingingAlarm } from './alarmRingingStore'
+import { syncAlarmsToServiceWorker, markAlarmFiredInServiceWorker } from './alarmSwSync'
 
 const VISIBLE_TICK_MS = 3_000
 const HIDDEN_TICK_MS = 10_000
@@ -39,28 +40,30 @@ export function getNextAlarmPreview(now = new Date()): ClockAlarmTrigger | null 
 async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
   const dedup = clockAlarmDedupKey(trigger)
   markAlarmFired(trigger.dateKey, dedup)
+  markAlarmFiredInServiceWorker(dedup)
 
-  let record = dismissPhraseForTrigger(trigger)
-  if (!record) {
-    record = await generateDismissPhraseWithAI({
-      alarmId: trigger.alarmId,
-      dateKey: trigger.dateKey,
-      alarmLabel: trigger.label,
-    })
-  }
-
-  startRingingAlarm(trigger, record.phrase)
-  startAlarmSoundLoop()
+  const phrase = dismissPhraseForTrigger(trigger)?.phrase ?? activeDismissPhrase()
 
   const result = await showAlarmNotification({
     title: trigger.label || '알람',
     body: '다짐을 따라 쳐야 꺼져요 — Future Me',
     tag: dedup,
-    url: buildAlarmDeepLinkUrl(trigger, record.phrase),
+    url: buildAlarmDeepLinkUrl(trigger, phrase),
   })
+
+  startRingingAlarm(trigger, phrase)
+  startAlarmSoundLoop()
 
   if (!result.ok && result.reason !== 'denied') {
     console.info('[FutureMe/alarm] 알림 표시 실패', result)
+  }
+
+  if (!dismissPhraseForTrigger(trigger)) {
+    void generateDismissPhraseWithAI({
+      alarmId: trigger.alarmId,
+      dateKey: trigger.dateKey,
+      alarmLabel: trigger.label,
+    })
   }
 }
 
@@ -160,6 +163,7 @@ export function startAlarmScheduler(): () => void {
 
   void tickAlarms()
   planExactAlarmWake()
+  void syncAlarmsToServiceWorker()
   resetTickInterval()
 
   const onVisible = () => {
@@ -172,6 +176,7 @@ export function startAlarmScheduler(): () => void {
   const onChange = () => {
     void tickAlarms()
     planExactAlarmWake()
+    void syncAlarmsToServiceWorker()
     void ensureDismissPhrasesForAlarms(loadUserAlarms())
   }
 

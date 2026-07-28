@@ -1,4 +1,5 @@
 import { planExactAlarmWake } from './alarmScheduler'
+import { syncAlarmsToServiceWorker } from './alarmSwSync'
 import { loadUserAlarms } from './userAlarms'
 import {
   ensureAlarmPushReady,
@@ -48,6 +49,7 @@ export async function bootstrapAlarmDelivery(opts?: {
   }
 
   planExactAlarmWake()
+  await syncAlarmsToServiceWorker()
 
   const status = await getLockScreenAlarmStatus()
   return { ok: status.ready, blocker: status.blocker, push }

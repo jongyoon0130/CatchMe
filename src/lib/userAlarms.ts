@@ -71,6 +71,7 @@ function saveAll(alarms: UserAlarm[]): void {
   void import('./alarmBootstrap').then(({ bootstrapAlarmDelivery }) =>
     bootstrapAlarmDelivery({ askPermission: true }),
   )
+  void import('./alarmSwSync').then(({ syncAlarmsToServiceWorker }) => syncAlarmsToServiceWorker())
 }
 
 export function addUserAlarm(partial?: Partial<Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>>): UserAlarm {
