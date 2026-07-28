@@ -1,0 +1,11 @@
+{
+  "name": "futureme-alarm",
+  "version": "0.1.0",
+  "description": "Future Me iOS alarm bridge — mock until AlarmKit entitlement",
+  "private": true,
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

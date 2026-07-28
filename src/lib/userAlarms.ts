@@ -67,6 +67,7 @@ function saveAll(alarms: UserAlarm[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(alarms))
   window.dispatchEvent(new CustomEvent(USER_ALARMS_CHANGE))
   void import('./alarmDataSync').then(({ scheduleAlarmDataSync }) => scheduleAlarmDataSync())
+  void import('./nativeAlarm').then(({ syncAlarmsToNative }) => syncAlarmsToNative())
 }
 
 export function addUserAlarm(partial?: Partial<Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>>): UserAlarm {

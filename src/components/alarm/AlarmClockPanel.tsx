@@ -24,6 +24,16 @@ import {
   sendLockScreenTestPush,
   type LockScreenAlarmStatus,
 } from '../../lib/alarmPushClient'
+import {
+  getNativeAlarmStatus,
+  isNativeAlarmDevMode,
+  requestNativeNotificationPermission,
+  runNativeAlarmSimulation,
+  scheduleNativeTestNotification,
+  syncAlarmsToNative,
+  type NativeAlarmStatus,
+} from '../../lib/nativeAlarm'
+import { activeDismissPhrase } from '../../lib/alarmDismissPhrase'
 import { useAuth } from '../../contexts/AuthContext'
 import { AlarmEditSheet } from './AlarmEditSheet'
 
@@ -36,10 +46,14 @@ export function AlarmClockPanel() {
   const [editing, setEditing] = useState<UserAlarm | null | 'new'>(null)
   const [nextLabel, setNextLabel] = useState<string | null>(null)
   const [nextPhrase, setNextPhrase] = useState<string | null>(null)
-  const [busy, setBusy] = useState<'register' | 'test' | null>(null)
+  const [busy, setBusy] = useState<'register' | 'test' | 'native' | 'sync' | null>(null)
+  const [nativeStatus, setNativeStatus] = useState<NativeAlarmStatus | null>(null)
 
   const refreshLockStatus = useCallback(async () => {
     setLockStatus(await getLockScreenAlarmStatus())
+    if (isNativeAlarmDevMode()) {
+      setNativeStatus(await getNativeAlarmStatus())
+    }
   }, [])
 
   const refresh = useCallback(() => {
@@ -117,6 +131,61 @@ export function AlarmClockPanel() {
     }
   }
 
+  const handleNativeSync = async () => {
+    setBusy('sync')
+    try {
+      const result = await syncAlarmsToNative()
+      await refreshLockStatus()
+      window.alert(result.ok ? `네이티브에 ${result.count}개 알람 동기화했어요.` : '동기화에 실패했어요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleNativeSimulate = async () => {
+    setBusy('native')
+    try {
+      const result = await runNativeAlarmSimulation()
+      if (!result.ok) {
+        window.alert(result.detail ?? '시뮬레이션에 실패했어요.')
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleNativeTestNotify = async () => {
+    setBusy('native')
+    try {
+      const alarm = alarms[0]
+      if (!alarm) {
+        window.alert('먼저 알람을 추가해주세요.')
+        return
+      }
+      const phrase = activeDismissPhrase()
+      const ok = await scheduleNativeTestNotification({
+        seconds: 5,
+        alarmId: alarm.id,
+        label: alarm.label,
+        time: alarm.time,
+        phrase,
+      })
+      window.alert(
+        ok
+          ? '5초 뒤 알림이 옵니다. 탭하면 따라치기 화면이 열려요. (AlarmKit 아님 — 약한 대용)'
+          : '알림 권한이 필요해요.',
+      )
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleNativeNotifyPermission = async () => {
+    const p = await requestNativeNotificationPermission()
+    await refreshLockStatus()
+    window.alert(p === 'granted' ? '알림을 허용했어요.' : '알림이 거부되었거나 사용할 수 없어요.')
+  }
+
   const handleSave = (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>) => {
     if (editing === 'new') {
       addUserAlarm(draft)
@@ -186,6 +255,61 @@ export function AlarmClockPanel() {
           </button>
         </div>
       </div>
+
+      {isNativeAlarmDevMode() ? (
+        <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/40 px-3.5 py-3 mb-3 space-y-2.5">
+          <p className="text-[11px] font-semibold text-ink">iOS 네이티브 알람 (개발 · Mock)</p>
+          <p className="text-[11px] text-muted leading-relaxed">
+            AlarmKit entitlement <strong className="font-medium text-ink/80">승인 전</strong> 테스트용입니다.
+            따라치기 UX·Bridge·동기화를 확인할 수 있어요.
+          </p>
+          {nativeStatus ? (
+            <ul className="text-[11px] text-muted space-y-1">
+              <li>모드 · {nativeStatus.mode === 'mock' ? 'Mock' : nativeStatus.mode}</li>
+              <li>AlarmKit · {nativeStatus.alarmKitEntitled ? '✓ 승인됨' : '○ 승인 대기'}</li>
+              <li>동기화된 알람 · {nativeStatus.scheduledCount}개</li>
+              <li>알림 권한 · {nativeStatus.notificationPermission}</li>
+            </ul>
+          ) : null}
+          {nativeStatus?.message ? (
+            <p className="text-[11px] text-muted/90 leading-relaxed">{nativeStatus.message}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void handleNativeSimulate()}
+              className="rounded-full bg-indigo-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            >
+              {busy === 'native' ? '실행 중…' : '알람 울림 시뮬레이션'}
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void handleNativeSync()}
+              className="rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-50"
+            >
+              {busy === 'sync' ? '동기화…' : '네이티브 동기화'}
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void handleNativeTestNotify()}
+              className="rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-50"
+            >
+              5초 뒤 알림 (대용)
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void handleNativeNotifyPermission()}
+              className="rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-50"
+            >
+              알림 권한
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {needPermission && blocker ? (
         <div className="rounded-xl border border-status-warn/30 bg-status-warn/8 px-3.5 py-3 mb-3">

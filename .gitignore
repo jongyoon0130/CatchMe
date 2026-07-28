@@ -16,6 +16,13 @@ dist-ssr
 .tools
 public/goal-recovery-snapshot.json
 
+.capacitor
+ios/App/Pods
+ios/App/build
+ios/DerivedData
+*.xcuserstate
+*.xcworkspace/xcuserdata
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

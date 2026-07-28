@@ -5,6 +5,7 @@ import './index.css'
 import './styles/aurora.css'
 import { initTheme } from './lib/themes'
 import { registerNotifyWorker } from './lib/notify'
+import { attachNativeAlarmFiredListener, fireNativeAlarmDismissUI } from './lib/nativeAlarm'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -12,6 +13,11 @@ initTheme()
 
 // 알림 수신기 등록 — 실패해도 앱은 그대로 돌아간다 (알림만 못 받을 뿐)
 void registerNotifyWorker()
+
+// iOS Native(mock) / 웹 mock — alarmFired → 따라치기 오버레이
+attachNativeAlarmFiredListener((event) => {
+  fireNativeAlarmDismissUI(event)
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
