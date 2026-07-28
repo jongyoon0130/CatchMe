@@ -70,7 +70,7 @@ export function AlarmClockPanel() {
     if (editing === 'new') {
       addUserAlarm(draft)
     } else if (editing) {
-      updateUserAlarm(editing.id, draft)
+      updateUserAlarm(editing.id, { ...draft, enabled: true })
     }
     refresh()
   }

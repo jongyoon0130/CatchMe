@@ -1,18 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatAlarmClockTime } from '../../lib/userAlarms'
 import { isDismissPhraseComplete } from '../../lib/alarmDismissPhrase'
-import { commitTypedPrefix } from '../../lib/alarmDismissMatch'
+import { longestMatchingPrefix, phraseMatchStates } from '../../lib/alarmDismissMatch'
 import { stopAlarmSoundLoop } from '../../lib/alarmSound'
 import { stopRingingAlarm, type RingingAlarm } from '../../lib/alarmRingingStore'
 
-function useMobileTyping(): boolean {
-  const [mobile, setMobile] = useState(false)
-  useEffect(() => {
-    const coarse = window.matchMedia('(pointer: coarse)').matches
-    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
-    setMobile(coarse || ios)
-  }, [])
-  return mobile
+const PHRASE_CLASS =
+  'font-serif text-[18px] leading-[1.9] whitespace-pre-wrap break-words tracking-[0.01em]'
+
+function PhraseDisplay({ phrase, typed }: { phrase: string; typed: string }) {
+  const states = phraseMatchStates(phrase, typed)
+
+  return (
+    <div className={`${PHRASE_CLASS} select-none pointer-events-none`} aria-hidden>
+      {states.map((state, i) => {
+        if (state.kind === 'pending') {
+          return (
+            <span key={i} className="text-muted/28">
+              {state.char}
+            </span>
+          )
+        }
+        if (state.kind === 'correct') {
+          return (
+            <span key={i} className="text-ink font-medium">
+              {state.char}
+            </span>
+          )
+        }
+        if (state.kind === 'wrong') {
+          return (
+            <span key={i} className="text-status-error font-semibold">
+              {state.typed}
+            </span>
+          )
+        }
+        return (
+          <span key={i} className="text-status-error font-semibold">
+            {state.char}
+          </span>
+        )
+      })}
+    </div>
+  )
 }
 
 function PhraseTypeMatch({
@@ -26,11 +56,6 @@ function PhraseTypeMatch({
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const composingRef = useRef(false)
-  const [composeText, setComposeText] = useState<string | null>(null)
-  const mobile = useMobileTyping()
-
-  const shownValue = composeText ?? value
-  const effective = shownValue
 
   useEffect(() => {
     const el = inputRef.current
@@ -41,109 +66,67 @@ function PhraseTypeMatch({
     return () => window.clearTimeout(timer)
   }, [])
 
-  const commit = useCallback(
-    (raw: string): string => {
-      const next = commitTypedPrefix(phrase, raw)
-      onChange(next)
-      return next
-    },
-    [phrase, onChange],
-  )
-
-  const applyCompose = useCallback(
-    (next: string) => {
-      setComposeText(next)
-      if (phrase.startsWith(next)) onChange(next)
-    },
-    [phrase, onChange],
-  )
-
   const focusInput = () => {
     inputRef.current?.focus({ preventScroll: true })
   }
 
-  const ghost = (
-    <div
-      className="font-serif text-[17px] leading-[1.85] whitespace-pre-wrap break-words select-none pointer-events-none"
-      aria-hidden
-    >
-      {phrase.split('').map((char, i) => {
-        const matched = i < effective.length && effective[i] === char
-        return (
-          <span key={`${i}-${char}`} className={matched ? 'text-ink' : 'text-muted/30'}>
-            {char}
-          </span>
-        )
-      })}
-    </div>
+  const handleInput = useCallback(
+    (next: string) => {
+      onChange(next)
+    },
+    [onChange],
   )
 
-  const sharedInputProps = {
-    ref: inputRef,
-    value: shownValue,
-    lang: 'ko' as const,
-    inputMode: 'text' as const,
-    spellCheck: false,
-    autoComplete: 'off',
-    autoCorrect: 'off',
-    autoCapitalize: 'off',
-    enterKeyHint: 'done' as const,
-    'aria-label': '다짐 문장 따라 입력',
-    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const next = e.target.value
-      if (composingRef.current) {
-        applyCompose(next)
-        return
-      }
-      const committed = commit(next)
-      if (committed !== next) e.target.value = committed
-    },
-    onCompositionStart: () => {
-      composingRef.current = true
-      setComposeText(value)
-    },
-    onCompositionUpdate: (e: React.CompositionEvent<HTMLTextAreaElement>) => {
-      applyCompose(e.currentTarget.value)
-    },
-    onCompositionEnd: (e: React.CompositionEvent<HTMLTextAreaElement>) => {
-      composingRef.current = false
-      setComposeText(null)
-      const committed = commit(e.currentTarget.value)
-      if (e.currentTarget.value !== committed) e.currentTarget.value = committed
-    },
-    onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (composingRef.current) return
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        if (phrase[value.length] === '\n') onChange(`${value}\n`)
-      }
-    },
-  }
-
-  if (mobile) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="relative">{ghost}</div>
-        <textarea
-          {...sharedInputProps}
-          rows={3}
-          placeholder="여기에 따라 입력하세요"
-          className="w-full min-h-[5.5rem] resize-none rounded-xl border border-border bg-surface-2/80 px-3.5 py-3 font-serif text-[17px] leading-[1.85] text-ink outline-none focus:border-ink/30 focus:ring-2 focus:ring-glow/25"
-          autoFocus
-        />
-        <p className="text-[11px] text-muted">키보드가 안 뜨면 위 입력칸을 한 번 탭해 주세요.</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="relative min-h-[12rem] cursor-text" onClick={focusInput}>
-      {ghost}
+    <div
+      className="relative rounded-2xl border border-border/70 bg-surface-2/60 px-4 py-4 min-h-[11rem] cursor-text touch-manipulation"
+      onClick={focusInput}
+      role="group"
+      aria-label="다짐 따라 입력"
+    >
+      <PhraseDisplay phrase={phrase} typed={value} />
+
       <textarea
-        {...sharedInputProps}
-        className="absolute inset-0 w-full min-h-full resize-none bg-transparent text-transparent caret-ink outline-none font-serif text-[17px] leading-[1.85] whitespace-pre-wrap break-words z-10 [-webkit-text-fill-color:transparent]"
+        ref={inputRef}
+        value={value}
+        lang="ko"
+        inputMode="text"
+        spellCheck={false}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        enterKeyHint="done"
+        aria-label="다짐 문장 따라 입력"
+        rows={Math.max(3, phrase.split('\n').length)}
+        className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-ink outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
         autoFocus
+        onChange={(e) => {
+          handleInput(e.target.value)
+        }}
+        onCompositionStart={() => {
+          composingRef.current = true
+        }}
+        onCompositionUpdate={(e) => {
+          handleInput(e.currentTarget.value)
+        }}
+        onCompositionEnd={(e) => {
+          composingRef.current = false
+          handleInput(e.currentTarget.value)
+        }}
+        onKeyDown={(e) => {
+          if (composingRef.current) return
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            if (phrase[value.length] === '\n') handleInput(`${value}\n`)
+          }
+        }}
       />
+
+      {!value.length ? (
+        <p className="absolute bottom-3 inset-x-4 text-[11px] text-muted/70 pointer-events-none z-0">
+          탭해서 회색 문장을 따라 입력하세요 · 틀리면 빨간색
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -172,28 +155,37 @@ export function AlarmDismissOverlay({
     [phrase, onDismissed],
   )
 
-  const progress = phrase.length ? Math.round((typed.length / phrase.length) * 100) : 0
+  const matchedLen = longestMatchingPrefix(phrase, typed).length
+  const progress = phrase.length ? Math.round((matchedLen / phrase.length) * 100) : 0
+  const timeLabel = formatAlarmClockTime(trigger.time)
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-void/95 backdrop-blur-md overscroll-none"
+      className="fixed inset-0 z-[100] flex flex-col bg-void overscroll-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="alarm-dismiss-title"
     >
-      <div className="flex-1 flex flex-col max-w-lg w-full mx-auto px-5 pt-10 pb-8 overflow-y-auto">
-        <div className="text-center mb-8">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted mb-2">알람</p>
-          <h1 id="alarm-dismiss-title" className="text-2xl font-serif text-ink">
+      <div className="flex-1 flex flex-col max-w-lg w-full mx-auto px-5 pt-12 pb-10 overflow-y-auto">
+        <div className="mb-8">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted mb-3">알람</p>
+          <h1
+            id="alarm-dismiss-title"
+            className="text-[28px] font-extrabold tracking-[-0.035em] text-ink leading-tight"
+          >
             {trigger.label || '알람'}
           </h1>
-          <p className="text-sm text-muted mt-1">{formatAlarmClockTime(trigger.time)}</p>
+          <p className="text-[40px] font-light tracking-[-0.04em] text-ink tabular-nums leading-none mt-3">
+            {timeLabel.replace(/^오전 |^오후 /, '')}
+          </p>
+          <p className="text-[12px] text-muted mt-2">
+            {timeLabel.startsWith('오전') ? '오전' : '오후'} · 맞게 칠수록 진하게, 틀리면 빨간색
+          </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm flex flex-col">
-          <p className="text-xs text-muted mb-4">
-            전날 정해 둔 다짐을 <strong className="text-ink font-medium">오타 없이</strong> 그대로 따라
-            쳐야 꺼져요.
+        <div className="rounded-2xl border border-border/60 bg-surface p-5 shadow-[0_8px_28px_rgba(20,22,28,0.06)] flex flex-col">
+          <p className="text-[12px] text-muted mb-4 leading-relaxed">
+            전날 정해 둔 다짐 · 자음·모음 조합 중에도 실시간으로 덮어써져요
           </p>
 
           <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />
@@ -201,7 +193,7 @@ export function AlarmDismissOverlay({
           <div className="mt-5 pt-4 border-t border-border/60">
             <div className="flex items-center justify-between text-[11px] text-muted mb-1.5">
               <span>진행</span>
-              <span>{progress}%</span>
+              <span className="tabular-nums font-medium text-ink/70">{progress}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
               <div
@@ -212,11 +204,11 @@ export function AlarmDismissOverlay({
           </div>
         </div>
 
-        {done && (
-          <p className="text-center text-sm text-status-ok mt-4" role="status">
+        {done ? (
+          <p className="text-center text-sm text-status-ok font-medium mt-5" role="status">
             잘 했어요. 좋은 하루 시작해요.
           </p>
-        )}
+        ) : null}
       </div>
     </div>
   )

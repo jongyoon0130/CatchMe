@@ -128,6 +128,8 @@ export async function showAlarmNotification(payload: AlarmNotifyPayload): Promis
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: payload.tag,
+      requireInteraction: true,
+      vibrate: [200, 120, 200],
       data: { url: payload.url ?? '/index.html' },
     })
     return { ok: true }
@@ -203,7 +205,7 @@ export type PushSubscribeResult =
   | { ok: false; reason: 'unsupported' | 'denied' | 'no_worker' | 'no_vapid' | 'failed'; detail?: string }
 
 /** 웹 푸시 구독 — 서버에서 잠금 화면 알람을 보낼 때 필요 */
-export async function subscribeWebPush(): Promise<PushSubscribeResult> {
+export async function subscribeWebPush(forceRenew = false): Promise<PushSubscribeResult> {
   const env = readNotifyEnv()
   if (!env.supportsPush || !env.supportsServiceWorker) {
     return { ok: false, reason: 'unsupported' }
@@ -219,6 +221,10 @@ export async function subscribeWebPush(): Promise<PushSubscribeResult> {
 
   try {
     let sub = await reg.pushManager.getSubscription()
+    if (sub && forceRenew) {
+      await sub.unsubscribe().catch(() => {})
+      sub = null
+    }
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -238,6 +244,21 @@ export async function subscribeWebPush(): Promise<PushSubscribeResult> {
   }
 }
 
+/** 로그인·앱 시작·알림 허용 후 — 푸시 구독 + 알람 데이터 서버 동기화 */
+export async function ensureAlarmPushReady(forceRenew = false): Promise<void> {
+  const env = readNotifyEnv()
+  if (env.permission !== 'granted') return
+  await registerNotifyWorker()
+  const push = await subscribeWebPush(forceRenew)
+  if (!push.ok) return
+  try {
+    const { pushLocalAlarmData } = await import('./alarmDataSync')
+    await pushLocalAlarmData()
+  } catch {
+    /* ignore */
+  }
+}
+
 /** 알림 권한 + (가능하면) 웹 푸시 구독까지 */
 export async function enableAlarmNotifications(): Promise<{
   permission: NotifyPermission
@@ -245,6 +266,14 @@ export async function enableAlarmNotifications(): Promise<{
 }> {
   const permission = await requestNotifyPermission()
   if (permission !== 'granted') return { permission, push: null }
-  const push = await subscribeWebPush()
+  const push = await subscribeWebPush(true)
+  if (push.ok) {
+    try {
+      const { pushLocalAlarmData } = await import('./alarmDataSync')
+      await pushLocalAlarmData()
+    } catch {
+      /* ignore */
+    }
+  }
   return { permission, push }
 }

@@ -50,6 +50,12 @@ function findPhrase(phrases: DismissPhrase[], alarmId: string, dateKey: string):
   return hit?.phrase?.trim() ?? null
 }
 
+function normTime(value: string): string {
+  const [h, m] = value.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return value
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -94,7 +100,7 @@ Deno.serve(async (req) => {
     const { dateKey, hhmm, dow } = localParts(tz, now)
     const alarms = (row.alarms ?? []) as UserAlarm[]
     const phrases = (row.dismiss_phrases ?? []) as DismissPhrase[]
-    const due = alarms.filter((a) => alarmActiveToday(a, dow) && a.time === hhmm)
+    const due = alarms.filter((a) => alarmActiveToday(a, dow) && normTime(a.time) === hhmm)
     if (!due.length) continue
 
     const { data: subs } = await admin

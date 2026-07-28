@@ -248,6 +248,8 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
       const count = await downloadAllRemote(remoteProfiles, remoteChats)
       await syncGoalDataOnLogin(userId)
       await syncAlarmDataOnLogin(userId)
+      const { ensureAlarmPushReady } = await import('./notify')
+      await ensureAlarmPushReady().catch(() => {})
       invalidateChatLoadCache()
       const settings = await fetchRemoteSettings(userId)
       if (settings?.gemini_model) {
@@ -264,6 +266,8 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
       await mergeLocalAndRemote(remoteProfiles, remoteChats)
       await syncGoalDataOnLogin(userId)
       await syncAlarmDataOnLogin(userId)
+      const { ensureAlarmPushReady } = await import('./notify')
+      await ensureAlarmPushReady().catch(() => {})
       invalidateChatLoadCache()
       const settings = await fetchRemoteSettings(userId)
       if (settings?.gemini_model) {
@@ -277,6 +281,8 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
     }
 
     await syncAlarmDataOnLogin(userId).catch(() => {})
+    const { ensureAlarmPushReady } = await import('./notify')
+    await ensureAlarmPushReady().catch(() => {})
     return { mode: 'empty', count: 0 }
   })()
 

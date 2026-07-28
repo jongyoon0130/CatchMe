@@ -21,10 +21,12 @@ import { dismissPhraseForTrigger } from './alarmDismissPhrase'
 import { generateDismissPhraseWithAI, ensureDismissPhrasesForAlarms } from './alarmDismissPhraseEngine'
 import { startRingingAlarm } from './alarmRingingStore'
 
-const TICK_MS = 15_000
+const VISIBLE_TICK_MS = 3_000
+const HIDDEN_TICK_MS = 10_000
 const EVENING_PREP_HOUR = 20
 
 let timer: ReturnType<typeof setInterval> | null = null
+let nextAlarmTimer: ReturnType<typeof setTimeout> | null = null
 let ticking = false
 let preparingPhrases = false
 
@@ -93,6 +95,7 @@ export async function tickAlarms(now = new Date()): Promise<number> {
     }
 
     void maybePrepareDismissPhrases(now)
+    planExactAlarmWake()
 
     return due.length
   } finally {
@@ -100,10 +103,51 @@ export async function tickAlarms(now = new Date()): Promise<number> {
   }
 }
 
+/** 다음 알람 시각에 맞춰 setTimeout — PWA 포그라운드에서 정확히 울리게 */
+export function planExactAlarmWake(now = new Date()): void {
+  if (nextAlarmTimer) {
+    window.clearTimeout(nextAlarmTimer)
+    nextAlarmTimer = null
+  }
+
+  const settings = loadAlarmSettings()
+  if (!settings.enabled) return
+
+  const next = getNextAlarmPreview(now)
+  if (!next) return
+
+  const [hour, minute] = next.time.split(':').map(Number)
+  const [y, mo, d] = next.dateKey.split('-').map(Number)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || !Number.isFinite(y)) return
+
+  const target = new Date()
+  target.setFullYear(y, mo - 1, d)
+  target.setHours(hour, minute, 0, 0)
+
+  let ms = target.getTime() - now.getTime()
+  if (ms <= 0) return
+
+  if (ms > 86_400_000) ms = 86_400_000
+
+  nextAlarmTimer = window.setTimeout(() => {
+    nextAlarmTimer = null
+    void tickAlarms()
+  }, ms)
+}
+
+function resetTickInterval(): void {
+  if (timer) window.clearInterval(timer)
+  const ms = document.visibilityState === 'visible' ? VISIBLE_TICK_MS : HIDDEN_TICK_MS
+  timer = window.setInterval(() => {
+    void tickAlarms()
+  }, ms)
+}
+
 function onStorage(e: StorageEvent): void {
   if (!e.key) return
   if (e.key.includes('futureme-alarm') || e.key.includes('futureme-user-alarms')) {
     void tickAlarms()
+    planExactAlarmWake()
   }
 }
 
@@ -112,16 +156,19 @@ export function startAlarmScheduler(): () => void {
   if (typeof window === 'undefined') return () => {}
 
   void tickAlarms()
-
-  timer = window.setInterval(() => {
-    void tickAlarms()
-  }, TICK_MS)
+  planExactAlarmWake()
+  resetTickInterval()
 
   const onVisible = () => {
-    if (document.visibilityState === 'visible') void tickAlarms()
+    resetTickInterval()
+    if (document.visibilityState === 'visible') {
+      void tickAlarms()
+      planExactAlarmWake()
+    }
   }
   const onChange = () => {
     void tickAlarms()
+    planExactAlarmWake()
     void ensureDismissPhrasesForAlarms(loadUserAlarms())
   }
 
@@ -133,7 +180,9 @@ export function startAlarmScheduler(): () => void {
 
   return () => {
     if (timer) window.clearInterval(timer)
+    if (nextAlarmTimer) window.clearTimeout(nextAlarmTimer)
     timer = null
+    nextAlarmTimer = null
     document.removeEventListener('visibilitychange', onVisible)
     window.removeEventListener('focus', onVisible)
     window.removeEventListener(ALARM_SETTINGS_CHANGE, onChange)

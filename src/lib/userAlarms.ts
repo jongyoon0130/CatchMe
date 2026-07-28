@@ -11,8 +11,18 @@ export interface UserAlarm {
   updatedAt: number
 }
 
-const STORAGE_KEY = 'futureme-user-alarms'
+/** 24h HH:mm — 항상 2자리 시·분 */
+export function normalizeAlarmTime(value: string): string {
+  const m = value.trim().match(/^(\d{1,2}):(\d{1,2})$/)
+  if (!m) return value.trim()
+  const h = Math.min(23, Math.max(0, Number(m[1])))
+  const min = Math.min(59, Math.max(0, Number(m[2])))
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+}
+
 export const USER_ALARMS_CHANGE = 'futureme-user-alarms-change'
+
+const STORAGE_KEY = 'futureme-user-alarms'
 
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
@@ -42,6 +52,11 @@ export function loadUserAlarms(): UserAlarm[] {
     if (!Array.isArray(list)) return []
     return list
       .filter((a) => a?.id && a?.time)
+      .map((a) => ({
+        ...a,
+        enabled: a.enabled !== false,
+        time: normalizeAlarmTime(a.time),
+      }))
       .sort((a, b) => a.time.localeCompare(b.time) || a.createdAt - b.createdAt)
   } catch {
     return []
@@ -58,7 +73,7 @@ export function addUserAlarm(partial?: Partial<Pick<UserAlarm, 'time' | 'label' 
   const now = Date.now()
   const alarm: UserAlarm = {
     id: crypto.randomUUID(),
-    time: partial?.time ?? defaultNewAlarmTime(),
+    time: normalizeAlarmTime(partial?.time ?? defaultNewAlarmTime()),
     label: partial?.label?.trim() || '알람',
     enabled: true,
     repeatDays: partial?.repeatDays ?? [0, 1, 2, 3, 4, 5, 6],
@@ -77,6 +92,7 @@ export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' 
   const next: UserAlarm = {
     ...list[idx]!,
     ...patch,
+    time: patch.time !== undefined ? normalizeAlarmTime(patch.time) : list[idx]!.time,
     label: patch.label !== undefined ? patch.label.trim() || '알람' : list[idx]!.label,
     updatedAt: Date.now(),
   }
@@ -95,7 +111,7 @@ export function toggleUserAlarm(id: string, enabled: boolean): void {
 
 function defaultNewAlarmTime(): string {
   const d = new Date()
-  d.setMinutes(d.getMinutes() + 2 - (d.getMinutes() % 5))
+  d.setMinutes(d.getMinutes() + 2)
   d.setSeconds(0, 0)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
