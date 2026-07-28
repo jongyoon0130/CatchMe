@@ -123,7 +123,7 @@ export async function showAlarmNotification(payload: AlarmNotifyPayload): Promis
   if (!reg) return { ok: false, reason: 'no_worker' }
 
   try {
-    await reg.showNotification(payload.title, {
+    const options: NotificationOptions & { vibrate?: number[] } = {
       body: payload.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
@@ -131,7 +131,8 @@ export async function showAlarmNotification(payload: AlarmNotifyPayload): Promis
       requireInteraction: true,
       vibrate: [200, 120, 200],
       data: { url: payload.url ?? '/index.html' },
-    })
+    }
+    await reg.showNotification(payload.title, options)
     return { ok: true }
   } catch (e) {
     return { ok: false, reason: 'failed', detail: e instanceof Error ? e.message : String(e) }
