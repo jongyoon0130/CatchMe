@@ -4,50 +4,58 @@ import {
   ensureAlarmPushReady,
   readNotifyEnv,
   requestNotifyPermission,
+  type PushSubscribeResult,
 } from './notify'
 import { pushLocalAlarmData } from './alarmDataSync'
 import { isCloudSyncAvailable } from './cloudSync'
+import { getLockScreenAlarmStatus, registerLockScreenAlarm } from './alarmPushClient'
+
+export type AlarmBootstrapResult = {
+  ok: boolean
+  blocker: string | null
+  push: PushSubscribeResult | null
+}
 
 /** 켜진 알람이 있으면 — 권한·푸시·서버 동기화를 사용자 대신 자동으로 맞춘다 */
-export async function bootstrapAlarmDelivery(opts?: { askPermission?: boolean }): Promise<void> {
+export async function bootstrapAlarmDelivery(opts?: {
+  askPermission?: boolean
+  forceRenew?: boolean
+}): Promise<AlarmBootstrapResult> {
   const enabledAlarms = loadUserAlarms().filter((a) => a.enabled)
-  if (!enabledAlarms.length) return
+  if (!enabledAlarms.length) {
+    return { ok: true, blocker: null, push: null }
+  }
 
   const env = readNotifyEnv()
-  if (!env.secure) return
+  if (!env.secure) {
+    return { ok: false, blocker: 'https로 열어야 알람이 와요', push: null }
+  }
 
   if (opts?.askPermission !== false && env.permission === 'default') {
     await requestNotifyPermission()
   }
 
   const after = readNotifyEnv()
+  let push: PushSubscribeResult | null = null
   if (after.permission === 'granted') {
-    await ensureAlarmPushReady()
+    push = await ensureAlarmPushReady(opts?.forceRenew === true)
     if (isCloudSyncAvailable()) {
       await pushLocalAlarmData().catch(() => {})
+    }
+    if (isCloudSyncAvailable() && after.permission === 'granted') {
+      await registerLockScreenAlarm().catch(() => {})
     }
   }
 
   planExactAlarmWake()
+
+  const status = await getLockScreenAlarmStatus()
+  return { ok: status.ready, blocker: status.blocker, push }
 }
 
-export function describeAlarmDeliveryBlocker(): string | null {
+export async function describeAlarmDeliveryBlocker(): Promise<string | null> {
   const enabledAlarms = loadUserAlarms().filter((a) => a.enabled)
   if (!enabledAlarms.length) return null
-
-  const env = readNotifyEnv()
-  if (!env.secure) return 'https로 열어야 알람이 와요'
-  if (env.isIOS && !env.standalone) {
-    return 'iPhone은 Safari 탭이 아니라 「홈 화면에 추가」한 앱으로 열어야 백그라운드 알람이 와요'
-  }
-  if (env.permission === 'denied') {
-    return '알림이 꺼져 있어요 — 설정에서 Future Me 알림을 허용해주세요'
-  }
-  if (env.permission === 'default') {
-    return '알림 허용만 하면 설정한 시간에 자동으로 울려요'
-  }
-  if (!isCloudSyncAvailable()) {
-    return 'Google 로그인하면 앱을 닫아도 알람이 와요 (지금은 앱이 켜져 있을 때만)'
-  }
-  return null
+  const status = await getLockScreenAlarmStatus()
+  return status.blocker
 }

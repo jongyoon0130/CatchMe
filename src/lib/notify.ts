@@ -25,7 +25,7 @@ export interface NotifyEnv {
   secure: boolean
 }
 
-const SW_URL = '/sw.js?v=5'
+const SW_URL = '/sw.js?v=6'
 const PENDING_PUSH_KEY = 'futureme-pending-push-sub'
 
 function detectStandalone(): boolean {
@@ -286,19 +286,20 @@ export async function flushPendingPushSubscription(): Promise<void> {
 }
 
 /** 로그인·앱 시작·알림 허용 후 — 푸시 구독 + 알람 데이터 서버 동기화 */
-export async function ensureAlarmPushReady(forceRenew = false): Promise<void> {
+export async function ensureAlarmPushReady(forceRenew = false): Promise<PushSubscribeResult | null> {
   const env = readNotifyEnv()
-  if (env.permission !== 'granted') return
+  if (env.permission !== 'granted') return null
   await registerNotifyWorker()
   await flushPendingPushSubscription()
   const push = await subscribeWebPush(forceRenew)
-  if (!push.ok) return
+  if (!push.ok) return push
   try {
     const { pushLocalAlarmData } = await import('./alarmDataSync')
     await pushLocalAlarmData()
   } catch {
     /* ignore */
   }
+  return push
 }
 
 /** 알림 권한 + (가능하면) 웹 푸시 구독까지 */

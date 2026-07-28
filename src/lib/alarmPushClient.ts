@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import {
   fetchRemoteAlarmData,
+  fetchRemotePushSubscriptions,
   getActiveSyncUser,
   isCloudSyncAvailable,
 } from './cloudSync'
@@ -16,12 +17,16 @@ import {
 export type LockScreenAlarmStatus = {
   env: NotifyEnv
   loggedIn: boolean
-  pushSubscription: boolean
+  pushSubscriptionLocal: boolean
+  pushSubscriptionOnServer: boolean
   alarmsOnServer: boolean
   alarmCount: number
   ready: boolean
   blocker: string | null
 }
+
+/** @deprecated use pushSubscriptionLocal */
+export type LockScreenAlarmStatusLegacy = LockScreenAlarmStatus & { pushSubscription: boolean }
 
 const APP_ORIGIN =
   typeof window !== 'undefined' && window.location.origin.startsWith('http')
@@ -34,19 +39,26 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
   const loggedIn = isCloudSyncAvailable()
   const alarmCount = loadUserAlarms().filter((a) => a.enabled).length
 
-  let pushSubscription = false
+  let pushSubscriptionLocal = false
   if (env.permission === 'granted' && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     try {
       const reg = await navigator.serviceWorker.getRegistration('/')
-      pushSubscription = !!(await reg?.pushManager.getSubscription())
+      pushSubscriptionLocal = !!(await reg?.pushManager.getSubscription())
     } catch {
-      pushSubscription = false
+      pushSubscriptionLocal = false
     }
   }
 
+  let pushSubscriptionOnServer = false
   let alarmsOnServer = false
   const userId = getActiveSyncUser()
   if (loggedIn && userId) {
+    try {
+      const remoteSubs = await fetchRemotePushSubscriptions(userId)
+      pushSubscriptionOnServer = remoteSubs.length > 0
+    } catch {
+      pushSubscriptionOnServer = false
+    }
     try {
       const row = await fetchRemoteAlarmData(userId)
       const remoteAlarms = Array.isArray(row?.alarms) ? row!.alarms : []
@@ -61,19 +73,22 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
   else if (env.isIOS && !env.standalone) blocker = '홈 화면에 추가한 앱으로 열어야 잠금 알람이 와요'
   else if (env.permission !== 'granted') blocker = '알림 허용이 필요해요'
   else if (!loggedIn) blocker = 'Google 로그인이 필요해요'
-  else if (!pushSubscription) blocker = '푸시 연결 중이에요 — 앱을 한 번 열어두면 자동으로 맞춰져요'
-  else if (alarmCount > 0 && !alarmsOnServer) blocker = '알람을 서버에 올리는 중이에요 — 잠시만 기다려주세요'
+  else if (!pushSubscriptionLocal) blocker = '푸시 연결이 아직 없어요 — 아래 「연결하기」를 눌러주세요'
+  else if (!pushSubscriptionOnServer) blocker = '서버에 푸시 연결이 없어요 — 아래 「연결하기」를 눌러주세요'
+  else if (alarmCount > 0 && !alarmsOnServer) blocker = '알람이 서버에 없어요 — 아래 「연결하기」를 눌러주세요'
 
   const ready =
     !blocker &&
     alarmCount > 0 &&
-    pushSubscription &&
+    pushSubscriptionLocal &&
+    pushSubscriptionOnServer &&
     alarmsOnServer
 
   return {
     env,
     loggedIn,
-    pushSubscription,
+    pushSubscriptionLocal,
+    pushSubscriptionOnServer,
     alarmsOnServer,
     alarmCount,
     ready,

@@ -18,8 +18,8 @@ import {
   readNotifyEnv,
   type NotifyEnv,
 } from '../../lib/notify'
-import { bootstrapAlarmDelivery, describeAlarmDeliveryBlocker } from '../../lib/alarmBootstrap'
-import { sendLockScreenTestPush } from '../../lib/alarmPushClient'
+import { bootstrapAlarmDelivery } from '../../lib/alarmBootstrap'
+import { getLockScreenAlarmStatus, registerLockScreenAlarm, sendLockScreenTestPush } from '../../lib/alarmPushClient'
 import {
   getNativeAlarmStatus,
   isNativeAlarmDevMode,
@@ -38,6 +38,7 @@ export function AlarmClockPanel() {
   const { user } = useAuth()
   const [alarms, setAlarms] = useState<UserAlarm[]>(() => loadUserAlarms())
   const [env, setEnv] = useState<NotifyEnv>(() => readNotifyEnv())
+  const [deliveryReady, setDeliveryReady] = useState(false)
   const [deliveryBlocker, setDeliveryBlocker] = useState<string | null>(null)
   const [editing, setEditing] = useState<UserAlarm | null | 'new'>(null)
   const [nextLabel, setNextLabel] = useState<string | null>(null)
@@ -48,7 +49,10 @@ export function AlarmClockPanel() {
   const refresh = useCallback(() => {
     setAlarms(loadUserAlarms())
     setEnv(readNotifyEnv())
-    setDeliveryBlocker(describeAlarmDeliveryBlocker())
+    void getLockScreenAlarmStatus().then((status) => {
+      setDeliveryBlocker(status.blocker)
+      setDeliveryReady(status.ready)
+    })
     const next = getNextAlarmPreview()
     setNextLabel(next ? `${formatAlarmClockTime(next.time)} · ${next.label}` : null)
     setNextPhrase(
@@ -74,7 +78,7 @@ export function AlarmClockPanel() {
   }, [refresh])
 
   useEffect(() => {
-    void bootstrapAlarmDelivery({ askPermission: false })
+    void bootstrapAlarmDelivery({ askPermission: false, forceRenew: false })
   }, [alarms, user])
 
   const blocker = describeNotifyBlocker(env)
@@ -82,10 +86,21 @@ export function AlarmClockPanel() {
 
   const handleEnableNotify = async () => {
     const { permission } = await enableAlarmNotifications()
-    await bootstrapAlarmDelivery({ askPermission: false })
+    await bootstrapAlarmDelivery({ askPermission: false, forceRenew: true })
     refresh()
     if (permission !== 'granted') return
     window.alert('알림을 켰어요. 설정한 시간에 자동으로 울려요.')
+  }
+
+  const handleConnectPush = async () => {
+    setBusy('test')
+    try {
+      const result = await registerLockScreenAlarm()
+      refresh()
+      window.alert(result.ok ? '서버 연결 완료! 이제 앱을 꺼도 알람이 와요.' : result.detail ?? '연결에 실패했어요.')
+    } finally {
+      setBusy(null)
+    }
   }
 
   const handleTestLock = async () => {
@@ -188,18 +203,30 @@ export function AlarmClockPanel() {
       {deliveryBlocker ? (
         <div className="rounded-xl border border-status-warn/30 bg-status-warn/8 px-3.5 py-3 mb-3 space-y-2">
           <p className="text-[12px] text-ink/85 leading-relaxed">{deliveryBlocker}</p>
-          {needPermission && !blocker ? (
-            <button
-              type="button"
-              onClick={() => void handleEnableNotify()}
-              className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface"
-            >
-              알림 허용하기
-            </button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {needPermission && !blocker ? (
+              <button
+                type="button"
+                onClick={() => void handleEnableNotify()}
+                className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface"
+              >
+                알림 허용하기
+              </button>
+            ) : null}
+            {env.permission === 'granted' && user && !deliveryReady && alarms.some((a) => a.enabled) ? (
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void handleConnectPush()}
+                className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface disabled:opacity-50"
+              >
+                {busy === 'test' ? '연결 중…' : '연결하기'}
+              </button>
+            ) : null}
+          </div>
         </div>
-      ) : alarms.some((a) => a.enabled) ? (
-        <p className="text-[11px] text-status-ok mb-3">알람 준비 완료 — 설정한 시간에 자동으로 울려요</p>
+      ) : alarms.some((a) => a.enabled) && deliveryReady ? (
+        <p className="text-[11px] text-status-ok mb-3">알람 준비 완료 — 앱을 꺼도 설정한 시간에 울려요</p>
       ) : null}
 
       {alarms.some((a) => a.enabled) && env.permission === 'granted' ? (

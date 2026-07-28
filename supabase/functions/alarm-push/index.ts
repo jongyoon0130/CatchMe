@@ -195,14 +195,30 @@ Deno.serve(async (req) => {
 
   let sent = 0
   const now = new Date()
+  const { data: allSubs } = await admin
+    .from('futureme_push_subscriptions')
+    .select('id')
+    .eq('enabled', true)
+
+  let stats = {
+    users: alarmRows?.length ?? 0,
+    usersWithEnabledAlarms: 0,
+    pushSubs: allSubs?.length ?? 0,
+    dueThisMinute: 0,
+    hhmm: '',
+  }
 
   for (const row of alarmRows ?? []) {
     if (row.alarm_settings?.enabled === false) continue
     const tz = row.timezone || 'Asia/Seoul'
     const { dateKey, hhmm, dow } = localParts(tz, now)
+    if (!stats.hhmm) stats.hhmm = hhmm
     const alarms = (row.alarms ?? []) as UserAlarm[]
     const phrases = (row.dismiss_phrases ?? []) as DismissPhrase[]
-    const due = alarms.filter((a) => alarmActiveToday(a, dow) && normTime(a.time) === hhmm)
+    const enabledAlarms = alarms.filter((a) => a.enabled !== false)
+    if (enabledAlarms.length) stats.usersWithEnabledAlarms += 1
+    const due = enabledAlarms.filter((a) => alarmActiveToday(a, dow) && normTime(a.time) === hhmm)
+    stats.dueThisMinute += due.length
     if (!due.length) continue
 
     const { data: subs } = await admin
@@ -242,7 +258,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, sent, mode: 'cron' }), {
+  return new Response(JSON.stringify({ ok: true, sent, mode: 'cron', stats }), {
     headers: { ...cors, 'Content-Type': 'application/json' },
   })
 })
