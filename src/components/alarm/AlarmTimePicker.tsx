@@ -1,24 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ALARM_HOUR12_OPTIONS,
   ALARM_MINUTE_OPTIONS,
   parseAlarmTime24,
   toAlarmTime24,
 } from '../../lib/alarmTime'
+import { AlarmWheelColumn, WHEEL_HEIGHT } from './AlarmWheelColumn'
 
 interface Props {
   time: string
   onChange: (time24: string) => void
 }
 
-/** 알람 편집용 — 오전/오후 + 시·분 (1분 단위) */
+/** 알람 편집용 — 오전/오후 + 시·분 휠 (1분 단위, 00~59 전체) */
 export function AlarmTimePicker({ time, onChange }: Props) {
   const parsed = parseAlarmTime24(time)
   const [period, setPeriod] = useState(parsed.period)
   const [hour12, setHour12] = useState(parsed.hour12)
   const [minute, setMinute] = useState(parsed.minute)
-  const minuteScrollRef = useRef<HTMLDivElement>(null)
-  const minuteBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
 
   useEffect(() => {
     const p = parseAlarmTime24(time)
@@ -27,17 +26,12 @@ export function AlarmTimePicker({ time, onChange }: Props) {
     setMinute(p.minute)
   }, [time])
 
-  useEffect(() => {
-    const el = minuteBtnRefs.current.get(minute)
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [minute])
-
   const apply = (p: 'am' | 'pm', h: number, m: number) => {
     onChange(toAlarmTime24(p, h, m))
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex gap-2">
         {(['am', 'pm'] as const).map((p) => (
           <button
@@ -57,51 +51,32 @@ export function AlarmTimePicker({ time, onChange }: Props) {
       </div>
 
       <div>
-        <p className="text-[11px] text-muted mb-2">시</p>
-        <div className="grid grid-cols-6 gap-1.5">
-          {ALARM_HOUR12_OPTIONS.map((h) => (
-            <button
-              key={h}
-              type="button"
-              onClick={() => {
-                setHour12(h)
-                apply(period, h, minute)
-              }}
-              className={`rounded-lg py-2 text-sm font-medium tabular-nums ${
-                hour12 === h ? 'bg-ink text-surface' : 'bg-surface-2 text-ink/80'
-              }`}
-            >
-              {h}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-[11px] text-muted mb-2">분 · 1분 단위</p>
+        <p className="text-[11px] text-muted mb-2 text-center">시 · 분 (1분 단위, 아래로 스크롤)</p>
         <div
-          ref={minuteScrollRef}
-          className="grid grid-cols-6 gap-1.5 max-h-36 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-surface-2/40 p-1.5"
+          className="flex items-center gap-1 rounded-2xl border border-border/70 bg-surface-2/30 px-2 py-1"
+          style={{ minHeight: WHEEL_HEIGHT + 8 }}
         >
-          {ALARM_MINUTE_OPTIONS.map((m) => (
-            <button
-              key={m}
-              ref={(el) => {
-                if (el) minuteBtnRefs.current.set(m, el)
-                else minuteBtnRefs.current.delete(m)
-              }}
-              type="button"
-              onClick={() => {
-                setMinute(m)
-                apply(period, hour12, m)
-              }}
-              className={`rounded-lg py-2 text-sm font-medium tabular-nums ${
-                minute === m ? 'bg-ink text-surface shadow-sm' : 'bg-surface text-ink/80 hover:bg-surface-2'
-              }`}
-            >
-              {String(m).padStart(2, '0')}
-            </button>
-          ))}
+          <AlarmWheelColumn
+            ariaLabel="시"
+            options={ALARM_HOUR12_OPTIONS}
+            value={hour12}
+            onChange={(h) => {
+              setHour12(h)
+              apply(period, h, minute)
+            }}
+            format={(h) => String(h)}
+          />
+          <span className="text-2xl font-light text-muted/60 pb-1 shrink-0">:</span>
+          <AlarmWheelColumn
+            ariaLabel="분"
+            options={ALARM_MINUTE_OPTIONS}
+            value={minute}
+            onChange={(m) => {
+              setMinute(m)
+              apply(period, hour12, m)
+            }}
+            format={(m) => String(m).padStart(2, '0')}
+          />
         </div>
       </div>
     </div>
