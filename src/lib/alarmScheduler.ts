@@ -125,7 +125,10 @@ export function planExactAlarmWake(now = new Date()): void {
   target.setHours(hour, minute, 0, 0)
 
   let ms = target.getTime() - now.getTime()
-  if (ms <= 0) return
+  if (ms <= 0) {
+    if (ms > -59_000) void tickAlarms()
+    return
+  }
 
   if (ms > 86_400_000) ms = 86_400_000
 

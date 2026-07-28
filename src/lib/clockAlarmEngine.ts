@@ -43,9 +43,9 @@ export function clockAlarmDedupKey(trigger: ClockAlarmTrigger): string {
 export function isClockAlarmDue(
   trigger: ClockAlarmTrigger,
   now: Date,
-  opts?: { graceMinutes?: number },
+  opts?: { graceSeconds?: number },
 ): boolean {
-  const graceMinutes = opts?.graceMinutes ?? 2
+  const graceSeconds = opts?.graceSeconds ?? 59
   if (trigger.dateKey !== dateKeyFrom(now)) return false
 
   const [hour, minute] = trigger.time.split(':').map(Number)
@@ -54,7 +54,7 @@ export function isClockAlarmDue(
   const target = new Date(now)
   target.setHours(hour, minute, 0, 0)
   const diffMs = now.getTime() - target.getTime()
-  return diffMs >= 0 && diffMs < graceMinutes * 60 * 1000
+  return diffMs >= 0 && diffMs <= graceSeconds * 1000
 }
 
 export function filterDueClockAlarms(

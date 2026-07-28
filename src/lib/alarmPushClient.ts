@@ -61,8 +61,8 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
   else if (env.isIOS && !env.standalone) blocker = '홈 화면에 추가한 앱으로 열어야 잠금 알람이 와요'
   else if (env.permission !== 'granted') blocker = '알림 허용이 필요해요'
   else if (!loggedIn) blocker = 'Google 로그인이 필요해요'
-  else if (!pushSubscription) blocker = '푸시 구독이 아직 없어요 — 아래 「잠금 알람 등록」을 눌러주세요'
-  else if (alarmCount > 0 && !alarmsOnServer) blocker = '알람이 서버에 아직 없어요 — 「잠금 알람 등록」을 눌러주세요'
+  else if (!pushSubscription) blocker = '푸시 연결 중이에요 — 앱을 한 번 열어두면 자동으로 맞춰져요'
+  else if (alarmCount > 0 && !alarmsOnServer) blocker = '알람을 서버에 올리는 중이에요 — 잠시만 기다려주세요'
 
   const ready =
     !blocker &&
@@ -131,7 +131,7 @@ export async function sendLockScreenTestPush(): Promise<{ ok: boolean; detail?: 
   if (!result.sent) {
     return {
       ok: false,
-      detail: '서버에 푸시 구독이 없어요. 「잠금 알람 등록」 후 다시 시도해주세요.',
+      detail: '서버에 푸시 구독이 없어요. 알림을 허용한 뒤 앱을 한 번 열어주세요.',
     }
   }
 

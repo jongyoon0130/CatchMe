@@ -37,7 +37,23 @@ self.addEventListener('push', (event) => {
     silent: false,
     data: { url, alarm: payload.alarm || null },
   }
-  event.waitUntil(self.registration.showNotification(title, options))
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(title, options)
+      const tag = payload.tag || ''
+      const alarm = payload.alarm || null
+      if (tag.startsWith('clock:') && alarm?.dateKey) {
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        for (const client of clients) {
+          client.postMessage({
+            type: 'alarm-push-fired',
+            dedup: tag,
+            dateKey: alarm.dateKey,
+          })
+        }
+      }
+    })(),
+  )
 })
 
 self.addEventListener('notificationclick', (event) => {

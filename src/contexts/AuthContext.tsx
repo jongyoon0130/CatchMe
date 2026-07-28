@@ -86,7 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.session?.user) {
         setActiveSyncUser(data.session.user.id)
         void runSync(data.session.user.id)
-        void import('../lib/notify').then(({ ensureAlarmPushReady }) => ensureAlarmPushReady())
+        void import('../lib/alarmBootstrap').then(({ bootstrapAlarmDelivery }) =>
+          bootstrapAlarmDelivery({ askPermission: false }),
+        )
       }
     })
 
@@ -97,7 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN' && nextSession?.user) {
         setActiveSyncUser(nextSession.user.id)
         await runSync(nextSession.user.id, { force: true })
-        void import('../lib/notify').then(({ ensureAlarmPushReady }) => ensureAlarmPushReady(true))
+        void import('../lib/alarmBootstrap').then(({ bootstrapAlarmDelivery }) =>
+          bootstrapAlarmDelivery({ askPermission: false }),
+        )
       } else if (!nextSession) {
         setActiveSyncUser(null)
         setLastSync(null)

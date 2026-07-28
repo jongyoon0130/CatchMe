@@ -39,10 +39,13 @@ describe('clockAlarmEngine', () => {
     expect(userAlarmActiveOnDate(alarm({ time: '07:00', repeatDays: [0] }), monday)).toBe(false)
   })
 
-  it('지정 시각 ±2분 안이면 due', () => {
+  it('지정 시각(해당 분)이면 due', () => {
     const trigger = collectClockAlarms([alarm({ time: '19:00' })], new Date('2026-07-27T12:00:00'))[0]!
+    expect(isClockAlarmDue(trigger, new Date('2026-07-27T19:00:00'))).toBe(true)
     expect(isClockAlarmDue(trigger, new Date('2026-07-27T19:00:30'))).toBe(true)
-    expect(isClockAlarmDue(trigger, new Date('2026-07-27T19:02:30'))).toBe(false)
+    expect(isClockAlarmDue(trigger, new Date('2026-07-27T19:00:59'))).toBe(true)
+    expect(isClockAlarmDue(trigger, new Date('2026-07-27T19:01:00'))).toBe(false)
+    expect(isClockAlarmDue(trigger, new Date('2026-07-27T18:59:59'))).toBe(false)
   })
 
   it('중복 발송을 dedup 키로 막는다', () => {
