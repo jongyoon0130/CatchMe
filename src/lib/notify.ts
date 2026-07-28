@@ -208,6 +208,28 @@ export type PushSubscribeResult =
   | { ok: true }
   | { ok: false; reason: 'unsupported' | 'denied' | 'no_worker' | 'no_vapid' | 'failed'; detail?: string }
 
+export function describePushSubscribeFailure(
+  result: { ok: false; reason: string; detail?: string },
+  env?: ReturnType<typeof readNotifyEnv>,
+): string {
+  if (result.detail) return result.detail
+  switch (result.reason) {
+    case 'unsupported':
+      if (env?.isIOS && !env.standalone) {
+        return 'iPhone은 Safari 탭이 아니라 「홈 화면에 추가」한 앱으로 열어야 연결돼요'
+      }
+      return '이 기기/브라우저는 푸시 알림을 지원하지 않아요'
+    case 'denied':
+      return '알림 권한이 꺼져 있어요 — 설정에서 Future Me 알림을 허용해주세요'
+    case 'no_vapid':
+      return '앱 푸시 키가 설정되지 않았어요 (VITE_VAPID_PUBLIC_KEY)'
+    case 'no_worker':
+      return '알림 수신기(서비스 워커) 등록에 실패했어요. 앱을 완전히 종료했다가 다시 열어주세요'
+    default:
+      return '푸시 구독에 실패했어요'
+  }
+}
+
 /** 웹 푸시 구독 — 서버에서 잠금 화면 알람을 보낼 때 필요 */
 export async function subscribeWebPush(forceRenew = false): Promise<PushSubscribeResult> {
   const env = readNotifyEnv()
@@ -235,8 +257,9 @@ export async function subscribeWebPush(forceRenew = false): Promise<PushSubscrib
         applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
       })
     }
-    const { upsertPushSubscriptionToCloud, isCloudSyncAvailable } = await import('./cloudSync')
-    if (isCloudSyncAvailable()) {
+    const { upsertPushSubscriptionToCloud, isCloudSyncAvailableAsync } = await import('./cloudSync')
+    const loggedIn = await isCloudSyncAvailableAsync()
+    if (loggedIn) {
       await upsertPushSubscriptionToCloud(
         sub.toJSON(),
         Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
@@ -258,10 +281,19 @@ export async function subscribeWebPush(forceRenew = false): Promise<PushSubscrib
       } catch {
         /* ignore */
       }
+      return { ok: false, reason: 'failed', detail: 'Google 로그인 후 다시 연결해주세요' }
     }
     return { ok: true }
   } catch (e) {
-    return { ok: false, reason: 'failed', detail: e instanceof Error ? e.message : String(e) }
+    const detail = e instanceof Error ? e.message : String(e)
+    if (/futureme_push_subscriptions|does not exist|42P01|42703|column.*does not exist/i.test(detail)) {
+      return {
+        ok: false,
+        reason: 'failed',
+        detail: '서버 DB 스키마 보정 SQL이 필요해요 (fix_push_subscriptions.sql)',
+      }
+    }
+    return { ok: false, reason: 'failed', detail }
   }
 }
 
@@ -273,8 +305,8 @@ export async function flushPendingPushSubscription(): Promise<void> {
     if (!raw) return
     const parsed = JSON.parse(raw) as { subscription?: PushSubscriptionJSON; timezone?: string }
     if (!parsed.subscription?.endpoint) return
-    const { upsertPushSubscriptionToCloud, isCloudSyncAvailable } = await import('./cloudSync')
-    if (!isCloudSyncAvailable()) return
+    const { upsertPushSubscriptionToCloud, isCloudSyncAvailableAsync } = await import('./cloudSync')
+    if (!(await isCloudSyncAvailableAsync())) return
     await upsertPushSubscriptionToCloud(
       parsed.subscription,
       parsed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',

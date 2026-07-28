@@ -17,6 +17,26 @@ function requireClient() {
   return { client: supabase, userId: activeUserId }
 }
 
+/** activeUserId 가 비어 있어도 Supabase 세션에서 userId 를 복구한다 */
+export async function resolveSyncClient(): Promise<{ client: NonNullable<typeof supabase>; userId: string } | null> {
+  if (!supabase) return null
+
+  if (activeUserId) return { client: supabase, userId: activeUserId }
+
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user?.id) return null
+
+  activeUserId = data.user.id
+  return { client: supabase, userId: data.user.id }
+}
+
+export async function isCloudSyncAvailableAsync(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false
+  if (activeUserId) return true
+  const ctx = await resolveSyncClient()
+  return ctx != null
+}
+
 /**
  * 클라우드 tombstone(묘비) — 프로필을 지울 때 행을 없애는 대신 이 표식으로 바꿔 둔다.
  * 행이 아예 사라지면 다른 기기가 "삭제된 것"과 "아직 동기화 안 된 것"을 구분할 수
@@ -66,7 +86,7 @@ export type RemoteAlarmDataRow = {
 }
 
 export type RemotePushSubscriptionRow = {
-  id: string
+  id?: string
   endpoint: string
   subscription: PushSubscriptionJSON
   timezone: string
@@ -191,8 +211,8 @@ export async function fetchRemoteGoalData(userId: string): Promise<RemoteGoalDat
 }
 
 export async function pushAlarmDataToCloud(payload: AlarmDataPayload): Promise<void> {
-  const ctx = requireClient()
-  if (!ctx) return
+  const ctx = await resolveSyncClient()
+  if (!ctx) throw new Error('로그인이 필요해요')
 
   const { error } = await ctx.client.from('futureme_alarm_data').upsert(
     {
@@ -227,8 +247,9 @@ export async function upsertPushSubscriptionToCloud(
   subscription: PushSubscriptionJSON,
   timezone: string,
 ): Promise<void> {
-  const ctx = requireClient()
-  if (!ctx || !subscription.endpoint) return
+  const ctx = await resolveSyncClient()
+  if (!ctx) throw new Error('로그인이 필요해요')
+  if (!subscription.endpoint) throw new Error('푸시 구독 정보가 없어요')
 
   const { error } = await ctx.client.from('futureme_push_subscriptions').upsert(
     {
@@ -252,7 +273,7 @@ export async function fetchRemotePushSubscriptions(userId: string): Promise<Remo
   if (!supabase) return []
   const { data, error } = await supabase
     .from('futureme_push_subscriptions')
-    .select('id, endpoint, subscription, timezone, enabled, updated_at')
+    .select('endpoint, subscription, timezone, enabled, updated_at')
     .eq('user_id', userId)
     .eq('enabled', true)
   if (error) throw error

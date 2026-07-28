@@ -86,7 +86,7 @@ async function resolveTestUserId(
 }
 
 async function sendPushToSubs(
-  subs: { subscription: webpush.PushSubscription; id?: string }[],
+  subs: { subscription: webpush.PushSubscription; userId?: string; endpoint?: string }[],
   payload: string,
   admin: ReturnType<typeof createClient>,
 ): Promise<number> {
@@ -97,8 +97,12 @@ async function sendPushToSubs(
       sent += 1
     } catch (e) {
       const status = (e as { statusCode?: number })?.statusCode
-      if ((status === 404 || status === 410) && subRow.id) {
-        await admin.from('futureme_push_subscriptions').delete().eq('id', subRow.id)
+      if ((status === 404 || status === 410) && subRow.userId && subRow.endpoint) {
+        await admin
+          .from('futureme_push_subscriptions')
+          .delete()
+          .eq('user_id', subRow.userId)
+          .eq('endpoint', subRow.endpoint)
       }
       console.error('push failed', e)
     }
@@ -147,7 +151,7 @@ Deno.serve(async (req) => {
   if (testUserId) {
     const { data: subs, error: subErr } = await admin
       .from('futureme_push_subscriptions')
-      .select('id, subscription')
+      .select('user_id, endpoint, subscription')
       .eq('user_id', testUserId)
       .eq('enabled', true)
 
@@ -197,7 +201,7 @@ Deno.serve(async (req) => {
   const now = new Date()
   const { data: allSubs } = await admin
     .from('futureme_push_subscriptions')
-    .select('id')
+    .select('endpoint')
     .eq('enabled', true)
 
   let stats = {
@@ -223,7 +227,7 @@ Deno.serve(async (req) => {
 
     const { data: subs } = await admin
       .from('futureme_push_subscriptions')
-      .select('id, subscription')
+      .select('user_id, endpoint, subscription')
       .eq('user_id', row.user_id)
       .eq('enabled', true)
     if (!subs?.length) continue

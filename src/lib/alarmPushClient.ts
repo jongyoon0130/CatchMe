@@ -2,13 +2,13 @@ import { supabase } from './supabase'
 import {
   fetchRemoteAlarmData,
   fetchRemotePushSubscriptions,
-  getActiveSyncUser,
-  isCloudSyncAvailable,
+  isCloudSyncAvailableAsync,
+  resolveSyncClient,
 } from './cloudSync'
 import { pushLocalAlarmData } from './alarmDataSync'
 import { loadUserAlarms } from './userAlarms'
 import {
-  ensureAlarmPushReady,
+  describePushSubscribeFailure,
   readNotifyEnv,
   subscribeWebPush,
   type NotifyEnv,
@@ -36,7 +36,7 @@ const APP_ORIGIN =
 /** 잠금 화면 알람(서버 푸시) 준비 상태 */
 export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus> {
   const env = readNotifyEnv()
-  const loggedIn = isCloudSyncAvailable()
+  const loggedIn = await isCloudSyncAvailableAsync()
   const alarmCount = loadUserAlarms().filter((a) => a.enabled).length
 
   let pushSubscriptionLocal = false
@@ -51,13 +51,19 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
 
   let pushSubscriptionOnServer = false
   let alarmsOnServer = false
-  const userId = getActiveSyncUser()
+  let infraError: string | null = null
+  const ctx = loggedIn ? await resolveSyncClient() : null
+  const userId = ctx?.userId ?? null
   if (loggedIn && userId) {
     try {
       const remoteSubs = await fetchRemotePushSubscriptions(userId)
       pushSubscriptionOnServer = remoteSubs.length > 0
-    } catch {
+    } catch (e) {
       pushSubscriptionOnServer = false
+      const msg = e instanceof Error ? e.message : String(e)
+      if (/futureme_push_subscriptions|does not exist|42P01/i.test(msg)) {
+        infraError = '서버 DB에 푸시 테이블이 없어요 (Supabase SQL 설정 필요)'
+      }
     }
     try {
       const row = await fetchRemoteAlarmData(userId)
@@ -68,14 +74,14 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
     }
   }
 
-  let blocker: string | null = null
-  if (!env.secure) blocker = 'https로 열어야 해요'
-  else if (env.isIOS && !env.standalone) blocker = '홈 화면에 추가한 앱으로 열어야 잠금 알람이 와요'
-  else if (env.permission !== 'granted') blocker = '알림 허용이 필요해요'
-  else if (!loggedIn) blocker = 'Google 로그인이 필요해요'
-  else if (!pushSubscriptionLocal) blocker = '푸시 연결이 아직 없어요 — 아래 「연결하기」를 눌러주세요'
-  else if (!pushSubscriptionOnServer) blocker = '서버에 푸시 연결이 없어요 — 아래 「연결하기」를 눌러주세요'
-  else if (alarmCount > 0 && !alarmsOnServer) blocker = '알람이 서버에 없어요 — 아래 「연결하기」를 눌러주세요'
+  let blocker: string | null = infraError
+  if (!blocker && !env.secure) blocker = 'https로 열어야 해요'
+  else if (!blocker && env.isIOS && !env.standalone) blocker = '홈 화면에 추가한 앱으로 열어야 잠금 알람이 와요'
+  else if (!blocker && env.permission !== 'granted') blocker = '알림 허용이 필요해요'
+  else if (!blocker && !loggedIn) blocker = 'Google 로그인이 필요해요'
+  else if (!blocker && !pushSubscriptionLocal) blocker = '푸시 연결이 아직 없어요 — 아래 「연결하기」를 눌러주세요'
+  else if (!blocker && !pushSubscriptionOnServer) blocker = '서버에 푸시 연결이 없어요 — 아래 「연결하기」를 눌러주세요'
+  else if (!blocker && alarmCount > 0 && !alarmsOnServer) blocker = '알람이 서버에 없어요 — 아래 「연결하기」를 눌러주세요'
 
   const ready =
     !blocker &&
@@ -96,13 +102,24 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
   }
 }
 
-/** 로그인 + 알림 + 푸시 구독 + 알람 데이터를 서버에 올린다 */
-export async function registerLockScreenAlarm(): Promise<{ ok: boolean; detail?: string }> {
-  if (!isCloudSyncAvailable()) {
-    return { ok: false, detail: 'Google 로그인 후 다시 시도해주세요.' }
+function formatCloudSaveError(msg: string): string {
+  if (/42703|column.*does not exist/i.test(msg)) {
+    return '서버 DB 스키마가 옛버전이에요. Supabase SQL Editor에서 fix_push_subscriptions.sql 을 실행해주세요'
   }
-
+  if (/42P01|does not exist/i.test(msg)) {
+    return '서버 DB 테이블이 없어요. Supabase SQL 설정이 필요해요'
+  }
+  if (/no unique|on conflict|42P10/i.test(msg)) {
+    return '서버 DB에 unique(user_id, endpoint) 인덱스가 필요해요 — fix_push_subscriptions.sql 실행'
+  }
+  if (/JWT|401|403|row-level security|RLS/i.test(msg)) {
+    return '로그인 세션이 만료됐을 수 있어요. 로그아웃 후 Google로 다시 로그인해주세요'
+  }
+  return msg
+}
+export async function registerLockScreenAlarm(): Promise<{ ok: boolean; detail?: string }> {
   const env = readNotifyEnv()
+
   if (env.isIOS && !env.standalone) {
     return { ok: false, detail: 'iPhone은 Safari 탭이 아니라 홈 화면 앱으로 열어주세요.' }
   }
@@ -110,12 +127,21 @@ export async function registerLockScreenAlarm(): Promise<{ ok: boolean; detail?:
     return { ok: false, detail: '먼저 「알림 허용하기」를 눌러주세요.' }
   }
 
-  await ensureAlarmPushReady(true)
-  await pushLocalAlarmData().catch(() => {})
+  const loggedIn = await isCloudSyncAvailableAsync()
+  if (!loggedIn) {
+    return { ok: false, detail: 'Google 로그인 후 다시 시도해주세요.' }
+  }
 
-  const sub = await subscribeWebPush(true)
-  if (!sub.ok) {
-    return { ok: false, detail: sub.detail ?? '푸시 구독에 실패했어요.' }
+  const push = await subscribeWebPush(true)
+  if (!push.ok) {
+    return { ok: false, detail: describePushSubscribeFailure(push, env) }
+  }
+
+  try {
+    await pushLocalAlarmData()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { ok: false, detail: formatCloudSaveError(msg) }
   }
 
   const status = await getLockScreenAlarmStatus()
@@ -126,7 +152,7 @@ export async function registerLockScreenAlarm(): Promise<{ ok: boolean; detail?:
 /** 서버에서 즉시 테스트 푸시 — 앱을 닫고 잠금 화면에서 알림 확인 */
 export async function sendLockScreenTestPush(): Promise<{ ok: boolean; detail?: string }> {
   if (!supabase) return { ok: false, detail: 'Supabase가 설정되지 않았어요.' }
-  if (!isCloudSyncAvailable()) return { ok: false, detail: 'Google 로그인이 필요해요.' }
+  if (!(await isCloudSyncAvailableAsync())) return { ok: false, detail: 'Google 로그인이 필요해요.' }
 
   const prep = await registerLockScreenAlarm()
   if (!prep.ok) return prep
