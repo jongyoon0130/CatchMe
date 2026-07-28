@@ -43,7 +43,7 @@ export function AlarmClockPanel() {
   const [editing, setEditing] = useState<UserAlarm | null | 'new'>(null)
   const [nextLabel, setNextLabel] = useState<string | null>(null)
   const [nextPhrase, setNextPhrase] = useState<string | null>(null)
-  const [busy, setBusy] = useState<'test' | 'native' | 'sync' | null>(null)
+  const [busy, setBusy] = useState<'connect' | 'test' | 'native' | 'sync' | null>(null)
   const [nativeStatus, setNativeStatus] = useState<NativeAlarmStatus | null>(null)
 
   const refresh = useCallback(() => {
@@ -78,8 +78,18 @@ export function AlarmClockPanel() {
   }, [refresh])
 
   useEffect(() => {
-    void bootstrapAlarmDelivery({ askPermission: false, forceRenew: false })
+    void bootstrapAlarmDelivery({ askPermission: false, forceRenew: true })
   }, [alarms, user])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void bootstrapAlarmDelivery({ askPermission: false, forceRenew: false })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
 
   const blocker = describeNotifyBlocker(env)
   const needPermission = env.permission !== 'granted'
@@ -93,7 +103,7 @@ export function AlarmClockPanel() {
   }
 
   const handleConnectPush = async () => {
-    setBusy('test')
+    setBusy('connect')
     try {
       const result = await registerLockScreenAlarm()
       refresh()
@@ -220,7 +230,7 @@ export function AlarmClockPanel() {
                 onClick={() => void handleConnectPush()}
                 className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface disabled:opacity-50"
               >
-                {busy === 'test' ? '연결 중…' : '연결하기'}
+                {busy === 'connect' ? '연결 중…' : '연결하기'}
               </button>
             ) : null}
           </div>

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import {
+  fetchAlarmCronHeartbeat,
   fetchRemoteAlarmData,
   fetchRemotePushSubscriptions,
   isCloudSyncAvailableAsync,
@@ -21,6 +22,7 @@ export type LockScreenAlarmStatus = {
   pushSubscriptionOnServer: boolean
   alarmsOnServer: boolean
   alarmCount: number
+  cronHealthy: boolean
   ready: boolean
   blocker: string | null
 }
@@ -51,6 +53,7 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
 
   let pushSubscriptionOnServer = false
   let alarmsOnServer = false
+  let cronHealthy = false
   let infraError: string | null = null
   const ctx = loggedIn ? await resolveSyncClient() : null
   const userId = ctx?.userId ?? null
@@ -74,6 +77,15 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
     }
   }
 
+  try {
+    const heartbeat = await fetchAlarmCronHeartbeat()
+    if (heartbeat?.last_run_at) {
+      cronHealthy = Date.now() - heartbeat.last_run_at < 3 * 60 * 1000
+    }
+  } catch {
+    cronHealthy = false
+  }
+
   let blocker: string | null = infraError
   if (!blocker && !env.secure) blocker = 'https로 열어야 해요'
   else if (!blocker && env.isIOS && !env.standalone) blocker = '홈 화면에 추가한 앱으로 열어야 잠금 알람이 와요'
@@ -82,13 +94,18 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
   else if (!blocker && !pushSubscriptionLocal) blocker = '푸시 연결이 아직 없어요 — 아래 「연결하기」를 눌러주세요'
   else if (!blocker && !pushSubscriptionOnServer) blocker = '서버에 푸시 연결이 없어요 — 아래 「연결하기」를 눌러주세요'
   else if (!blocker && alarmCount > 0 && !alarmsOnServer) blocker = '알람이 서버에 없어요 — 아래 「연결하기」를 눌러주세요'
+  else if (!blocker && alarmCount > 0 && !cronHealthy) {
+    blocker =
+      '서버 알람 스케줄러(매분 크론)가 꺼져 있어요 — Supabase SQL의 cron 블록을 실행해야 앱을 안 열어도 울려요'
+  }
 
   const ready =
     !blocker &&
     alarmCount > 0 &&
     pushSubscriptionLocal &&
     pushSubscriptionOnServer &&
-    alarmsOnServer
+    alarmsOnServer &&
+    cronHealthy
 
   return {
     env,
@@ -97,6 +114,7 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
     pushSubscriptionOnServer,
     alarmsOnServer,
     alarmCount,
+    cronHealthy,
     ready,
     blocker,
   }

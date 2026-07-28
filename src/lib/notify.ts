@@ -25,7 +25,7 @@ export interface NotifyEnv {
   secure: boolean
 }
 
-const SW_URL = '/sw.js?v=7'
+const SW_URL = '/sw.js?v=8'
 const PENDING_PUSH_KEY = 'futureme-pending-push-sub'
 
 function detectStandalone(): boolean {

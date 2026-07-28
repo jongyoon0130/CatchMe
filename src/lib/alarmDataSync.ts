@@ -115,7 +115,8 @@ export function remoteRowToAlarmBundle(row: RemoteAlarmDataRow): AlarmDataBundle
 }
 
 export async function pushLocalAlarmData(): Promise<void> {
-  if (!isCloudSyncAvailable()) return
+  const { isCloudSyncAvailableAsync } = await import('./cloudSync')
+  if (!(await isCloudSyncAvailableAsync())) return
   const bundle = loadLocalAlarmDataBundle()
   const updatedAt = markAlarmDataRevision()
   await pushAlarmDataToCloud({

@@ -8,7 +8,7 @@ import {
   type PushSubscribeResult,
 } from './notify'
 import { pushLocalAlarmData } from './alarmDataSync'
-import { isCloudSyncAvailable } from './cloudSync'
+import { isCloudSyncAvailableAsync } from './cloudSync'
 import { getLockScreenAlarmStatus, registerLockScreenAlarm } from './alarmPushClient'
 
 export type AlarmBootstrapResult = {
@@ -40,10 +40,10 @@ export async function bootstrapAlarmDelivery(opts?: {
   let push: PushSubscribeResult | null = null
   if (after.permission === 'granted') {
     push = await ensureAlarmPushReady(opts?.forceRenew === true)
-    if (isCloudSyncAvailable()) {
+    if (await isCloudSyncAvailableAsync()) {
       await pushLocalAlarmData().catch(() => {})
     }
-    if (isCloudSyncAvailable() && after.permission === 'granted') {
+    if (await isCloudSyncAvailableAsync() && after.permission === 'granted') {
       await registerLockScreenAlarm().catch(() => {})
     }
   }

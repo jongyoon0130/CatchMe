@@ -269,6 +269,17 @@ export async function upsertPushSubscriptionToCloud(
   noteCloudPushSuccess()
 }
 
+export async function fetchAlarmCronHeartbeat(): Promise<{ last_run_at: number; last_sent: number; last_hhmm: string } | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('futureme_alarm_cron_heartbeat')
+    .select('last_run_at, last_sent, last_hhmm')
+    .eq('id', 1)
+    .maybeSingle()
+  if (error) return null
+  return (data as { last_run_at: number; last_sent: number; last_hhmm: string } | null) ?? null
+}
+
 export async function fetchRemotePushSubscriptions(userId: string): Promise<RemotePushSubscriptionRow[]> {
   if (!supabase) return []
   const { data, error } = await supabase

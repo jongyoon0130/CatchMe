@@ -56,7 +56,11 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         UserDefaults.standard.set(alarms, forKey: storageKey)
-        // TODO(entitlement): AlarmManager.shared.schedule(...) for each enabled alarm
+        if useAlarmKit {
+            // TODO(entitlement): AlarmManager.shared.schedule(...) for each enabled alarm
+        } else {
+            scheduleLocalAlarmNotifications(alarms: alarms)
+        }
         call.resolve(["ok": true, "count": alarms.count, "mode": useAlarmKit ? "alarmkit" : "mock"])
     }
 
@@ -108,6 +112,56 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func loadStoredAlarms() -> [[String: Any]] {
         UserDefaults.standard.array(forKey: storageKey) as? [[String: Any]] ?? []
+    }
+
+    /// AlarmKit 전 — UNCalendarNotificationTrigger 로 앱 꺼져도 정각 알림 (시계앱급은 아님)
+    private func scheduleLocalAlarmNotifications(alarms: [Any]) {
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { pending in
+            let stale = pending
+                .map(\.identifier)
+                .filter { $0.hasPrefix("futureme-alarm-") }
+            center.removePendingNotificationRequests(withIdentifiers: stale)
+
+            for raw in alarms {
+                guard let alarm = raw as? [String: Any] else { continue }
+                if (alarm["enabled"] as? Bool) == false { continue }
+                guard let alarmId = alarm["id"] as? String,
+                      let time = alarm["time"] as? String else { continue }
+
+                let parts = time.split(separator: ":")
+                guard parts.count == 2,
+                      let hour = Int(parts[0]),
+                      let minute = Int(parts[1]) else { continue }
+
+                let label = alarm["label"] as? String ?? "알람"
+                let repeatDays = alarm["repeatDays"] as? [Int] ?? [0, 1, 2, 3, 4, 5, 6]
+
+                for dow in repeatDays {
+                    var dc = DateComponents()
+                    dc.hour = hour
+                    dc.minute = minute
+                    dc.weekday = dow + 1 // 1=일 … 7=토
+
+                    let content = UNMutableNotificationContent()
+                    content.title = label
+                    content.body = "다짐을 따라 쳐야 꺼져요 — Future Me"
+                    content.sound = .default
+                    content.userInfo = [
+                        "futuremeAlarm": true,
+                        "alarmId": alarmId,
+                        "label": label,
+                        "time": time,
+                        "phrase": "안녕",
+                    ]
+
+                    let trigger = UNCalendarNotificationTrigger(dateMatching: dc, repeats: true)
+                    let id = "futureme-alarm-\(alarmId)-\(dow)"
+                    let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+                    center.add(request)
+                }
+            }
+        }
     }
 
     private func notifyAlarmFired(alarmId: String, label: String, time: String, phrase: String) {

@@ -36,7 +36,7 @@ function localParts(timezone: string, now = new Date()) {
   })
   const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]))
   const dateKey = `${parts.year}-${parts.month}-${parts.day}`
-  const hhmm = `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`
+  const hhmm = `${String(Number(parts.hour) % 24).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`
   const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
   const dow = dowMap[parts.weekday?.slice(0, 3) ?? ''] ?? now.getUTCDay()
   return { dateKey, hhmm, dow }
@@ -86,22 +86,30 @@ async function resolveTestUserId(
 }
 
 async function sendPushToSubs(
-  subs: { subscription: webpush.PushSubscription; userId?: string; endpoint?: string }[],
+  subs: { subscription: webpush.PushSubscription; user_id?: string; userId?: string; endpoint?: string }[],
   payload: string,
   admin: ReturnType<typeof createClient>,
 ): Promise<number> {
   let sent = 0
   for (const subRow of subs) {
+    const userId = subRow.userId ?? subRow.user_id
     try {
-      await webpush.sendNotification(subRow.subscription as webpush.PushSubscription, payload)
+      const pushSub =
+        subRow.subscription && typeof subRow.subscription === 'object' && 'endpoint' in subRow.subscription
+          ? (subRow.subscription as webpush.PushSubscription)
+          : ({
+              endpoint: subRow.endpoint,
+              keys: (subRow.subscription as { keys?: webpush.PushSubscription['keys'] })?.keys,
+            } as webpush.PushSubscription)
+      await webpush.sendNotification(pushSub, payload)
       sent += 1
     } catch (e) {
       const status = (e as { statusCode?: number })?.statusCode
-      if ((status === 404 || status === 410) && subRow.userId && subRow.endpoint) {
+      if ((status === 404 || status === 410) && userId && subRow.endpoint) {
         await admin
           .from('futureme_push_subscriptions')
           .delete()
-          .eq('user_id', subRow.userId)
+          .eq('user_id', userId)
           .eq('endpoint', subRow.endpoint)
       }
       console.error('push failed', e)
@@ -238,7 +246,10 @@ Deno.serve(async (req) => {
         ...dedup,
         sent_at: Date.now(),
       })
-      if (insErr) continue
+      if (insErr?.code === '23505') continue
+      if (insErr && insErr.code !== '42P01') {
+        console.error('dedup insert failed', insErr)
+      }
 
       const phrase = findPhrase(phrases, alarm.id, dateKey)
       const params = new URLSearchParams({
@@ -261,6 +272,15 @@ Deno.serve(async (req) => {
       sent += await sendPushToSubs(subs, payload, admin)
     }
   }
+
+  if (!stats.hhmm) stats.hhmm = localParts('Asia/Seoul', now).hhmm
+
+  await admin.from('futureme_alarm_cron_heartbeat').upsert({
+    id: 1,
+    last_run_at: Date.now(),
+    last_sent: sent,
+    last_hhmm: stats.hhmm,
+  }).catch(() => {})
 
   return new Response(JSON.stringify({ ok: true, sent, mode: 'cron', stats }), {
     headers: { ...cors, 'Content-Type': 'application/json' },
