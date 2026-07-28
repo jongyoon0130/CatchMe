@@ -1062,8 +1062,16 @@ export function enforceReplyLimits(text: string, userMessage?: string): string {
       remaining -= take.length
     }
   }
-  const polished = polishReplySentences(rawSentences.length ? rawSentences : splitSentences(t), userMessage)
-  const joined = polished.join(' ') || text.trim()
+  let polished = polishReplySentences(rawSentences.length ? rawSentences : splitSentences(t), userMessage)
+  const userWantsAction = Boolean(userMessage && EXPLICIT_ACTION_REQUEST_RE.test(userMessage))
+  if (!userWantsAction) {
+    polished = polished.filter(
+      (s) => !/(작은\s?(거|것|한|걸)|푹\s?쉬|불안함만\s?커|해볼래\?)/.test(s),
+    )
+  }
+  let joined = polished.join(' ')
+  if (!joined && userMessage && !userWantsAction) joined = ''
+  else if (!joined) joined = text.trim()
   return trimFillerSpam(joined)
 }
 
@@ -1488,6 +1496,32 @@ function unique<T>(arr: T[]): T[] {
   return [...new Set(arr)]
 }
 
+export const EXPLICIT_ACTION_REQUEST_RE =
+  /(뭐부터|어떻게\s?하지|무엇부터|어디서\s?부터|뭐\s?해야|해야\s?할지)/
+
+export type ReplyStance =
+  | 'action_plan'
+  | 'perspective'
+  | 'curious'
+  | 'mirror'
+  | 'comfort'
+  | 'challenge'
+
+export function pickReplyStance(
+  analysis: MessageAnalysis,
+  userMessage: string,
+  _tone: string,
+): ReplyStance {
+  if (analysis.needs.includes('action') && EXPLICIT_ACTION_REQUEST_RE.test(userMessage)) {
+    return 'action_plan'
+  }
+  if (analysis.needs.includes('challenge')) return 'challenge'
+  if (analysis.needs.includes('decision')) return 'perspective'
+  if (analysis.needs.includes('comfort')) return 'comfort'
+  if (analysis.needs.includes('concretize') || analysis.vague) return 'curious'
+  return 'mirror'
+}
+
 export function analyzeMessage(
   text: string,
   contextMessages?: ApiDialogueMessage[],
@@ -1552,6 +1586,10 @@ export function analyzeMessage(
     emotions.push('joy')
   }
   if (/(뿌듯|해냈|합격|붙었|성공했)/.test(t)) emotions.push('pride')
+
+  if (/(쓴소리|혼내|까\s?줘|현실\s?좀|뼈\s?맞|독하게)/.test(t)) {
+    needs.push('challenge')
+  }
 
   if (/(위로|괜찮다고\s?해|힘내라고\s?해|응원해|토닥|다독|걱정마라고)/.test(t)) {
     add('comforting', 4, 'explicit_comfort_request')

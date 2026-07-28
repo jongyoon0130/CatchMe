@@ -111,7 +111,7 @@ export function NotifySettings() {
       setMessage(describePushSubscribeResult(result))
       return
     }
-    setEndpoint(result.endpoint)
+    setEndpoint(result.endpoint ?? null)
 
     const sub = await readPushSubscription()
     const save = sub

@@ -108,9 +108,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
+
+    const resyncOnReturn = () => {
+      if (document.visibilityState === 'hidden') return
+      void supabase?.auth.getSession().then(({ data }) => {
+        if (!cancelled && data.session?.user) void runSync(data.session.user.id)
+      })
+    }
+    window.addEventListener('focus', resyncOnReturn)
+    document.addEventListener('visibilitychange', resyncOnReturn)
+
     return () => {
       cancelled = true
       subscription.unsubscribe()
+      window.removeEventListener('focus', resyncOnReturn)
+      document.removeEventListener('visibilitychange', resyncOnReturn)
     }
   }, [configured, runSync])
 

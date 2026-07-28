@@ -10,6 +10,7 @@ import { loadGoalPlans } from './goalPlanStore'
 import { writeGoalPlanSnapshot } from './goalPlanSnapshot'
 import { loadMiscTodos, type MiscTodoItem } from './goalMiscTodos'
 import { loadRoutines, type MiscRoutine } from './goalRoutines'
+import { syncRemindersToCloud } from './reminderSync'
 import { isApplyingRemoteGoalData, setApplyingRemoteGoalData } from './goalDataSyncState'
 
 const REVISION_KEY = 'futureme-goal-data-revision'

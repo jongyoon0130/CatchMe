@@ -254,16 +254,24 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('push', (event) => {
   let payload = {}
-  try {
-    payload = event.data ? event.data.json() : {}
-  } catch {
-    payload = { body: event.data ? event.data.text() : '' }
+  let hadData = false
+  if (event.data) {
+    hadData = true
+    try {
+      payload = event.data.json()
+    } catch {
+      try {
+        payload = JSON.parse(event.data.text())
+      } catch {
+        payload = { body: event.data.text() }
+      }
+    }
   }
 
   const title = payload.title || 'Future Me'
   const url = absoluteUrl(payload.url || '/index.html')
   const options = {
-    body: payload.body || '다짐을 따라 쳐야 꺼져요',
+    body: payload.body || (hadData ? '다짐을 따라 쳐야 꺼져요' : '알림 내용을 불러오지 못했어'),
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     tag: payload.tag || 'futureme-alarm',
@@ -291,12 +299,13 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const target = absoluteUrl(event.notification.data && event.notification.data.url)
+  const isAlarm = Boolean(event.notification.data && event.notification.data.alarm)
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (list) => {
       for (const client of list) {
         if ('focus' in client) {
-          if ('navigate' in client) {
+          if (isAlarm && 'navigate' in client) {
             try {
               await client.focus()
               return client.navigate(target)
@@ -304,6 +313,7 @@ self.addEventListener('notificationclick', (event) => {
               /* fall through */
             }
           }
+          if (!isAlarm) client.postMessage({ type: 'futureme-open', url: target })
           return client.focus()
         }
       }
