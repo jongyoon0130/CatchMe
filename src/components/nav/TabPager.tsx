@@ -1,5 +1,19 @@
-import { useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { MAIN_TABS, type MainTab } from './types'
+
+function useSwipeTabPager(): boolean {
+  const [swipe, setSwipe] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(pointer: coarse)').matches : true,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    const update = () => setSwipe(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return swipe
+}
 
 interface Props {
   active: MainTab
@@ -23,6 +37,8 @@ export function TabPager({ active, onChange, enabled, chat, home, alarm, profile
   const widthRef = useRef(0)
   const scrollRafRef = useRef<number | null>(null)
   const programmaticScrollRef = useRef(false)
+  const swipeTabs = useSwipeTabPager()
+  const pagerEnabled = enabled && swipeTabs
 
   const scrollToTab = useCallback((tab: MainTab, behavior: ScrollBehavior = 'smooth') => {
     const el = scrollerRef.current
@@ -37,7 +53,7 @@ export function TabPager({ active, onChange, enabled, chat, home, alarm, profile
 
   useEffect(() => {
     const el = scrollerRef.current
-    if (!el) return
+    if (!el || !pagerEnabled) return
 
     const measure = () => {
       widthRef.current = el.clientWidth
@@ -48,15 +64,15 @@ export function TabPager({ active, onChange, enabled, chat, home, alarm, profile
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [active, scrollToTab])
+  }, [active, pagerEnabled, scrollToTab])
 
   useEffect(() => {
-    if (!enabled) return
+    if (!pagerEnabled) return
     scrollToTab(active)
-  }, [active, enabled, scrollToTab])
+  }, [active, pagerEnabled, scrollToTab])
 
   const handleScroll = () => {
-    if (!enabled || programmaticScrollRef.current) return
+    if (!pagerEnabled || programmaticScrollRef.current) return
     if (scrollRafRef.current != null) return
     scrollRafRef.current = window.requestAnimationFrame(() => {
       scrollRafRef.current = null
@@ -70,7 +86,7 @@ export function TabPager({ active, onChange, enabled, chat, home, alarm, profile
     })
   }
 
-  if (!enabled) {
+  if (!pagerEnabled) {
     return (
       <div className="h-full overflow-hidden">
         {active === 'chat' && chat}
@@ -92,9 +108,9 @@ export function TabPager({ active, onChange, enabled, chat, home, alarm, profile
       <div className={`w-full shrink-0 snap-center h-full overflow-hidden${active === 'home' ? '' : ' tab-panel-inactive'}`}>
         {home}
       </div>
-      <div className="w-full shrink-0 snap-center h-full overflow-hidden">{chat}</div>
-      <div className="w-full shrink-0 snap-center h-full overflow-hidden">{alarm}</div>
-      <div className="w-full shrink-0 snap-center h-full overflow-hidden">{profile}</div>
+      <div className={`w-full shrink-0 snap-center h-full overflow-hidden${active === 'chat' ? '' : ' tab-panel-inactive'}`}>{chat}</div>
+      <div className={`w-full shrink-0 snap-center h-full overflow-hidden${active === 'alarm' ? '' : ' tab-panel-inactive'}`}>{alarm}</div>
+      <div className={`w-full shrink-0 snap-center h-full overflow-hidden${active === 'profile' ? '' : ' tab-panel-inactive'}`}>{profile}</div>
     </div>
   )
 }

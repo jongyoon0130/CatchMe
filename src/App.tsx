@@ -216,7 +216,7 @@ export default function App() {
           클라우드 저장 실패 — 지금은 이 기기에만 저장되고 있어요. 다음 저장·동기화 때 다시 시도해요.
         </div>
       )}
-      <div className="relative h-full">
+      <div className="relative h-full app-viewport app-viewport-shadow">
         <AppShell
           activeTab={activeTab}
           onTabChange={changeTab}

@@ -74,6 +74,7 @@ html, body, #root {
   overflow: hidden;
   min-height: 100dvh;
   height: 100dvh;
+  isolation: isolate;
 }
 
 .goal-app .goal-screen {
@@ -90,12 +91,23 @@ html, body, #root {
 .goal-app .goal-screen.active {
   transform: translateX(0);
   z-index: 2;
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
 }
 
+/* 웹/PWA: 이전 화면 peek(−28%) 대신 완전히 숨김 — 옆에 깨져 보이는 현상 방지 */
 .goal-app .goal-screen.behind {
-  transform: translateX(-28%);
-  z-index: 1;
-  opacity: 0.92;
+  transform: translateX(-100%);
+  z-index: 0;
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.goal-app .goal-screen:not(.active) {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .goal-app .goal-nav {
@@ -2434,6 +2446,8 @@ html, body, #root {
 .goal-shell-embedded .goal-stack {
   min-height: 100%;
   height: 100%;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .goal-fab-with-nav {
@@ -2707,5 +2721,23 @@ html, body, #root {
   color: var(--goal-ink, #3a4048);
 }
 
-/* 탭 페이저: 홈이 활성이 아닐 때, 홈의 fixed FAB가 다른 탭에 비쳐 보이지 않게 */
+/* 탭 페이저: 비활성 탭 패널은 상호작용·고정 FAB만 막음 (가로 스와이프는 유지) */
 .tab-panel-inactive .goal-fab { display: none !important; }
+
+/* 데스크톱 브라우저: 앱 폭 고정 + 넘침 클립 */
+.app-viewport {
+  width: 100%;
+  max-width: 480px;
+  height: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+  position: relative;
+  background: var(--goal-bg, var(--color-void, #f7f8fa));
+}
+
+@media (min-width: 481px) {
+  .app-viewport-shadow {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--goal-line, #e8ebf0) 80%, transparent),
+      0 12px 40px rgba(20, 22, 28, 0.08);
+  }
+}
