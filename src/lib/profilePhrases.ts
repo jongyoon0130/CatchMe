@@ -155,6 +155,191 @@ export function toVoiceKeywords(text: string | undefined): string[] {
   return nominal ? [nominal] : []
 }
 
+/** 프로필 헤더용 — 나이·역할을 짧은 키워드 칩으로 (줄글 X) */
+export function buildProfileHeaderChips(profile: {
+  age?: number
+  currentRole?: string
+  lifeContext?: string
+}): string[] {
+  const chips: string[] = []
+  const seen = new Set<string>()
+
+  const add = (label: string) => {
+    const t = label.trim().replace(/\s+/g, ' ')
+    if (t.length < 2 || t.length > 14) return
+    const key = t.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    chips.push(t)
+  }
+
+  if (profile.age && profile.age > 0) add(`${profile.age}세`)
+
+  const role = profile.currentRole?.trim() ?? ''
+  const ctx = profile.lifeContext?.trim() ?? ''
+  const text = [role, ctx].filter(Boolean).join(' ')
+
+  const gradeM = role.match(/(?:대학(?:교)?\s*)?(\d)\s*학년|대\s*(\d)(?:\D|$)|(\d)\s*학년/)
+  if (gradeM) {
+    const n = gradeM[1] || gradeM[2] || gradeM[3]
+    add(`대학교 ${n}학년`)
+  } else if (/대학생|대학\s*재학|재학\s*중/.test(role)) {
+    add('대학생')
+  }
+
+  const tenureM = role.match(/(\d+)\s*년\s*차|(\d+)년차/)
+  if (tenureM) add(`${tenureM[1] || tenureM[2]}년차`)
+
+  if (/창업\s*(준비|하고\s*싶|희망|중)|스타트업\s*(준비|준)|창업.*준비/.test(text)) add('창업 준비')
+  else if (/창업|스타트업|1인\s*사업/.test(text)) add('창업')
+
+  if (/취준|구직|취업\s*준비/.test(text)) add('취업 준비')
+  if (/인턴/.test(text)) add('인턴')
+  if (/휴학/.test(text)) add('휴학')
+  if (/백엔드/.test(text)) add('백엔드')
+  if (/프론트/.test(text)) add('프론트')
+  if (/개발자|개발\s*자/.test(text) && !chips.some((c) => c.includes('개발'))) add('개발')
+
+  if (/IT\s*회사|회사\s*다니|직장/.test(role) && !tenureM) {
+    add(/IT|테크|개발/.test(role) ? 'IT 직장' : '직장인')
+  }
+
+  if (chips.length <= 1 && role) {
+    for (const clause of role.split(/[,.\n!?]|(?:\s+고\s+|\s+는데\s+|\s+지만\s+)/)) {
+      const chip = clauseToHeaderChip(clause)
+      if (chip) add(chip)
+      if (chips.length >= 4) break
+    }
+  }
+
+  if (chips.length <= 1 && ctx) {
+    for (const tag of extractThemeTags(ctx, 2)) add(tag)
+  }
+
+  if (chips.length === 0) add('지금의 나')
+
+  return chips.slice(0, 5)
+}
+
+/** 미래 프로필 칩 — 졸업·스타트업·사업가 등 */
+export function buildFutureHeaderChips(future: {
+  identityLine?: string
+  typicalDay?: string
+  career?: string
+  achievement?: string
+  traitsShift?: string[]
+  thrivingDomains?: string[]
+}): string[] {
+  const chips: string[] = []
+  const seen = new Set<string>()
+
+  const add = (label: string) => {
+    const t = label.trim().replace(/\s+/g, ' ')
+    if (t.length < 2 || t.length > 14) return
+    const key = t.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    chips.push(t)
+  }
+
+  const text = [
+    future.identityLine,
+    future.career,
+    future.achievement,
+    future.typicalDay,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  if (/졸업/.test(text)) add('졸업')
+  if (/사업가|CEO|대표|창업가/.test(text)) add('사업가')
+  else if (/스타트업/.test(text)) add('스타트업')
+  else if (/창업/.test(text)) add('창업')
+
+  if (/팀|동료|함께\s*일|co.?founder/i.test(text)) add('팀 빌딩')
+  if (/개발|엔지니어|프로덕트/.test(text)) add('프로덕트')
+  if (/워라밸|work.?life/i.test(text)) add('몰입형')
+  if (/건강|루틴|운동/.test(text)) add('건강 루틴')
+
+  if (future.career?.trim()) {
+    const c = toDashboardValue(future.career, 12)
+    if (c.length >= 2) add(c)
+  }
+  if (future.achievement?.trim()) {
+    const a = toDashboardValue(future.achievement, 12)
+    if (a.length >= 2) add(a)
+  }
+
+  for (const trait of future.traitsShift ?? []) {
+    const t = toNominalPhrase(trait, 10)
+    if (t) add(t)
+    if (chips.length >= 5) break
+  }
+
+  for (const domain of future.thrivingDomains ?? []) {
+    add(domain)
+    if (chips.length >= 5) break
+  }
+
+  for (const tag of extractThemeTags(future.identityLine, 4)) add(tag)
+  if (chips.length < 3) {
+    for (const tag of extractThemeTags(future.typicalDay, 2)) add(tag)
+  }
+
+  return chips.slice(0, 5)
+}
+
+/** 지금 / 미래 한 줄 요약 */
+export function buildPresentSummaryLine(profile: {
+  lifeContext?: string
+  corePriority?: string
+  currentRole?: string
+}): string {
+  return (
+    toDashboardValue(profile.lifeContext, 36) ||
+    toDashboardValue(profile.corePriority, 36) ||
+    toDashboardValue(profile.currentRole, 36)
+  )
+}
+
+export function buildFutureSummaryLine(future: {
+  identityLine?: string
+  career?: string
+  achievement?: string
+}): string {
+  return (
+    toDashboardValue(future.identityLine, 40) ||
+    toDashboardValue(future.career, 36) ||
+    toDashboardValue(future.achievement, 36)
+  )
+}
+
+/** 미래 조언 → 프로필용 한 마디 */
+export function toAdviceQuote(text: string | undefined): string {
+  const raw = text?.trim() ?? ''
+  if (!raw) return ''
+
+  const core = toCoreMessage(raw)
+  if (core.length >= 4 && core.length <= 48) return core
+
+  const first = raw.split(/(?<=[.!?…])\s+|\n+/)[0]?.trim() ?? raw
+  return clip(stripFillers(first), 48)
+}
+
+function clauseToHeaderChip(clause: string): string {
+  let s = stripFillers(clause.trim())
+    .replace(/^(현재는|지금은|나는|저는|그\s*)\s*/i, '')
+    .replace(/(을|를|이|가)\s+/g, ' ')
+    .replace(/(이야|야|입니다|이에요|예요|거든|중이야|중입니다|하고\s*싶)\.?$/g, '')
+    .trim()
+
+  if (/^준비\s*중/.test(s)) return '준비 중'
+  if (s.length >= 2 && s.length <= 12) return s
+
+  const nominal = toNominalPhrase(s, 10)
+  return nominal.length >= 2 && nominal.length <= 12 ? nominal : ''
+}
+
 /** 역할·상황 한 줄 */
 export function toRoleLabel(text: string | undefined): string {
   const raw = text?.trim() ?? ''

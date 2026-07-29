@@ -270,7 +270,7 @@ export function GoalDrilldownHome({
     if (timeEdit.planId === MISC_PLAN_ID) {
       setMiscTodos(updateMiscTodoTime(profile.id, miscTodos, timeEdit.itemId, next.timeStart, next.timeEnd))
     } else {
-      const u = updateAggregatedItemTime(plans, timeEdit.planId, timeEdit.itemId, 'daily', next.timeStart, next.timeEnd)
+      const u = updateAggregatedItemTime(plans, timeEdit.planId, timeEdit.itemId, 'daily', next.timeStart, next.timeEnd, selectedDate)
       if (u) persist(u)
     }
     setTimeEdit(null)
@@ -424,7 +424,6 @@ export function GoalDrilldownHome({
 
   const homeScreen = (
     <>
-      <GoalNav tier="홈" title="나의 목표" />
       <div className="goal-scroll">
         <p className="goal-home-title">{isTodaySelected ? '오늘' : '선택한 날'}</p>
         <p className="goal-home-sub">
@@ -494,7 +493,7 @@ export function GoalDrilldownHome({
                     setMiscTodos(toggleMiscTodo(profile.id, miscTodos, it.id))
                     return
                   }
-                  const u = toggleAggregatedItem(plans, it.planId, it.id, key)
+                  const u = toggleAggregatedItem(plans, it.planId, it.id, key, key === 'daily' ? selectedDate : undefined)
                   if (u) persist(u)
                 }}
                 onLabelChange={(label) => {
@@ -502,7 +501,7 @@ export function GoalDrilldownHome({
                     setMiscTodos(updateMiscTodoLabel(profile.id, miscTodos, it.id, label))
                     return
                   }
-                  const u = updateAggregatedItemLabel(plans, it.planId, it.id, key, label)
+                  const u = updateAggregatedItemLabel(plans, it.planId, it.id, key, label, key === 'daily' ? selectedDate : undefined)
                   if (u) persist(u)
                 }}
                 repeatLabel={repeatLabelOf(it.routineId)}
@@ -519,7 +518,7 @@ export function GoalDrilldownHome({
                     setMiscTodos(removeMiscTodo(profile.id, miscTodos, it.id))
                     return
                   }
-                  const u = removeAggregatedItem(plans, it.planId, it.id, key)
+                  const u = removeAggregatedItem(plans, it.planId, it.id, key, key === 'daily' ? selectedDate : undefined)
                   if (u) persist(u)
                 }}
                 onDrill={

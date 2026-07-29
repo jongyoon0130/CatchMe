@@ -1906,6 +1906,7 @@ const GEMINI_FETCH_TIMEOUT_MS: Record<string, number> = {
   verifyKey: 12_000,
   conversationSummary: 40_000,
   insightAnalysis: 40_000,
+  futureVision: 120_000,
 }
 const DEFAULT_GEMINI_FETCH_TIMEOUT_MS = 38_000
 
@@ -2173,6 +2174,16 @@ async function geminiGenerate(
   label: string,
 ): Promise<Record<string, unknown>> {
   return withGeminiSlot(() => geminiGenerateOnceWithOptionalNetworkRetry(apiKey, model, body, label))
+}
+
+/** 이미지 생성 등 — 다른 모듈에서 Gemini REST 호출 시 */
+export async function geminiGenerateContent(
+  apiKey: string,
+  model: string,
+  body: object,
+  label: string,
+): Promise<Record<string, unknown>> {
+  return geminiGenerate(apiKey, model, body, label)
 }
 
 // AI context: 최근 N개 메시지는 원문, 그 이전은 conversationSummary로 압축

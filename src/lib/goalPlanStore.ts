@@ -3,6 +3,7 @@ import { GOAL_PLAN_TEMPLATE_VERSION } from '../types/goalPlan'
 import type { SelfProfile } from '../types/self'
 import { mergeMotivationAnswers, recoverPlansMotivation } from './goalMotivationRecovery'
 import { hydratePlansFromSections } from './goalSectionHydration'
+import { repairDuplicateHierarchyItemIds } from './goalHierarchyMutations'
 import { restoreGoalPlansFromSnapshot, writeGoalPlanSnapshot } from './goalPlanSnapshot'
 import { migrateGoalPlan } from './goalTemplateEngine'
 import { isApplyingRemoteGoalData } from './goalDataSyncState'
@@ -68,6 +69,16 @@ function migrateList(list: GoalPlan[], profileId: string, profile?: SelfProfile)
   return list.map((p) => migrateGoalPlan({ ...p, profileId }, profile))
 }
 
+function repairPlansItemIds(plans: GoalPlan[]): { plans: GoalPlan[]; changed: boolean } {
+  let changed = false
+  const next = plans.map((p) => {
+    const repaired = repairDuplicateHierarchyItemIds(p)
+    if (repaired.changed) changed = true
+    return repaired.plan
+  })
+  return { plans: next, changed }
+}
+
 function needsPersistMigration(before: GoalPlan[], after: GoalPlan[]): boolean {
   return before.some((p, i) => {
     const m = after[i]
@@ -103,9 +114,12 @@ function mergeExternalPlans(profileId: string, profile?: SelfProfile): GoalPlan[
     merged = recovered.plans
     const hydrated = hydratePlansFromSections(merged)
     merged = hydrated.plans
+    const repaired = repairPlansItemIds(merged)
+    merged = repaired.plans
     if (
       recovered.changed ||
       hydrated.changed ||
+      repaired.changed ||
       needsPersistMigration(current, merged)
     ) {
       saveAll(profileId, merged)
@@ -143,12 +157,15 @@ function mergeExternalPlans(profileId: string, profile?: SelfProfile): GoalPlan[
 
   const hydrated = hydratePlansFromSections(merged)
   merged = hydrated.plans
+  const repaired = repairPlansItemIds(merged)
+  merged = repaired.plans
 
   if (
     merged.length !== current.length ||
     external.length > 0 ||
     recovered.changed ||
     hydrated.changed ||
+    repaired.changed ||
     needsPersistMigration(current, merged)
   ) {
     saveAll(profileId, merged)

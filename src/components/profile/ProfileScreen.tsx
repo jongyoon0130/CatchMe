@@ -13,6 +13,8 @@ import { getPrimaryProfileId } from '../../lib/primaryProfile'
 import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
 import { dayCloseStreak, loadDayCloses } from '../../lib/dayClose'
 import { achievedPlans, activeGoalsLite, readGoalPlansLite, totalDoneCount } from '../../lib/goalPlanBridge'
+import { ProfileIdentitySection } from './ProfileIdentitySection'
+import { ProfileFutureVision } from './ProfileFutureVision'
 
 interface Props {
   /** 프로필 채팅 열기 */
@@ -79,10 +81,8 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
     )
   }
 
-  const f = profile.future
   const comp = personaCompleteness(profile)
   const gaps = personaGaps(profile, 2)
-  const continuityPct = f.continuityScore ? Math.round(((f.continuityScore - 1) / 6) * 100) : 0
 
   return (
     <div className="h-full overflow-y-auto bg-void">
@@ -97,11 +97,6 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
               <h1 className="text-[22px] font-extrabold tracking-[-0.03em] text-ink truncate">
                 {profile.name || '이름 없음'}
               </h1>
-              <p className="text-[13px] font-medium text-muted mt-0.5 truncate">
-                {[profile.age ? `${profile.age}세` : null, profile.currentRole?.trim()]
-                  .filter(Boolean)
-                  .join(' · ') || '지금의 나'}
-              </p>
             </div>
             <button
               type="button"
@@ -111,69 +106,13 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
               대화하기
             </button>
           </div>
-
-          {f.identityLine?.trim() && (
-            <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 px-4 py-3">
-              <div className="flex items-center gap-2 text-[11px] text-muted">
-                <span>지금의 나</span>
-                <span className="flex-1 h-px bg-border/70" />
-                <span className="text-accent">5년 뒤의 나</span>
-              </div>
-              {f.continuityScore ? (
-                <div className="mt-2">
-                  <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-                    <div className="h-full bg-accent rounded-full" style={{ width: `${continuityPct}%` }} />
-                  </div>
-                  <p className="text-[11px] text-muted mt-1.5">
-                    {f.continuityScore >= 6
-                      ? '거의 같은 사람 — 방향이 또렷해'
-                      : f.continuityScore >= 4
-                        ? '조금 달라졌지만 이어진 나'
-                        : '꽤 다른 버전을 향해 가는 중'}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          )}
         </section>
 
-        {/* 2. 미래의 나 카드 */}
-        {(f.identityLine?.trim() || f.adviceLine?.trim() || f.typicalDay?.trim()) && (
-          <section
-            className="relative overflow-hidden rounded-[28px] p-6 shadow-[0_8px_28px_rgba(16,18,24,0.22)]"
-            style={{ background: 'linear-gradient(150deg, #1b1e26 0%, #14161c 55%, #23283a 100%)' }}
-          >
-            <div
-              className="absolute -top-12 -right-10 h-40 w-40 rounded-full blur-3xl"
-              style={{ background: 'rgba(245,197,66,0.22)' }}
-              aria-hidden
-            />
-            <div
-              className="absolute -bottom-14 -left-10 h-36 w-36 rounded-full blur-3xl"
-              style={{ background: 'rgba(139,92,246,0.2)' }}
-              aria-hidden
-            />
-            <p className="relative text-[11px] font-bold uppercase tracking-[0.14em] text-glow">
-              5년 뒤의 나
-            </p>
-            {f.identityLine?.trim() && (
-              <h2 className="relative mt-2.5 text-[23px] font-extrabold leading-snug tracking-[-0.03em] text-white">
-                {f.identityLine.trim()}
-              </h2>
-            )}
-            {f.typicalDay?.trim() && (
-              <p className="font-serif relative mt-3.5 text-[14px] leading-relaxed text-white/60">
-                “{clip(f.typicalDay, 90)}”
-              </p>
-            )}
-            {f.adviceLine?.trim() && (
-              <div className="relative mt-5 border-l-2 border-glow/60 pl-4">
-                <p className="text-[14px] leading-relaxed text-white/85">{f.adviceLine.trim()}</p>
-                <p className="mt-2 text-[11px] text-white/40">— 미래의 내가 지금의 너에게</p>
-              </div>
-            )}
-          </section>
-        )}
+        {/* 2. 지금 ↔ 미래 프로필 */}
+        <ProfileIdentitySection profile={profile} />
+
+        {/* 2b. 미래 비전 사진 */}
+        <ProfileFutureVision profile={profile} />
 
         {/* 3. 여정 — 시간이 만드는 해자 */}
         <section>

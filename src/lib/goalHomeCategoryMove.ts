@@ -55,7 +55,7 @@ export function moveHomeAggregatedItem(args: {
   if (item.planId === MISC_PLAN_ID) {
     nextMisc = removeMiscTodo(profileId, miscTodos, item.id)
   } else {
-    const removed = removeAggregatedItem(plans, item.planId, item.id, tier)
+    const removed = removeAggregatedItem(plans, item.planId, item.id, tier, date)
     if (!removed) return null
     nextPlans = plans.map((p) => (p.id === removed.id ? removed : p))
   }

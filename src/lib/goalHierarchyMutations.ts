@@ -14,6 +14,70 @@ function newItem(label = ''): PlanCheckItem {
   return { id: crypto.randomUUID(), label, done: false }
 }
 
+/** 일간 항목이 속한 day 슬롯 — date가 있으면 그 날짜 노드만, 없으면 첫 전역 매치 */
+function findDailyItemSlot(
+  h: GoalHierarchy,
+  itemId: string,
+  date?: Date,
+): { weekId: string | null; dayId: string } | null {
+  if (date) {
+    const slots = resolveDateSlots(h, date)
+    if (!slots.dayId) return null
+    const day =
+      h.horizon === 'day-only'
+        ? h.days.find((d) => d.id === slots.dayId)
+        : h.weeks.find((w) => w.id === slots.dayWeekId)?.days.find((d) => d.id === slots.dayId)
+    if (!day?.items.some((i) => i.id === itemId)) return null
+    return { weekId: slots.dayWeekId, dayId: slots.dayId }
+  }
+
+  if (h.horizon === 'day-only') {
+    for (const d of h.days) {
+      if (d.items.some((i) => i.id === itemId)) return { weekId: null, dayId: d.id }
+    }
+  } else {
+    for (const w of h.weeks) {
+      for (const d of w.days) {
+        if (d.items.some((i) => i.id === itemId)) return { weekId: w.id, dayId: d.id }
+      }
+    }
+  }
+  return null
+}
+
+/** hierarchy 전역에서 중복 item id를 새 UUID로 치환 (섹션 복사 등으로 생긴 고아 행 복구) */
+export function repairDuplicateHierarchyItemIds(plan: GoalPlan): { plan: GoalPlan; changed: boolean } {
+  if (!plan.hierarchy) return { plan, changed: false }
+
+  const seen = new Set<string>()
+  let changed = false
+
+  const fixItems = (items: PlanCheckItem[]): PlanCheckItem[] =>
+    items.map((it) => {
+      if (!seen.has(it.id)) {
+        seen.add(it.id)
+        return it
+      }
+      changed = true
+      const id = crypto.randomUUID()
+      seen.add(id)
+      return { ...it, id }
+    })
+
+  const fixDays = (days: PlanDay[]): PlanDay[] => days.map((d) => ({ ...d, items: fixItems(d.items) }))
+
+  const h = plan.hierarchy
+  const next: GoalHierarchy = {
+    ...h,
+    months: h.months.map((m) => ({ ...m, items: fixItems(m.items) })),
+    weeks: h.weeks.map((w) => ({ ...w, items: fixItems(w.items), days: fixDays(w.days) })),
+    days: fixDays(h.days),
+  }
+
+  if (!changed) return { plan, changed: false }
+  return { plan: { ...plan, hierarchy: next }, changed: true }
+}
+
 export function addMonthItem(plan: GoalPlan, monthId: string): GoalPlan {
   return withHierarchy(plan, (h) => ({
     ...h,
@@ -242,6 +306,7 @@ export function toggleAggregatedItem(
   planId: string,
   itemId: string,
   tier: 'daily' | 'weekly' | 'monthly',
+  date?: Date,
 ): GoalPlan | null {
   const plan = plans.find((p) => p.id === planId)
   if (!plan?.hierarchy) return null
@@ -251,24 +316,19 @@ export function toggleAggregatedItem(
     for (const m of h.months) {
       if (m.items.some((i) => i.id === itemId)) return toggleMonthNodeItem(plan, m.id, itemId)
     }
+    return null
   }
 
   if (tier === 'weekly') {
     for (const w of h.weeks) {
       if (w.items.some((i) => i.id === itemId)) return toggleWeekItemH(plan, w.id, itemId)
     }
+    return null
   }
 
-  if (h.horizon === 'day-only') {
-    for (const d of h.days) {
-      if (d.items.some((i) => i.id === itemId)) return toggleDayItem(plan, null, d.id, itemId)
-    }
-  } else {
-    for (const w of h.weeks) {
-      for (const d of w.days) {
-        if (d.items.some((i) => i.id === itemId)) return toggleDayItem(plan, w.id, d.id, itemId)
-      }
-    }
+  if (tier === 'daily') {
+    const slot = findDailyItemSlot(h, itemId, date)
+    if (slot) return toggleDayItem(plan, slot.weekId, slot.dayId, itemId)
   }
   return null
 }
@@ -278,6 +338,7 @@ export function removeAggregatedItem(
   planId: string,
   itemId: string,
   tier: 'daily' | 'weekly' | 'monthly',
+  date?: Date,
 ): GoalPlan | null {
   const plan = plans.find((p) => p.id === planId)
   if (!plan?.hierarchy) return null
@@ -287,26 +348,19 @@ export function removeAggregatedItem(
     for (const m of h.months) {
       if (m.items.some((i) => i.id === itemId)) return removeMonthItem(plan, m.id, itemId)
     }
+    return null
   }
 
   if (tier === 'weekly') {
     for (const w of h.weeks) {
       if (w.items.some((i) => i.id === itemId)) return removeWeekItem(plan, w.id, itemId)
     }
+    return null
   }
 
   if (tier === 'daily') {
-    if (h.horizon === 'day-only') {
-      for (const d of h.days) {
-        if (d.items.some((i) => i.id === itemId)) return removeDayItem(plan, null, d.id, itemId)
-      }
-    } else {
-      for (const w of h.weeks) {
-        for (const d of w.days) {
-          if (d.items.some((i) => i.id === itemId)) return removeDayItem(plan, w.id, d.id, itemId)
-        }
-      }
-    }
+    const slot = findDailyItemSlot(h, itemId, date)
+    if (slot) return removeDayItem(plan, slot.weekId, slot.dayId, itemId)
   }
   return null
 }
@@ -317,6 +371,7 @@ export function updateAggregatedItemLabel(
   itemId: string,
   tier: 'daily' | 'weekly' | 'monthly',
   label: string,
+  date?: Date,
 ): GoalPlan | null {
   const plan = plans.find((p) => p.id === planId)
   if (!plan?.hierarchy) return null
@@ -326,26 +381,19 @@ export function updateAggregatedItemLabel(
     for (const m of h.months) {
       if (m.items.some((i) => i.id === itemId)) return setMonthItemLabel(plan, m.id, itemId, label)
     }
+    return null
   }
 
   if (tier === 'weekly') {
     for (const w of h.weeks) {
       if (w.items.some((i) => i.id === itemId)) return setWeekItemLabel(plan, w.id, itemId, label)
     }
+    return null
   }
 
   if (tier === 'daily') {
-    if (h.horizon === 'day-only') {
-      for (const d of h.days) {
-        if (d.items.some((i) => i.id === itemId)) return setDayItemLabel(plan, null, d.id, itemId, label)
-      }
-    } else {
-      for (const w of h.weeks) {
-        for (const d of w.days) {
-          if (d.items.some((i) => i.id === itemId)) return setDayItemLabel(plan, w.id, d.id, itemId, label)
-        }
-      }
-    }
+    const slot = findDailyItemSlot(h, itemId, date)
+    if (slot) return setDayItemLabel(plan, slot.weekId, slot.dayId, itemId, label)
   }
   return null
 }
@@ -357,24 +405,15 @@ export function updateAggregatedItemTime(
   tier: 'daily' | 'weekly' | 'monthly',
   timeStart?: string,
   timeEnd?: string,
+  date?: Date,
 ): GoalPlan | null {
   if (tier !== 'daily') return null
   const plan = plans.find((p) => p.id === planId)
   if (!plan?.hierarchy) return null
-  const h = plan.hierarchy
 
-  if (h.horizon === 'day-only') {
-    for (const d of h.days) {
-      if (d.items.some((i) => i.id === itemId)) return setDayItemTime(plan, null, d.id, itemId, timeStart, timeEnd)
-    }
-  } else {
-    for (const w of h.weeks) {
-      for (const d of w.days) {
-        if (d.items.some((i) => i.id === itemId)) return setDayItemTime(plan, w.id, d.id, itemId, timeStart, timeEnd)
-      }
-    }
-  }
-  return null
+  const slot = findDailyItemSlot(plan.hierarchy, itemId, date)
+  if (!slot) return null
+  return setDayItemTime(plan, slot.weekId, slot.dayId, itemId, timeStart, timeEnd)
 }
 
 /** @deprecated */

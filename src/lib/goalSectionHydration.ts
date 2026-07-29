@@ -50,7 +50,7 @@ export function hydrateHierarchyFromSections(plan: GoalPlan): GoalPlan {
       if (daySource?.length && hasEmptyTierItems(todayDay.items)) {
         todayDay.items = todayDay.items.length
           ? copyItemLabels(daySource, todayDay.items)
-          : daySource.map((s) => ({ id: s.id, label: s.label, done: s.done }))
+          : daySource.map((s) => ({ id: crypto.randomUUID(), label: s.label, done: s.done }))
         changed = true
       }
     }

@@ -139,24 +139,32 @@ body::before {
 
 /* ── 3. 셸 / 화면 ────────────────────────────────────────────────────── */
 
-.goal-app,
-.goal-app .goal-screen,
-.goal-app .goal-stack {
+.goal-app {
   background: transparent;
+}
+
+.goal-app .goal-stack {
+  background: var(--au-bg);
 }
 
 .goal-app .goal-screen {
   transition: transform 0.38s var(--au-ease), opacity 0.38s var(--au-ease);
 }
 
+.goal-app .goal-screen.active {
+  background: var(--au-bg);
+}
+
 .goal-app .goal-screen.behind {
   transform: translateX(-22%) scale(0.97);
-  opacity: 0.55;
+  opacity: 0.92;
+  pointer-events: none;
 }
 
 .goal-app .goal-scroll {
   padding: 4px 18px 148px;
   scrollbar-width: none;
+  background: var(--au-bg);
 }
 
 .goal-app .goal-scroll::-webkit-scrollbar {
@@ -169,7 +177,7 @@ body::before {
   gap: 12px;
   padding: 14px 18px 10px;
   min-height: 56px;
-  background: transparent;
+  background: color-mix(in srgb, var(--au-bg) 92%, transparent);
   backdrop-filter: saturate(1.6) blur(18px);
   -webkit-backdrop-filter: saturate(1.6) blur(18px);
   border-bottom: none;
