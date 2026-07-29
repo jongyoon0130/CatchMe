@@ -1,4 +1,4 @@
-import type { GoalPlan } from '../types/goalPlan'
+import type { GoalPlan, PlanCheckItem } from '../types/goalPlan'
 import { getGoalAppOwnerId } from './goalAppOwner'
 import {
   fetchRemoteGoalData,
@@ -97,16 +97,72 @@ export function applyLocalGoalDataBundle(bundle: GoalDataBundle): void {
   window.dispatchEvent(new CustomEvent(GOAL_DATA_SYNC_EVENT))
 }
 
+/**
+ * 두 항목 배열을 id로 합친다(합집합) — pref 쪽 버전·순서를 유지하고, other에만 있는 항목을
+ * 뒤에 붙인다. **어느 쪽도 항목을 잃지 않는다.** 같은 id는 pref가 이긴다.
+ */
+function unionItems(pref: PlanCheckItem[], other: PlanCheckItem[]): PlanCheckItem[] {
+  const ids = new Set(pref.map((it) => it.id))
+  const extras = other.filter((it) => !ids.has(it.id))
+  return extras.length ? [...pref, ...extras] : pref
+}
+
+/**
+ * 같은 목표(id)의 두 버전을 합친다 — 뼈대(제목·기간·초점)는 preferLocal 쪽을 쓰고,
+ * 트리 안 항목은 노드별로 합집합. 예전엔 "목표 목록을 통짜로 최신 기기 걸로 덮어써서"
+ * 한 기기에서 방금 추가·체크한 목표 항목이 사라졌다(데이터 손실). 이제 항목은 안 잃는다.
+ */
+function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean): GoalPlan {
+  const pref = preferLocal ? local : remote
+  const other = preferLocal ? remote : local
+  const ph = pref.hierarchy
+  const oh = other.hierarchy
+  if (!ph || !oh) return pref
+
+  const oMonth = new Map(oh.months.map((m) => [m.id, m]))
+  const oWeek = new Map(oh.weeks.map((w) => [w.id, w]))
+  const oDayTop = new Map(oh.days.map((d) => [d.id, d]))
+
+  return {
+    ...pref,
+    hierarchy: {
+      ...ph,
+      months: ph.months.map((m) => {
+        const o = oMonth.get(m.id)
+        return o ? { ...m, items: unionItems(m.items, o.items) } : m
+      }),
+      weeks: ph.weeks.map((w) => {
+        const ow = oWeek.get(w.id)
+        if (!ow) return w
+        const oDay = new Map(ow.days.map((d) => [d.id, d]))
+        return {
+          ...w,
+          items: unionItems(w.items, ow.items),
+          days: w.days.map((d) => {
+            const od = oDay.get(d.id)
+            return od ? { ...d, items: unionItems(d.items, od.items) } : d
+          }),
+        }
+      }),
+      days: ph.days.map((d) => {
+        const o = oDayTop.get(d.id)
+        return o ? { ...d, items: unionItems(d.items, o.items) } : d
+      }),
+    },
+  }
+}
+
+/**
+ * 목표 목록 병합 — 통짜 교체가 아니라 **목표별·항목별 합집합**이라 어느 기기의 목표·항목도
+ * 사라지지 않는다. 같은 목표/항목의 충돌은 번들이 더 최신인 쪽(preferLocal)을 따른다.
+ */
 function mergePlans(local: GoalPlan[], remote: GoalPlan[], localRev: number, remoteRev: number): GoalPlan[] {
-  if (localRev > remoteRev) return [...local].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  if (remoteRev > localRev) return [...remote].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const preferLocal = localRev >= remoteRev
   const byId = new Map<string, GoalPlan>()
   for (const plan of remote) byId.set(plan.id, plan)
   for (const plan of local) {
     const existing = byId.get(plan.id)
-    if (!existing || plan.updatedAt.localeCompare(existing.updatedAt) >= 0) {
-      byId.set(plan.id, plan)
-    }
+    byId.set(plan.id, existing ? mergePlanPair(plan, existing, preferLocal) : plan)
   }
   return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
