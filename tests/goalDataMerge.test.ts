@@ -75,3 +75,81 @@ describe('mergeGoalDataBundles — 삭제 전파(툼스톤)', () => {
     expect(x?.label).toBe('X부활')
   })
 })
+
+// ── 목표 항목 병합 — 통짜 교체가 아니라 항목별 합집합이라 어느 기기 것도 안 사라진다
+import type { GoalPlan, PlanCheckItem } from '../src/types/goalPlan'
+
+function planWithDayItems(updatedAt: string, items: PlanCheckItem[]): GoalPlan {
+  return {
+    id: 'plan-a',
+    profileId: 'p',
+    templateType: 'backplan',
+    title: '앱 출시',
+    intake: { goal: '앱', deadline: '2026-07-31', successCriteria: '', progress: 'not_started' },
+    sections: [],
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt,
+    hierarchy: {
+      horizon: 'week-day',
+      rangeLabel: '7월',
+      focus: '',
+      startDate: '2026-07-01',
+      deadline: '2026-07-31',
+      months: [],
+      currentWeekId: 'w1',
+      weeks: [
+        { id: 'w1', globalIndex: 1, label: 'W1', dateLabel: '', focus: '', items: [], monthKeys: [], days: [
+          { id: 'd1', dateLabel: '7/29', dayOfWeek: '수', focus: '', items },
+        ] },
+      ],
+      days: [],
+    },
+  }
+}
+
+function pbundle(updatedAt: number, plans: GoalPlan[]): GoalDataBundle {
+  return { ownerId: 'o', plans, miscTodos: [], routines: [], updatedAt }
+}
+
+function dayItems(merged: GoalDataBundle): PlanCheckItem[] {
+  return merged.plans[0]?.hierarchy?.weeks[0]?.days[0]?.items ?? []
+}
+
+describe('mergePlans — 목표 항목 합집합(데이터 손실 방지)', () => {
+  it('로컬이 방금 추가한 목표 항목은, 번들이 더 오래됐어도 사라지지 않는다', () => {
+    const local = pbundle(100, [planWithDayItems('2026-07-29T10:00:00Z', [
+      { id: 'A', label: '기존', done: false },
+      { id: 'B', label: '방금 추가', done: false },
+    ])])
+    const remote = pbundle(999, [planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '기존', done: false },
+    ])])
+    const labels = dayItems(mergeGoalDataBundles(local, remote)).map((i) => i.label)
+    expect(labels).toContain('방금 추가') // 통짜 교체였으면 여기서 사라졌다
+  })
+
+  it('두 기기가 서로 다른 목표 항목을 추가하면 둘 다 남는다', () => {
+    const mac = pbundle(200, [planWithDayItems('2026-07-29T10:00:00Z', [
+      { id: 'A', label: '공통', done: false },
+      { id: 'X', label: '맥에서', done: false },
+    ])])
+    const phone = pbundle(100, [planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '공통', done: false },
+      { id: 'Y', label: '폰에서', done: false },
+    ])])
+    const ids = dayItems(mergeGoalDataBundles(mac, phone)).map((i) => i.id)
+    expect(ids).toContain('X')
+    expect(ids).toContain('Y')
+  })
+
+  it('같은 항목의 체크 상태는 번들이 더 최신인 쪽을 따른다', () => {
+    const checked = pbundle(500, [planWithDayItems('2026-07-29T11:00:00Z', [
+      { id: 'A', label: '운동', done: true },
+    ])])
+    const old = pbundle(100, [planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '운동', done: false },
+    ])])
+    expect(dayItems(mergeGoalDataBundles(checked, old))[0].done).toBe(true)
+    expect(dayItems(mergeGoalDataBundles(old, checked))[0].done).toBe(true)
+  })
+})
