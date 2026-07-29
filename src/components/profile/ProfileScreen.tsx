@@ -15,6 +15,8 @@ import { dayCloseStreak, loadDayCloses } from '../../lib/dayClose'
 import { achievedPlans, activeGoalsLite, readGoalPlansLite, totalDoneCount } from '../../lib/goalPlanBridge'
 import { ProfileIdentitySection } from './ProfileIdentitySection'
 import { ProfileFutureVision } from './ProfileFutureVision'
+import { useAuth } from '../../contexts/AuthContext'
+import { deleteAccountWithConfirm } from '../../lib/accountActions'
 
 interface Props {
   /** 프로필 채팅 열기 */
@@ -52,6 +54,14 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
   const doneTotal = totalDoneCount()
   const achieved = achievedPlans(readGoalPlansLite())
   const active = activeGoalsLite()
+
+  const { signOut } = useAuth()
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true)
+    const ok = await deleteAccountWithConfirm()
+    if (!ok) setDeletingAccount(false) // 성공이면 새로고침되므로 상태 유지
+  }
 
   const fill = (field: PersonaFieldSpec, value: string) => {
     if (!profile || !value.trim()) return
@@ -218,6 +228,39 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
               ))}
             </div>
           )}
+        </section>
+
+        {/* 6. 계정 */}
+        <section>
+          <h3 className="text-[11px] font-bold text-muted/70 uppercase tracking-[0.1em] px-0.5 mb-2.5">계정</h3>
+          <div className="rounded-2xl border border-border/60 bg-surface/60 overflow-hidden divide-y divide-border/60">
+            <a
+              href="/privacy.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block px-4 py-3 text-sm text-ink hover:bg-ink/[0.03]"
+            >
+              개인정보 처리방침
+            </a>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="w-full text-left px-4 py-3 text-sm text-muted hover:bg-ink/[0.03]"
+            >
+              로그아웃
+            </button>
+            <button
+              type="button"
+              disabled={deletingAccount}
+              onClick={() => void handleDeleteAccount()}
+              className="w-full text-left px-4 py-3 text-sm text-status-error hover:bg-status-error/[0.06] disabled:opacity-50"
+            >
+              {deletingAccount ? '삭제 중…' : '계정 삭제'}
+            </button>
+          </div>
+          <p className="text-[11px] text-muted/60 mt-2 px-0.5 leading-relaxed">
+            로그아웃은 데이터를 지우지 않아요. 계정 삭제는 모든 데이터가 영구히 사라지고 되돌릴 수 없어요.
+          </p>
         </section>
 
       </div>
