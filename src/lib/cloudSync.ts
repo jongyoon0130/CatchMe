@@ -376,3 +376,14 @@ export async function fetchRemoteSettings(userId: string): Promise<{ gemini_mode
 export function isCloudSyncAvailable(): boolean {
   return isSupabaseConfigured() && Boolean(activeUserId)
 }
+
+/**
+ * 계정 삭제 — 서버(delete-account Edge Function)가 이 사용자의 로그인 계정과
+ * 모든 데이터를 지운다(테이블은 on delete cascade로 함께 삭제). 되돌릴 수 없다.
+ * 서버가 성공을 돌려주면 호출한 쪽에서 로컬 저장소를 비우고 로그인 화면으로 보낸다.
+ */
+export async function deleteAccountInCloud(): Promise<void> {
+  if (!supabase) throw new Error('cloud_not_configured')
+  const { error } = await supabase.functions.invoke('delete-account', { body: {} })
+  if (error) throw error
+}

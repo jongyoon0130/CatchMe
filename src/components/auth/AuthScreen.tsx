@@ -56,6 +56,16 @@ export function AuthScreen() {
           <br />
           Gemini API 키는 이 기기에만 남아요.
         </p>
+        <p className="text-[11px] text-muted/60 mt-3">
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-muted"
+          >
+            개인정보 처리방침
+          </a>
+        </p>
       </div>
     </div>
   )
