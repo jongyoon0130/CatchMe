@@ -153,3 +153,20 @@ describe('mergePlans — 목표 항목 합집합(데이터 손실 방지)', () =
     expect(dayItems(mergeGoalDataBundles(old, checked))[0].done).toBe(true)
   })
 })
+
+describe('mergePlans — 두 기기 날 노드 id가 달라도 항목 안 잃음(날짜로 매칭)', () => {
+  function planDayId(updatedAt: string, dayId: string, items: PlanCheckItem[]): GoalPlan {
+    const p = planWithDayItems(updatedAt, items)
+    p.hierarchy!.weeks[0].days[0].id = dayId // 같은 날짜, 다른 노드 id
+    return p
+  }
+  it('폰(항목없음·rev높음)이 클라우드(항목있음)를 덮어써도, 날 노드 id가 달라도 항목이 산다', () => {
+    // 실사용 버그: 폰과 맥의 날 노드 id가 독립 생성돼 달랐다 → 예전엔 여기서 사라졌다
+    const phone = pbundle(9999, [planDayId('2026-07-29T09:00:00Z', 'day-phone', [])])
+    const cloud = pbundle(100, [planDayId('2026-07-29T10:00:00Z', 'day-mac', [
+      { id: 'X', label: '맥에서추가', done: false },
+    ])])
+    const labels = dayItems(mergeGoalDataBundles(phone, cloud)).map((i) => i.label)
+    expect(labels).toContain('맥에서추가')
+  })
+})

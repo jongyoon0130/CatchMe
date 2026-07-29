@@ -1,4 +1,4 @@
-import type { GoalPlan, PlanCheckItem } from '../types/goalPlan'
+import type { GoalPlan, PlanCheckItem, PlanDay, GoalHierarchy } from '../types/goalPlan'
 import { getGoalAppOwnerId } from './goalAppOwner'
 import {
   fetchRemoteGoalData,
@@ -107,10 +107,41 @@ function unionItems(pref: PlanCheckItem[], other: PlanCheckItem[]): PlanCheckIte
   return extras.length ? [...pref, ...extras] : pref
 }
 
+/** 노드를 **날짜(의미)**로 맞추기 위한 키. 두 기기의 노드 id가 달라도 같은 날짜면 매칭된다. */
+function dayKey(d: PlanDay): string {
+  return `${d.dateLabel}|${d.dayOfWeek}`
+}
+
+function allItemIds(h: GoalHierarchy): Set<string> {
+  const s = new Set<string>()
+  for (const m of h.months) for (const it of m.items) s.add(it.id)
+  for (const w of h.weeks) {
+    for (const it of w.items) s.add(it.id)
+    for (const d of w.days) for (const it of d.items) s.add(it.id)
+  }
+  for (const d of h.days) for (const it of d.items) s.add(it.id)
+  return s
+}
+
+/** other 트리의 모든 항목을 tier별로 모은다 (안전망용) */
+function collectByTier(h: GoalHierarchy): { monthly: PlanCheckItem[]; weekly: PlanCheckItem[]; daily: PlanCheckItem[] } {
+  const monthly: PlanCheckItem[] = []
+  const weekly: PlanCheckItem[] = []
+  const daily: PlanCheckItem[] = []
+  for (const m of h.months) monthly.push(...m.items)
+  for (const w of h.weeks) {
+    weekly.push(...w.items)
+    for (const d of w.days) daily.push(...d.items)
+  }
+  for (const d of h.days) daily.push(...d.items)
+  return { monthly, weekly, daily }
+}
+
 /**
  * 같은 목표(id)의 두 버전을 합친다 — 뼈대(제목·기간·초점)는 preferLocal 쪽을 쓰고,
- * 트리 안 항목은 노드별로 합집합. 예전엔 "목표 목록을 통짜로 최신 기기 걸로 덮어써서"
- * 한 기기에서 방금 추가·체크한 목표 항목이 사라졌다(데이터 손실). 이제 항목은 안 잃는다.
+ * 트리 안 항목은 **날짜로 매칭해** 합집합. 예전엔 노드 id로 맞췄는데, 두 기기의 날 노드
+ * id가 (독립 생성돼) 다르면 매칭 실패로 항목이 사라졌다(데이터 손실). 이제 날짜로 맞추고,
+ * 그래도 안 들어간 항목은 tier별 대표 노드에 붙여 **어떤 항목도 잃지 않는다.**
  */
 function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean): GoalPlan {
   const pref = preferLocal ? local : remote
@@ -119,37 +150,58 @@ function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
   const oh = other.hierarchy
   if (!ph || !oh) return pref
 
-  const oMonth = new Map(oh.months.map((m) => [m.id, m]))
-  const oWeek = new Map(oh.weeks.map((w) => [w.id, w]))
-  const oDayTop = new Map(oh.days.map((d) => [d.id, d]))
+  const oMonth = new Map(oh.months.map((m) => [m.key, m]))
+  const oWeek = new Map(oh.weeks.map((w) => [String(w.globalIndex), w]))
+  const oDayTop = new Map(oh.days.map((d) => [dayKey(d), d]))
 
-  return {
-    ...pref,
-    hierarchy: {
-      ...ph,
-      months: ph.months.map((m) => {
-        const o = oMonth.get(m.id)
-        return o ? { ...m, items: unionItems(m.items, o.items) } : m
-      }),
-      weeks: ph.weeks.map((w) => {
-        const ow = oWeek.get(w.id)
-        if (!ow) return w
-        const oDay = new Map(ow.days.map((d) => [d.id, d]))
-        return {
-          ...w,
-          items: unionItems(w.items, ow.items),
-          days: w.days.map((d) => {
-            const od = oDay.get(d.id)
-            return od ? { ...d, items: unionItems(d.items, od.items) } : d
-          }),
-        }
-      }),
-      days: ph.days.map((d) => {
-        const o = oDayTop.get(d.id)
-        return o ? { ...d, items: unionItems(d.items, o.items) } : d
-      }),
-    },
+  const merged: GoalHierarchy = {
+    ...ph,
+    months: ph.months.map((m) => {
+      const o = oMonth.get(m.key)
+      return o ? { ...m, items: unionItems(m.items, o.items) } : m
+    }),
+    weeks: ph.weeks.map((w) => {
+      const ow = oWeek.get(String(w.globalIndex))
+      if (!ow) return w
+      const oDay = new Map(ow.days.map((d) => [dayKey(d), d]))
+      return {
+        ...w,
+        items: unionItems(w.items, ow.items),
+        days: w.days.map((d) => {
+          const od = oDay.get(dayKey(d))
+          return od ? { ...d, items: unionItems(d.items, od.items) } : d
+        }),
+      }
+    }),
+    days: ph.days.map((d) => {
+      const o = oDayTop.get(dayKey(d))
+      return o ? { ...d, items: unionItems(d.items, o.items) } : d
+    }),
   }
+
+  // 안전망: 날짜 매칭에도 안 들어간 other 항목(고아)을 tier별 대표 노드에 붙인다 → 손실 0.
+  const placed = allItemIds(merged)
+  const { monthly, weekly, daily } = collectByTier(oh)
+  const orphanMonthly = monthly.filter((it) => !placed.has(it.id))
+  const orphanWeekly = weekly.filter((it) => !placed.has(it.id))
+  const orphanDaily = daily.filter((it) => !placed.has(it.id))
+  if (orphanMonthly.length && merged.months[0]) {
+    merged.months[0] = { ...merged.months[0], items: [...merged.months[0].items, ...orphanMonthly] }
+  }
+  if (orphanWeekly.length && merged.weeks[0]) {
+    merged.weeks[0] = { ...merged.weeks[0], items: [...merged.weeks[0].items, ...orphanWeekly] }
+  }
+  if (orphanDaily.length) {
+    if (merged.weeks[0]?.days[0]) {
+      const w0 = merged.weeks[0]
+      const d0 = w0.days[0]
+      merged.weeks[0] = { ...w0, days: [{ ...d0, items: [...d0.items, ...orphanDaily] }, ...w0.days.slice(1)] }
+    } else if (merged.days[0]) {
+      merged.days[0] = { ...merged.days[0], items: [...merged.days[0].items, ...orphanDaily] }
+    }
+  }
+
+  return { ...pref, hierarchy: merged }
 }
 
 /**
