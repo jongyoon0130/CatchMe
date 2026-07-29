@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../../lib/brand'
 import { formatListTime, type ProfileSummary } from '../../lib/storage'
+import { deleteAccountInCloud } from '../../lib/cloudSync'
 import { useAuth } from '../../contexts/AuthContext'
 import { FutureMeLogo } from '../brand/FutureMeLogo'
 import { SwipeableListRow } from './SwipeableListRow'
@@ -56,6 +57,27 @@ export function ProfileListScreen({
     const result = await uploadLocalData()
     if (result && result.count > 0) {
       window.alert(`${result.count}개 프로필을 클라우드에 올렸어요.`)
+    }
+  }
+
+  const [deleting, setDeleting] = useState(false)
+  const handleDeleteAccount = async () => {
+    if (
+      !window.confirm(
+        '계정을 삭제할까요?\n\n프로필·대화·목표·할 일 등 모든 데이터와 로그인 계정이 영구히 지워지고, 되돌릴 수 없어요.\n\n(잠시 쉬었다 다시 쓰고 싶다면 삭제 대신 "로그아웃"을 쓰세요 — 데이터가 그대로 남아요.)',
+      )
+    ) {
+      return
+    }
+    setDeleting(true)
+    try {
+      await deleteAccountInCloud()
+      localStorage.clear()
+      sessionStorage.clear()
+      window.location.reload()
+    } catch {
+      setDeleting(false)
+      window.alert('계정 삭제에 실패했어요. 잠시 후 다시 시도하거나 문의해 주세요.')
     }
   }
 
@@ -130,6 +152,28 @@ export function ProfileListScreen({
                     >
                       로그아웃
                     </button>
+                    <div className="border-t border-border/60 mt-1 pt-1">
+                      <a
+                        href="/privacy.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setAccountOpen(false)}
+                        className="block w-full px-3 py-2 text-[11px] text-muted hover:bg-ink/[0.04]"
+                      >
+                        개인정보 처리방침
+                      </a>
+                      <button
+                        type="button"
+                        disabled={deleting}
+                        onClick={() => {
+                          setAccountOpen(false)
+                          void handleDeleteAccount()
+                        }}
+                        className="w-full text-left px-3 py-2 text-status-error hover:bg-status-error/[0.06] disabled:opacity-50"
+                      >
+                        {deleting ? '삭제 중…' : '계정 삭제'}
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
