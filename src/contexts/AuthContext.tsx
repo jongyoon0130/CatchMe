@@ -11,6 +11,8 @@ import type { Session, User } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { setActiveSyncUser } from '../lib/cloudSync'
 import { syncOnLogin, uploadLocalWithConfirm, type SyncResult } from '../lib/syncOrchestrator'
+import { pullRemoteGoalDataOnce } from '../lib/goalDataSync'
+import { startGoalDataRealtime, stopGoalDataRealtime } from '../lib/goalDataRealtime'
 
 type AuthContextValue = {
   configured: boolean
@@ -85,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       if (data.session?.user) {
         setActiveSyncUser(data.session.user.id)
+        startGoalDataRealtime(data.session.user.id) // 다른 기기 변경을 실시간으로 받는다
         void runSync(data.session.user.id)
         void import('../lib/alarmBootstrap').then(({ bootstrapAlarmDelivery }) =>
           bootstrapAlarmDelivery({ askPermission: false }),
@@ -98,12 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession)
       if (event === 'SIGNED_IN' && nextSession?.user) {
         setActiveSyncUser(nextSession.user.id)
+        startGoalDataRealtime(nextSession.user.id)
         await runSync(nextSession.user.id, { force: true })
         void import('../lib/alarmBootstrap').then(({ bootstrapAlarmDelivery }) =>
           bootstrapAlarmDelivery({ askPermission: false }),
         )
       } else if (!nextSession) {
         setActiveSyncUser(null)
+        stopGoalDataRealtime()
         setLastSync(null)
       }
     })
@@ -111,6 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const resyncOnReturn = () => {
       if (document.visibilityState === 'hidden') return
+      // 백그라운드 동안 실시간 소켓이 잠들었을 수 있으니, 돌아오면 스로틀 없이 한 번 당겨
+      // 놓친 변경을 즉시 따라잡는다 (전체 동기화 runSync는 5분 스로틀이라 별도).
+      void pullRemoteGoalDataOnce()
       void supabase?.auth.getSession().then(({ data }) => {
         if (!cancelled && data.session?.user) void runSync(data.session.user.id)
       })
@@ -121,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
       subscription.unsubscribe()
+      stopGoalDataRealtime()
       window.removeEventListener('focus', resyncOnReturn)
       document.removeEventListener('visibilitychange', resyncOnReturn)
     }
