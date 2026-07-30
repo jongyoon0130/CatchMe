@@ -95,6 +95,169 @@ describe('mergeGoalDataBundles — 삭제 전파(툼스톤)', () => {
   })
 })
 
+// ── 목표 항목 병합 — 통짜 교체가 아니라 항목별 합집합이라 어느 기기 것도 안 사라진다
+import type { PlanCheckItem } from '../src/types/goalPlan'
+
+function planWithDayItems(updatedAt: string, items: PlanCheckItem[]): GoalPlan {
+  return {
+    id: 'plan-a',
+    profileId: 'p',
+    templateType: 'backplan',
+    title: '앱 출시',
+    intake: { goal: '앱', deadline: '2026-07-31', successCriteria: '', progress: 'not_started' },
+    sections: [],
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt,
+    hierarchy: {
+      horizon: 'week-day',
+      rangeLabel: '7월',
+      focus: '',
+      startDate: '2026-07-01',
+      deadline: '2026-07-31',
+      months: [],
+      currentWeekId: 'w1',
+      weeks: [
+        { id: 'w1', globalIndex: 1, label: 'W1', dateLabel: '', focus: '', items: [], monthKeys: [], days: [
+          { id: 'd1', dateLabel: '7/29', dayOfWeek: '수', focus: '', items },
+        ] },
+      ],
+      days: [],
+    },
+  }
+}
+
+function pbundle(updatedAt: number, plans: GoalPlan[]): GoalDataBundle {
+  return { ownerId: 'o', plans, miscTodos: [], routines: [], updatedAt }
+}
+
+function dayItems(merged: GoalDataBundle): PlanCheckItem[] {
+  return merged.plans[0]?.hierarchy?.weeks[0]?.days[0]?.items ?? []
+}
+
+describe('mergePlans — 목표 항목 합집합(데이터 손실 방지)', () => {
+  it('로컬이 방금 추가한 목표 항목은, 번들이 더 오래됐어도 사라지지 않는다', () => {
+    const local = pbundle(100, [planWithDayItems('2026-07-29T10:00:00Z', [
+      { id: 'A', label: '기존', done: false },
+      { id: 'B', label: '방금 추가', done: false },
+    ])])
+    const remote = pbundle(999, [planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '기존', done: false },
+    ])])
+    const labels = dayItems(mergeGoalDataBundles(local, remote)).map((i) => i.label)
+    expect(labels).toContain('방금 추가') // 통짜 교체였으면 여기서 사라졌다
+  })
+
+  it('두 기기가 서로 다른 목표 항목을 추가하면 둘 다 남는다', () => {
+    const mac = pbundle(200, [planWithDayItems('2026-07-29T10:00:00Z', [
+      { id: 'A', label: '공통', done: false },
+      { id: 'X', label: '맥에서', done: false },
+    ])])
+    const phone = pbundle(100, [planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '공통', done: false },
+      { id: 'Y', label: '폰에서', done: false },
+    ])])
+    const ids = dayItems(mergeGoalDataBundles(mac, phone)).map((i) => i.id)
+    expect(ids).toContain('X')
+    expect(ids).toContain('Y')
+  })
+
+  it('같은 항목의 체크 상태는 번들이 더 최신인 쪽을 따른다', () => {
+    const checked = pbundle(500, [planWithDayItems('2026-07-29T11:00:00Z', [
+      { id: 'A', label: '운동', done: true },
+    ])])
+    const old = pbundle(100, [planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '운동', done: false },
+    ])])
+    expect(dayItems(mergeGoalDataBundles(checked, old))[0].done).toBe(true)
+    expect(dayItems(mergeGoalDataBundles(old, checked))[0].done).toBe(true)
+  })
+})
+
+describe('mergePlans — 두 기기 날 노드 id가 달라도 항목 안 잃음(날짜로 매칭)', () => {
+  function planDayId(updatedAt: string, dayId: string, items: PlanCheckItem[]): GoalPlan {
+    const p = planWithDayItems(updatedAt, items)
+    p.hierarchy!.weeks[0].days[0].id = dayId // 같은 날짜, 다른 노드 id
+    return p
+  }
+  it('폰(항목없음·rev높음)이 클라우드(항목있음)를 덮어써도, 날 노드 id가 달라도 항목이 산다', () => {
+    // 실사용 버그: 폰과 맥의 날 노드 id가 독립 생성돼 달랐다 → 예전엔 여기서 사라졌다
+    const phone = pbundle(9999, [planDayId('2026-07-29T09:00:00Z', 'day-phone', [])])
+    const cloud = pbundle(100, [planDayId('2026-07-29T10:00:00Z', 'day-mac', [
+      { id: 'X', label: '맥에서추가', done: false },
+    ])])
+    const labels = dayItems(mergeGoalDataBundles(phone, cloud)).map((i) => i.label)
+    expect(labels).toContain('맥에서추가')
+  })
+})
+
+// 실사용 버그: 상대 기기에만 있는 "날짜 노드"의 항목이, skeleton엔 그 날이 없으면
+// 예전엔 첫 날(노드[0])로 몰려가 "오늘 화면에서 사라진" 것처럼 보였다. 이제 제 날짜에 남는다.
+describe('mergePlans — 상대에만 있는 날짜의 항목은 그 날짜에 남는다(엉뚱한 날로 안 옮김)', () => {
+  function planTwoDays(updatedAt: string, day2Items: PlanCheckItem[]): GoalPlan {
+    const p = planWithDayItems(updatedAt, [{ id: 'A', label: '7/29것', done: false }])
+    // 7/30 날 노드를 추가 (여기에 항목을 둔다)
+    p.hierarchy!.weeks[0].days.push({ id: 'd2', dateLabel: '7/30', dayOfWeek: '목', focus: '', items: day2Items })
+    return p
+  }
+  function dayByLabel(merged: GoalDataBundle, label: string): string | undefined {
+    for (const d of merged.plans[0]?.hierarchy?.weeks[0]?.days ?? []) {
+      if (d.items.some((i) => i.label === label)) return d.dateLabel
+    }
+    return undefined
+  }
+
+  it('맥 skeleton(7/29만·rev높음)에 없는 7/30의 폰 항목 X는 7/30에 남는다', () => {
+    const mac = pbundle(0, [planWithDayItems('2026-07-30T10:00:00Z', [{ id: 'A', label: '7/29것', done: false }])])
+    const phone = pbundle(0, [planTwoDays('2026-07-30T09:00:00Z', [{ id: 'X', label: '7/30에추가', done: false }])])
+    const merged = mergeGoalDataBundles(mac, phone)
+    expect(dayByLabel(merged, '7/30에추가')).toBe('7/30') // 예전엔 '7/29'(첫 날)로 몰렸다
+  })
+
+  it('같은 항목이 두 날에 중복 생성되지 않는다', () => {
+    const mac = pbundle(0, [planTwoDays('2026-07-30T10:00:00Z', [{ id: 'X', label: '공통X', done: false }])])
+    const phone = pbundle(0, [planTwoDays('2026-07-30T09:00:00Z', [{ id: 'X', label: '공통X', done: false }])])
+    const merged = mergeGoalDataBundles(mac, phone)
+    const all = merged.plans[0]?.hierarchy?.weeks[0]?.days.flatMap((d) => d.items.filter((i) => i.id === 'X')) ?? []
+    expect(all.length).toBe(1)
+  })
+})
+
+// 삭제 전파: union 병합이라 표식이 없으면 삭제한 항목이 상대에 남아 되살아난다.
+// plan.itemTombstones(지운 id→시각)에 오른 항목은 병합에서 트리에서 제거된다.
+describe('mergePlans — 목표 항목 삭제 전파(묘비)', () => {
+  it('한 기기가 X를 지우면(묘비), 상대에 X가 살아 있어도 병합 후 사라진다', () => {
+    const deleted = planWithDayItems('2026-07-29T11:00:00Z', [{ id: 'A', label: '남김', done: false }])
+    deleted.itemTombstones = { X: Date.now() } // X를 지웠다는 표식
+    const other = planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '남김', done: false },
+      { id: 'X', label: '지운것', done: false },
+    ])
+    const merged = mergeGoalDataBundles(pbundle(0, [deleted]), pbundle(0, [other]))
+    const ids = dayItems(merged).map((i) => i.id)
+    expect(ids).toContain('A')
+    expect(ids).not.toContain('X') // 부활하지 않는다
+  })
+
+  it('방향 무관 — 상대가 지웠어도(묘비만 상대에) 내 X가 사라진다', () => {
+    const mine = planWithDayItems('2026-07-29T11:00:00Z', [
+      { id: 'A', label: '남김', done: false },
+      { id: 'X', label: '내게아직있음', done: false },
+    ])
+    const deleted = planWithDayItems('2026-07-29T09:00:00Z', [{ id: 'A', label: '남김', done: false }])
+    deleted.itemTombstones = { X: Date.now() }
+    const ids = dayItems(mergeGoalDataBundles(pbundle(0, [mine]), pbundle(0, [deleted]))).map((i) => i.id)
+    expect(ids).not.toContain('X')
+  })
+
+  it('이동 회귀 방지: 묘비는 지운 그 id만 지운다 — 새 id로 다시 넣은 항목은 안 지운다', () => {
+    // 이동 = 원본 old id 묘비 + 대상에 새 id. 묘비가 새 id를 건드리면 이동이 사라진다(PR#6).
+    const moved = planWithDayItems('2026-07-29T11:00:00Z', [{ id: 'new-id', label: '옮긴것', done: false }])
+    moved.itemTombstones = { 'old-id': Date.now() } // 원본에서 지운 옛 id
+    const merged = mergeGoalDataBundles(pbundle(0, [moved]), pbundle(0, [moved]))
+    expect(dayItems(merged).map((i) => i.id)).toContain('new-id') // 새 id는 살아있다
+  })
+})
+
 describe('mergeGoalDataBundles — 목표(plan) 삭제 전파(툼스톤)', () => {
   it('지운 목표는 원격에 아직 살아 있어도 되살아나지 않는다', () => {
     const local = bundle(100, [], [plan('P1', { deletedAt: 5000 })])

@@ -1,4 +1,4 @@
-import type { GoalPlan } from '../types/goalPlan'
+import type { GoalPlan, PlanCheckItem, PlanDay, GoalHierarchy } from '../types/goalPlan'
 import { getGoalAppOwnerId } from './goalAppOwner'
 import {
   fetchRemoteGoalData,
@@ -97,6 +97,181 @@ export function applyLocalGoalDataBundle(bundle: GoalDataBundle): void {
   window.dispatchEvent(new CustomEvent(GOAL_DATA_SYNC_EVENT))
 }
 
+/**
+ * 두 항목 배열을 id로 합친다(합집합) — pref 쪽 버전·순서를 유지하고, other에만 있는 항목을
+ * 뒤에 붙인다. **어느 쪽도 항목을 잃지 않는다.** 같은 id는 pref가 이긴다.
+ */
+function unionItems(pref: PlanCheckItem[], other: PlanCheckItem[]): PlanCheckItem[] {
+  const ids = new Set(pref.map((it) => it.id))
+  const extras = other.filter((it) => !ids.has(it.id))
+  return extras.length ? [...pref, ...extras] : pref
+}
+
+/** 노드를 **날짜(의미)**로 맞추기 위한 키. 두 기기의 노드 id가 달라도 같은 날짜면 매칭된다. */
+function dayKey(d: PlanDay): string {
+  return `${d.dateLabel}|${d.dayOfWeek}`
+}
+
+const TOMBSTONE_TTL_MS = 60 * 24 * 60 * 60 * 1000 // 60일 뒤 묘비 정리
+
+/** 두 목표의 삭제 묘비(id→시각)를 합친다 — 더 늦은 삭제를 쓰고, 오래된 건 버린다. */
+function mergeItemTombstones(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): Record<string, number> | undefined {
+  if (!a && !b) return undefined
+  const out: Record<string, number> = { ...(a ?? {}) }
+  for (const [id, t] of Object.entries(b ?? {})) {
+    if (out[id] == null || t > out[id]) out[id] = t
+  }
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS
+  for (const [id, t] of Object.entries(out)) if (t < cutoff) delete out[id]
+  return Object.keys(out).length ? out : undefined
+}
+
+/** 묘비에 오른 id의 항목을 트리에서 제거한다(삭제 전파). 재추가·이동은 새 id라 안 걸린다. */
+function stripTombstonedItems(h: GoalHierarchy, tombs: Record<string, number> | undefined): GoalHierarchy {
+  if (!tombs || !Object.keys(tombs).length) return h
+  const keep = (items: PlanCheckItem[]) => items.filter((it) => tombs[it.id] == null)
+  return {
+    ...h,
+    months: h.months.map((m) => ({ ...m, items: keep(m.items) })),
+    weeks: h.weeks.map((w) => ({ ...w, items: keep(w.items), days: w.days.map((d) => ({ ...d, items: keep(d.items) })) })),
+    days: h.days.map((d) => ({ ...d, items: keep(d.items) })),
+  }
+}
+
+function allItemIds(h: GoalHierarchy): Set<string> {
+  const s = new Set<string>()
+  for (const m of h.months) for (const it of m.items) s.add(it.id)
+  for (const w of h.weeks) {
+    for (const it of w.items) s.add(it.id)
+    for (const d of w.days) for (const it of d.items) s.add(it.id)
+  }
+  for (const d of h.days) for (const it of d.items) s.add(it.id)
+  return s
+}
+
+/** other 트리의 모든 항목을 tier별로 모은다 (안전망용) */
+function collectByTier(h: GoalHierarchy): { monthly: PlanCheckItem[]; weekly: PlanCheckItem[]; daily: PlanCheckItem[] } {
+  const monthly: PlanCheckItem[] = []
+  const weekly: PlanCheckItem[] = []
+  const daily: PlanCheckItem[] = []
+  for (const m of h.months) monthly.push(...m.items)
+  for (const w of h.weeks) {
+    weekly.push(...w.items)
+    for (const d of w.days) daily.push(...d.items)
+  }
+  for (const d of h.days) daily.push(...d.items)
+  return { monthly, weekly, daily }
+}
+
+/**
+ * 같은 목표(id)의 두 버전을 합친다 — 뼈대(제목·기간·초점)는 preferLocal 쪽을 쓰고,
+ * 트리 안 항목은 **날짜로 매칭해** 합집합. 예전엔 노드 id로 맞췄는데, 두 기기의 날 노드
+ * id가 (독립 생성돼) 다르면 매칭 실패로 항목이 사라졌다(데이터 손실). 이제 날짜로 맞추고,
+ * 그래도 안 들어간 항목은 tier별 대표 노드에 붙여 **어떤 항목도 잃지 않는다.**
+ */
+function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean): GoalPlan {
+  const pref = preferLocal ? local : remote
+  const other = preferLocal ? remote : local
+  const ph = pref.hierarchy
+  const oh = other.hierarchy
+  if (!ph || !oh) return pref
+
+  const oMonth = new Map(oh.months.map((m) => [m.key, m]))
+  const oWeek = new Map(oh.weeks.map((w) => [String(w.globalIndex), w]))
+  const oDayTop = new Map(oh.days.map((d) => [dayKey(d), d]))
+
+  // pref에 이미 있는 항목 id — other 노드를 통째로 들여올 때 같은 항목이 두 노드에
+  // 중복되지 않게 거른다.
+  const prefItemIds = allItemIds(ph)
+  const withoutPrefItems = <T extends { items: PlanCheckItem[] }>(node: T): T => ({
+    ...node,
+    items: node.items.filter((it) => !prefItemIds.has(it.id)),
+  })
+
+  const prefMonthKeys = new Set(ph.months.map((m) => m.key))
+  const prefWeekKeys = new Set(ph.weeks.map((w) => String(w.globalIndex)))
+  const prefDayTopKeys = new Set(ph.days.map((d) => dayKey(d)))
+
+  const merged: GoalHierarchy = {
+    ...ph,
+    months: ph.months.map((m) => {
+      const o = oMonth.get(m.key)
+      return o ? { ...m, items: unionItems(m.items, o.items) } : m
+    }),
+    weeks: ph.weeks.map((w) => {
+      const ow = oWeek.get(String(w.globalIndex))
+      if (!ow) return w
+      const oDay = new Map(ow.days.map((d) => [dayKey(d), d]))
+      const prefWeekDayKeys = new Set(w.days.map((d) => dayKey(d)))
+      // 이 주에서 pref가 가진 날은 항목 union, pref에 없는 other 날은 통째로 추가(제 날짜 유지)
+      const days = w.days.map((d) => {
+        const od = oDay.get(dayKey(d))
+        return od ? { ...d, items: unionItems(d.items, od.items) } : d
+      })
+      for (const od of ow.days) {
+        if (prefWeekDayKeys.has(dayKey(od))) continue
+        const fresh = withoutPrefItems(od)
+        if (fresh.items.length) days.push(fresh)
+      }
+      return { ...w, items: unionItems(w.items, ow.items), days }
+    }),
+    days: ph.days.map((d) => {
+      const o = oDayTop.get(dayKey(d))
+      return o ? { ...d, items: unionItems(d.items, o.items) } : d
+    }),
+  }
+
+  // pref에 아예 없던 other의 월·주·일 노드는 **그 항목을 제 날짜에 살려두기 위해** 통째로 들여온다.
+  // (예전 고아 안전망은 매칭 안 된 항목을 노드[0]=첫 날로 몰아넣어, 폰이 7/31에 넣은 항목이
+  //  맥엔 7/31 노드가 없을 때 7/30으로 옮겨져 "오늘 화면에서 사라진" 것처럼 보였다.)
+  for (const om of oh.months) {
+    if (prefMonthKeys.has(om.key)) continue
+    const fresh = withoutPrefItems(om)
+    if (fresh.items.length) merged.months.push(fresh)
+  }
+  for (const ow of oh.weeks) {
+    if (prefWeekKeys.has(String(ow.globalIndex))) continue
+    const freshDays = ow.days.map(withoutPrefItems).filter((d) => d.items.length)
+    const freshWeekItems = ow.items.filter((it) => !prefItemIds.has(it.id))
+    if (freshDays.length || freshWeekItems.length) merged.weeks.push({ ...ow, items: freshWeekItems, days: freshDays })
+  }
+  for (const od of oh.days) {
+    if (prefDayTopKeys.has(dayKey(od))) continue
+    const fresh = withoutPrefItems(od)
+    if (fresh.items.length) merged.days.push(fresh)
+  }
+
+  // 최후 안전망: horizon이 서로 달라 노드 자체가 없어 위에서도 못 들인 항목만 tier 대표 노드에 붙인다.
+  const placed = allItemIds(merged)
+  const { monthly, weekly, daily } = collectByTier(oh)
+  const orphanMonthly = monthly.filter((it) => !placed.has(it.id))
+  const orphanWeekly = weekly.filter((it) => !placed.has(it.id))
+  const orphanDaily = daily.filter((it) => !placed.has(it.id))
+  if (orphanMonthly.length && merged.months[0]) {
+    merged.months[0] = { ...merged.months[0], items: [...merged.months[0].items, ...orphanMonthly] }
+  }
+  if (orphanWeekly.length && merged.weeks[0]) {
+    merged.weeks[0] = { ...merged.weeks[0], items: [...merged.weeks[0].items, ...orphanWeekly] }
+  }
+  if (orphanDaily.length) {
+    if (merged.weeks[0]?.days[0]) {
+      const w0 = merged.weeks[0]
+      const d0 = w0.days[0]
+      merged.weeks[0] = { ...w0, days: [{ ...d0, items: [...d0.items, ...orphanDaily] }, ...w0.days.slice(1)] }
+    } else if (merged.days[0]) {
+      merged.days[0] = { ...merged.days[0], items: [...merged.days[0].items, ...orphanDaily] }
+    }
+  }
+
+  // 삭제 묘비를 합치고, 묘비에 오른 항목은 트리에서 제거한다 → 한 기기 삭제가 다른 기기에 전파.
+  // (union 병합이라 이게 없으면 상대에 남아 있는 항목이 1~2초 만에 되살아난다.)
+  const itemTombstones = mergeItemTombstones(pref.itemTombstones, other.itemTombstones)
+  return { ...pref, hierarchy: stripTombstonedItems(merged, itemTombstones), itemTombstones }
+}
+
 function planTime(plan: GoalPlan): number | undefined {
   if (plan.deletedAt != null) return plan.deletedAt
   const t = Date.parse(plan.updatedAt)
@@ -112,13 +287,26 @@ function pickNewerPlan(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
   return preferLocal ? local : remote
 }
 
+/** 같은 id 목표 — plan 삭제(툼스톤)가 이기면 통째로 지우고, 아니면 항목별 병합 */
+function mergePlanAtId(local: GoalPlan, remote: GoalPlan, preferLocal: boolean): GoalPlan {
+  const newer = pickNewerPlan(local, remote, preferLocal)
+  if (newer.deletedAt != null) return newer
+  const older = newer === local ? remote : local
+  if (older.deletedAt != null) return newer // 삭제 뒤 더 늦은 편집 → 되살아남
+  return mergePlanPair(local, remote, preferLocal)
+}
+
+/**
+ * 목표 목록 병합 — 통짜 교체가 아니라 **목표별·항목별 합집합**이라 어느 기기의 목표·항목도
+ * 사라지지 않는다. 같은 목표/항목의 충돌은 번들이 더 최신인 쪽(preferLocal)을 따른다.
+ */
 function mergePlans(local: GoalPlan[], remote: GoalPlan[], localRev: number, remoteRev: number): GoalPlan[] {
   const preferLocal = localRev >= remoteRev
   const byId = new Map<string, GoalPlan>()
   for (const plan of remote) byId.set(plan.id, plan)
   for (const plan of local) {
     const existing = byId.get(plan.id)
-    byId.set(plan.id, existing ? pickNewerPlan(plan, existing, preferLocal) : plan)
+    byId.set(plan.id, existing ? mergePlanAtId(plan, existing, preferLocal) : plan)
   }
   return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
