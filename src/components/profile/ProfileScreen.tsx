@@ -15,6 +15,7 @@ import { dayCloseStreak, loadDayCloses } from '../../lib/dayClose'
 import { achievedPlans, activeGoalsLite, readGoalPlansLite, totalDoneCount } from '../../lib/goalPlanBridge'
 import { ProfileIdentitySection } from './ProfileIdentitySection'
 import { ProfileFutureVision } from './ProfileFutureVision'
+import { ProfileDetailSheet } from './ProfileDetailSheet'
 import { useAuth } from '../../contexts/AuthContext'
 import { deleteAccountWithConfirm } from '../../lib/accountActions'
 
@@ -34,7 +35,7 @@ function clip(v: string, max: number): string {
   return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: Props) {
+export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, refreshKey }: Props) {
   // 채팅·홈 탭과 같은 사람을 본다 — "미래의 나는 한 명" (primaryProfile.ts)
   const primaryId = getPrimaryProfileId()
   const [profile, setProfile] = useState<SelfProfile | null>(() =>
@@ -56,6 +57,7 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
   const active = activeGoalsLite()
 
   const { signOut } = useAuth()
+  const [detailOpen, setDetailOpen] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
   const handleDeleteAccount = async () => {
     setDeletingAccount(true)
@@ -110,13 +112,17 @@ export function ProfileScreen({ onOpenChat, onOpenHome, onCreate, refreshKey }: 
             </div>
             <button
               type="button"
-              onClick={() => onOpenChat(profile.id)}
-              className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-bold text-surface transition-transform active:scale-95"
+              onClick={() => setDetailOpen(true)}
+              className="shrink-0 rounded-full border-2 border-border bg-surface px-4 py-2 text-xs font-bold text-ink transition-transform active:scale-95"
             >
-              대화하기
+              자세히 보기
             </button>
           </div>
         </section>
+
+        {detailOpen && (
+          <ProfileDetailSheet profile={profile} onClose={() => setDetailOpen(false)} />
+        )}
 
         {/* 2. 지금 ↔ 미래 프로필 */}
         <ProfileIdentitySection profile={profile} />

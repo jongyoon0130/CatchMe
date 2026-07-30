@@ -1195,8 +1195,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
                 send()
               }
             }}
-            placeholder="나에게 말 걸어봐..."
-            className="flex-1 px-3.5 py-2.5 rounded-2xl bg-surface-2 border border-border/40 focus:border-accent/40 focus:outline-none text-ink placeholder:text-muted/60 text-[15px] resize-none leading-[1.45] overflow-y-auto"
+            className="chat-composer-input flex-1 px-3.5 py-2.5 rounded-2xl bg-surface-2 border border-border/40 focus:border-accent/40 focus:outline-none text-ink text-[15px] resize-none leading-[1.45] overflow-y-auto"
           />
           <Button onClick={send} disabled={!input.trim() || typing || !chatReady} className="px-4 h-[42px] rounded-2xl text-sm">→</Button>
         </div>

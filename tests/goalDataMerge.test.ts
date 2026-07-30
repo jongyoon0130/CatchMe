@@ -3,6 +3,7 @@
 // 핵심: **일상 할 일은 항목별 updatedAt으로 최신을 가린다** (있으면). 없으면(옛 데이터)
 // 번들 단위 규칙으로 물러난다.
 import { describe, expect, it } from 'bun:test'
+import type { GoalPlan } from '../types/goalPlan'
 import { mergeGoalDataBundles, type GoalDataBundle } from '../src/lib/goalDataSync'
 import type { MiscTodoItem } from '../src/lib/goalMiscTodos'
 
@@ -10,8 +11,26 @@ function misc(id: string, over: Partial<MiscTodoItem> = {}): MiscTodoItem {
   return { id, label: id, done: false, tier: 'daily', periodKey: '2026-07-27', ...over }
 }
 
-function bundle(updatedAt: number, miscTodos: MiscTodoItem[]): GoalDataBundle {
-  return { ownerId: 'o', plans: [], miscTodos, routines: [], updatedAt }
+function bundle(
+  updatedAt: number,
+  miscTodos: MiscTodoItem[] = [],
+  plans: GoalPlan[] = [],
+): GoalDataBundle {
+  return { ownerId: 'o', plans, miscTodos, routines: [], updatedAt }
+}
+
+function plan(id: string, over: Partial<GoalPlan> = {}): GoalPlan {
+  return {
+    id,
+    profileId: 'o',
+    templateType: 'branch',
+    intake: { goal: id, deadline: '', successCriteria: '', progress: 'not_started' },
+    title: id,
+    sections: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...over,
+  }
 }
 
 // 항목 updatedAt이 없는 옛 데이터 — 번들 단위 규칙(preferLocal)으로 물러난다
@@ -73,5 +92,22 @@ describe('mergeGoalDataBundles — 삭제 전파(툼스톤)', () => {
     const x = mergeGoalDataBundles(local, remote).miscTodos.find((t) => t.id === 'X')
     expect(x?.deletedAt).toBeUndefined()
     expect(x?.label).toBe('X부활')
+  })
+})
+
+describe('mergeGoalDataBundles — 목표(plan) 삭제 전파(툼스톤)', () => {
+  it('지운 목표는 원격에 아직 살아 있어도 되살아나지 않는다', () => {
+    const local = bundle(100, [], [plan('P1', { deletedAt: 5000 })])
+    const remote = bundle(100, [], [plan('P1', { title: '원격-살아있음', updatedAt: '1970-01-01T00:00:01.000Z' })])
+    const p = mergeGoalDataBundles(local, remote).plans.find((x) => x.id === 'P1')
+    expect(p?.deletedAt).toBe(5000)
+  })
+
+  it('삭제한 뒤 다른 기기에서 더 늦게 고치면 되살아난다', () => {
+    const local = bundle(0, [], [plan('P1', { deletedAt: 1000 })])
+    const remote = bundle(0, [], [plan('P1', { title: 'P1부활', updatedAt: '2026-07-27T12:00:00.000Z' })])
+    const p = mergeGoalDataBundles(local, remote).plans.find((x) => x.id === 'P1')
+    expect(p?.deletedAt).toBeUndefined()
+    expect(p?.title).toBe('P1부활')
   })
 })

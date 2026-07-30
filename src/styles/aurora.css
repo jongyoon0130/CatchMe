@@ -33,8 +33,8 @@
   --au-day-soft: #fff4e0;
   --au-week: #8b5cf6;
   --au-week-soft: #f1ecfe;
-  --au-month: #10b981;
-  --au-month-soft: #e2f7ef;
+  --au-month: #8692ff;
+  --au-month-soft: #8692ff;
 
   /* 상태 */
   --au-ok: #10b981;
@@ -74,9 +74,9 @@
   --goal-line: var(--au-line);
   --goal-bg: var(--au-bg);
   --goal-surface: var(--au-surface);
-  --goal-accent: var(--au-month);
-  --goal-accent-soft: var(--au-month-soft);
-  --goal-accent-deep: #0e9f70;
+  --goal-accent: #8692ff;
+  --goal-accent-soft: #8692ff;
+  --goal-accent-deep: #8692ff;
   --goal-violet: var(--au-week);
   --goal-violet-soft: var(--au-week-soft);
   --goal-warn: var(--au-day);
@@ -322,6 +322,7 @@ body::before {
   letter-spacing: -0.035em;
   line-height: 1.12;
   color: var(--au-ink);
+  margin: 0 0 18px;
 }
 
 .goal-app .goal-home-sub {
@@ -449,10 +450,21 @@ body::before {
   gap: 10px;
 }
 
-.goal-app .goal-sec-head h2 {
+.goal-app .goal-sec-head h2:not(.goal-sec-tier) {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.025em;
+}
+
+.goal-app .goal-sec-head h2.goal-sec-tier {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--goal-accent);
+  color: #ffffff;
+  line-height: 1.2;
 }
 
 .goal-app .goal-sec-label {
@@ -462,28 +474,22 @@ body::before {
   min-width: 0;
 }
 
-/* 티어 뱃지 — 작은 컬러 점으로 */
+/* 티어 뱃지 — 단색 #8692FF */
 .goal-app .goal-badge {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 4px 9px;
   border-radius: 999px;
   letter-spacing: 0.01em;
+  background: #8692ff;
+  color: #ffffff;
 }
 
-.goal-app .goal-badge.d {
-  background: var(--au-day-soft);
-  color: #b47712;
-}
-
-.goal-app .goal-badge.w {
-  background: var(--au-week-soft);
-  color: #6d3fe0;
-}
-
+.goal-app .goal-badge.d,
+.goal-app .goal-badge.w,
 .goal-app .goal-badge.m {
-  background: var(--au-month-soft);
-  color: #078663;
+  background: #8692ff;
+  color: #ffffff;
 }
 
 .goal-app .goal-count {

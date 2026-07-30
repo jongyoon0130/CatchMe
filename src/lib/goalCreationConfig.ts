@@ -5,21 +5,21 @@ export type GoalCreationMode = 'habit' | 'project'
 
 export const GOAL_CREATION_MODES: {
   id: GoalCreationMode
-  icon: string
+  icon: 'routine' | 'target'
   title: string
   desc: string
   placeholder: string
 }[] = [
   {
     id: 'habit',
-    icon: '🔄',
+    icon: 'routine',
     title: '습관',
     desc: '매일·매주 반복해서 지키는 목표',
     placeholder: '예: 운동, 영어 공부, 독서',
   },
   {
     id: 'project',
-    icon: '🎯',
+    icon: 'target',
     title: '프로젝트',
     desc: '마감까지 끝내는 목표',
     placeholder: '예: 앱스토어 출시, 포트폴리오 완성',

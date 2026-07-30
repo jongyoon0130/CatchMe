@@ -17,6 +17,7 @@ import {
 import { buildGoalPlan } from '../../lib/goalTemplateEngine'
 import { saveGoalPlan } from '../../lib/goalPlanStore'
 import { GoalNav } from './GoalShell'
+import { renderGoalBranchIcon } from './GoalBranchIcons'
 import { GoalRoutineFrequencyPicker } from './GoalRoutineFrequencyPicker'
 
 interface Props {
@@ -151,7 +152,7 @@ export function GoalCreateWizard({ profile, onComplete, onCancel }: Props) {
                 className={`goal-mode-card ${creationMode === m.id ? 'on' : ''}`}
                 onClick={() => setCreationMode(m.id)}
               >
-                <span className="goal-mode-icon">{m.icon}</span>
+                <span className="goal-mode-icon">{renderGoalBranchIcon(m.icon)}</span>
                 <strong>{m.title}</strong>
                 <span>{m.desc}</span>
               </button>

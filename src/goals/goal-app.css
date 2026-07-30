@@ -16,14 +16,14 @@ html, body, #root {
   --goal-line: #e8ebf0;
   --goal-bg: #f7f8fa;
   --goal-surface: #fff;
-  --goal-accent: #62d98a;
-  --goal-accent-soft: #e9fbf0;
-  --goal-accent-deep: #4bc878;
+  --goal-accent: #8692ff;
+  --goal-accent-soft: #8692ff;
+  --goal-accent-deep: #8692ff;
   --goal-violet: #a99de8;
   --goal-violet-soft: #f3f0fc;
   --goal-warn: #ffc861;
   --goal-warn-soft: #fff8e8;
-  --goal-ok: #62d98a;
+  --goal-ok: #8692ff;
   --goal-stroke: #5c636b;
   --goal-sat: #7eb8ff;
   --goal-sun: #ff9090;
@@ -159,7 +159,7 @@ html, body, #root {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  margin: 0;
+  margin: 0 0 14px;
 }
 
 .goal-app .goal-home-sub {
@@ -280,9 +280,9 @@ html, body, #root {
 }
 
 .goal-app .goal-cal-picker-month.active {
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
   border-color: var(--goal-accent);
-  color: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-cal-picker-close {
@@ -499,9 +499,9 @@ html, body, #root {
 }
 
 .goal-app .goal-routine-freq-chip.on {
-  background: var(--goal-warn-soft);
-  border-color: var(--goal-warn);
-  color: #9a6a12;
+  background: var(--goal-accent);
+  border-color: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-routine-freq-chip.compact {
@@ -532,13 +532,36 @@ html, body, #root {
 
 .goal-app .goal-mode-card.on {
   border-color: var(--goal-accent);
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
   box-shadow: inset 0 0 0 1px var(--goal-accent);
+  color: #ffffff;
+}
+
+.goal-app .goal-mode-card.on strong,
+.goal-app .goal-mode-card.on span:last-child {
+  color: #ffffff;
 }
 
 .goal-app .goal-mode-icon {
-  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid var(--goal-line);
+  background: var(--goal-surface-2);
+  display: grid;
+  place-items: center;
   line-height: 1;
+}
+
+.goal-app .goal-mode-icon .goal-branch-svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  color: var(--goal-accent);
+}
+
+.goal-app .goal-mode-card.on .goal-mode-icon .goal-branch-svg {
+  color: #ffffff;
 }
 
 .goal-app .goal-mode-card strong {
@@ -571,9 +594,9 @@ html, body, #root {
 }
 
 .goal-app .goal-cadence-tab.on {
-  background: var(--goal-warn-soft);
-  border-color: var(--goal-warn);
-  color: #9a6a12;
+  background: var(--goal-accent);
+  border-color: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-freq-stepper {
@@ -655,8 +678,8 @@ html, body, #root {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent-deep);
+  background: var(--goal-accent);
+  color: #ffffff;
   display: grid;
   place-items: center;
   font-weight: 400;
@@ -673,10 +696,6 @@ html, body, #root {
 
 .goal-app .goal-mc-cell:not(.selected) .goal-battery-body {
   box-shadow: none;
-}
-
-.goal-app .goal-mc-cell.out-range .goal-battery-body {
-  opacity: 0.5;
 }
 
 .goal-app .goal-mc-cell.out-range .goal-mc-day {
@@ -718,11 +737,6 @@ html, body, #root {
   margin-bottom: 1px;
 }
 
-.goal-app .goal-battery.muted .goal-battery-cap,
-.goal-app .goal-battery.muted .goal-battery-body {
-  border-color: #d5dae2;
-}
-
 .goal-app .goal-battery-body {
   position: relative;
   width: 22px;
@@ -745,6 +759,27 @@ html, body, #root {
   min-height: 0;
 }
 
+/* 할 일 있음 · 0% — 방전(볼트) 표시, 채움 없음 */
+.goal-app .goal-battery--discharge .goal-battery-cap {
+  background: #d94848;
+}
+
+.goal-app .goal-battery--discharge .goal-battery-body {
+  border-color: #d94848;
+}
+
+.goal-app .goal-battery-bolt {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 14px;
+  transform: translate(-50%, -52%);
+  color: #d94848;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .goal-app .goal-mc {
   aspect-ratio: 1;
   border-radius: 8px;
@@ -762,16 +797,16 @@ html, body, #root {
 }
 
 .goal-app .goal-mc.selected {
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
   box-shadow: inset 0 0 0 2px var(--goal-accent);
-  color: var(--goal-accent);
+  color: #ffffff;
   font-weight: 800;
 }
 
 .goal-app .goal-mc.today.selected {
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
   box-shadow: inset 0 0 0 2px var(--goal-accent);
-  color: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-date-add {
@@ -813,8 +848,8 @@ html, body, #root {
 .goal-app .goal-date-add-btn {
   font-size: 12px;
   font-weight: 700;
-  color: var(--goal-accent);
-  background: var(--goal-accent-soft);
+  color: #ffffff;
+  background: var(--goal-accent);
   border: none;
   border-radius: 8px;
   padding: 8px 10px;
@@ -850,9 +885,9 @@ html, body, #root {
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid var(--goal-line);
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent-deep);
+  border: 1px solid var(--goal-accent);
+  background: var(--goal-accent);
+  color: #ffffff;
   font-size: 18px;
   font-weight: 400;
   line-height: 1;
@@ -922,8 +957,9 @@ html, body, #root {
 }
 
 .goal-app .goal-tier-repeat-chip.on {
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
   border-color: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-tier-repeat-days {
@@ -1032,8 +1068,8 @@ html, body, #root {
 }
 
 .goal-app .goal-tier-add-menu-item.on {
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent);
+  background: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-tier-add-menu-item:hover {
@@ -1041,7 +1077,7 @@ html, body, #root {
 }
 
 .goal-app .goal-tier-add-menu-item.on:hover {
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
 }
 
 .goal-app .goal-tier-add input {
@@ -1067,8 +1103,8 @@ html, body, #root {
   padding: 6px 10px;
   border-radius: 8px;
   border: none;
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent);
+  background: var(--goal-accent);
+  color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
   font-family: inherit;
@@ -1093,22 +1129,41 @@ html, body, #root {
   -webkit-appearance: none;
 }
 
-.goal-app .goal-sec-head h2 {
-  font-size: 15px;
+.goal-app .goal-sec-head h2.goal-sec-tier {
+  font-size: 11px;
   font-weight: 700;
   margin: 0;
+  letter-spacing: -0.01em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--goal-accent);
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.goal-app .goal-sec-head h2:not(.goal-sec-tier) {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+  color: var(--goal-ink);
 }
 
 .goal-app .goal-badge {
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 600;
   padding: 3px 8px;
   border-radius: 999px;
+  background: var(--goal-accent);
+  color: #ffffff;
 }
 
-.goal-app .goal-badge.d { background: var(--goal-warn-soft); color: var(--goal-warn); }
-.goal-app .goal-badge.w { background: var(--goal-violet-soft); color: var(--goal-violet); }
-.goal-app .goal-badge.m { background: var(--goal-accent-soft); color: var(--goal-accent); }
+.goal-app .goal-badge.d,
+.goal-app .goal-badge.w,
+.goal-app .goal-badge.m {
+  background: var(--goal-accent);
+  color: #ffffff;
+}
 
 .goal-app .goal-count {
   font-size: 12px;
@@ -1407,7 +1462,7 @@ html, body, #root {
   margin-top: 4px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: var(--goal-accent-deep, #3a9d62);
+  color: var(--goal-accent-deep, #8692ff);
   letter-spacing: 0.02em;
 }
 
@@ -1462,7 +1517,7 @@ html, body, #root {
   font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--goal-accent-deep, #3a9d62);
+  color: var(--goal-accent-deep, #8692ff);
 }
 
 .goal-app .goal-time-preview.muted {
@@ -1488,8 +1543,8 @@ html, body, #root {
 
 .goal-app .goal-time-field-tabs button.on {
   border-color: var(--goal-accent);
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent-deep);
+  background: var(--goal-accent);
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -1697,20 +1752,32 @@ html, body, #root {
   flex-shrink: 0;
 }
 
+.goal-app .goal-branch-icon .goal-branch-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.goal-app .goal-branch-icon--text {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
 .goal-app .goal-branch.g .goal-branch-icon {
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent);
-  font-size: 18px;
+  background: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-branch.w .goal-branch-icon {
-  background: var(--goal-violet-soft);
-  color: var(--goal-violet);
+  background: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-branch.d .goal-branch-icon {
-  background: var(--goal-warn-soft);
-  color: var(--goal-warn);
+  background: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-branch-info { flex: 1; min-width: 0; }
@@ -1783,8 +1850,8 @@ html, body, #root {
 
 .goal-app .goal-field input:focus,
 .goal-app .goal-field textarea:focus {
-  border-color: rgba(98, 217, 138, 0.45);
-  box-shadow: 0 0 0 3px rgba(98, 217, 138, 0.12);
+  border-color: rgba(123, 127, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(123, 127, 255, 0.12);
 }
 
 .goal-app .goal-field-hint {
@@ -1989,7 +2056,7 @@ html, body, #root {
   font-size: 14px;
   font-weight: 400;
   margin-top: 8px;
-  box-shadow: 0 8px 20px rgba(98, 217, 138, 0.28);
+  box-shadow: 0 8px 20px rgba(123, 127, 255, 0.28);
   cursor: pointer;
   font-family: inherit;
 }
@@ -2036,7 +2103,7 @@ html, body, #root {
   font-size: 26px;
   font-weight: 300;
   line-height: 1;
-  box-shadow: 0 10px 24px rgba(98, 217, 138, 0.35);
+  box-shadow: 0 10px 24px rgba(123, 127, 255, 0.35);
   z-index: 10;
   border: none;
   cursor: pointer;
@@ -2047,18 +2114,18 @@ html, body, #root {
 .goal-app .goal-nav-btn {
   font-size: 12px;
   font-weight: 400;
-  color: var(--goal-accent-deep);
+  color: #ffffff;
   padding: 6px 10px;
   border-radius: 999px;
-  background: var(--goal-accent-soft);
+  background: var(--goal-accent);
   border: none;
   cursor: pointer;
   font-family: inherit;
 }
 
 .goal-app .goal-nav-btn.violet {
-  color: var(--goal-violet);
-  background: var(--goal-violet-soft);
+  color: #ffffff;
+  background: var(--goal-accent);
 }
 
 .goal-app .goal-nav-btn.warn {
@@ -2123,21 +2190,15 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-.goal-app .goal-tree-icon.g {
-  background: var(--goal-accent-soft);
-  color: var(--goal-accent);
+.goal-app .goal-branch.g .goal-branch-icon--text {
+  font-size: 14px;
 }
 
-.goal-app .goal-tree-icon.w {
-  background: var(--goal-violet-soft);
-  color: var(--goal-violet);
-  font-size: 13px;
-}
-
+.goal-app .goal-tree-icon.g,
+.goal-app .goal-tree-icon.w,
 .goal-app .goal-tree-icon.d {
-  background: #fff6ea;
-  color: var(--goal-warn);
-  font-size: 13px;
+  background: var(--goal-accent);
+  color: #ffffff;
 }
 
 .goal-app .goal-tree-head-text {
@@ -2517,9 +2578,9 @@ html, body, #root {
 }
 
 .app-bottom-nav-icon.home.on {
-  background: linear-gradient(135deg, var(--goal-accent), var(--goal-accent-deep));
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(98, 217, 138, 0.28);
+  background: transparent;
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .app-bottom-nav-label {
@@ -2545,8 +2606,14 @@ html, body, #root {
 }
 
 .goal-dayclose.evening {
-  border-color: var(--goal-accent, #62d98a);
-  background: var(--goal-accent-soft, #e9fbf0);
+  border-color: var(--goal-accent, #8692ff);
+  background: var(--goal-accent, #8692ff);
+  color: #ffffff;
+}
+
+.goal-dayclose.evening .goal-dayclose-tag,
+.goal-dayclose.evening .goal-dayclose-sub {
+  color: #ffffff;
 }
 
 .goal-dayclose-row {
@@ -2560,7 +2627,7 @@ html, body, #root {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--goal-accent-deep, #4bc878);
+  color: var(--goal-accent-deep, #8692ff);
 }
 
 .goal-dayclose-sub {
@@ -2578,7 +2645,7 @@ html, body, #root {
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: var(--goal-accent, #62d98a);
+  background: var(--goal-accent, #8692ff);
   flex-shrink: 0;
 }
 
@@ -2601,9 +2668,9 @@ html, body, #root {
 }
 
 .goal-dayclose-mood.on {
-  border-color: var(--goal-accent, #62d98a);
-  background: var(--goal-accent-soft, #e9fbf0);
-  color: var(--goal-accent-deep, #4bc878);
+  border-color: var(--goal-accent, #8692ff);
+  background: var(--goal-accent, #8692ff);
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -2622,7 +2689,7 @@ html, body, #root {
 }
 
 .goal-dayclose-input:focus {
-  border-color: var(--goal-accent, #62d98a);
+  border-color: var(--goal-accent, #8692ff);
 }
 
 .goal-dayclose-actions {
@@ -2701,7 +2768,7 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
-  color: var(--goal-accent-deep, #4bc878);
+  color: var(--goal-accent-deep, #8692ff);
 }
 
 .goal-dayclose-manage {

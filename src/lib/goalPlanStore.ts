@@ -14,6 +14,24 @@ const LEGACY_PREFIX = 'futureme-goal-plans-'
 
 const key = (profileId: string) => `${CURRENT_PREFIX}${profileId}`
 
+/** 툼스톤을 이 기간(ms)보다 오래 두지 않는다 — 그쯤이면 모든 기기가 삭제를 받아갔다고 본다 */
+const TOMBSTONE_TTL_MS = 60 * 24 * 60 * 60 * 1000 // 60일
+
+function isActivePlan(plan: GoalPlan): boolean {
+  return plan.deletedAt == null
+}
+
+function toPlanTombstone(plan: GoalPlan): GoalPlan {
+  const now = Date.now()
+  return { ...plan, title: '', deletedAt: now, updatedAt: new Date(now).toISOString() }
+}
+
+function prunePlanTombstones(plans: GoalPlan[]): GoalPlan[] {
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS
+  const pruned = plans.filter((p) => !(p.deletedAt != null && p.deletedAt < cutoff))
+  return pruned.length === plans.length ? plans : pruned
+}
+
 function parsePlansRaw(raw: string | null): GoalPlan[] {
   if (!raw) return []
   try {
@@ -91,8 +109,9 @@ function needsPersistMigration(before: GoalPlan[], after: GoalPlan[]): boolean {
 }
 
 function saveAll(profileId: string, plans: GoalPlan[]): void {
-  localStorage.setItem(key(profileId), JSON.stringify(plans))
-  writeGoalPlanSnapshot(profileId, plans)
+  const pruned = prunePlanTombstones(plans)
+  localStorage.setItem(key(profileId), JSON.stringify(pruned))
+  writeGoalPlanSnapshot(profileId, pruned.filter(isActivePlan))
   if (!isApplyingRemoteGoalData()) {
     void import('./goalDataSync').then(({ scheduleGoalDataSync }) => scheduleGoalDataSync())
   }
@@ -174,7 +193,7 @@ function mergeExternalPlans(profileId: string, profile?: SelfProfile): GoalPlan[
   return merged
 }
 
-export function loadGoalPlans(profileId: string, profile?: SelfProfile): GoalPlan[] {
+function loadAllGoalPlans(profileId: string, profile?: SelfProfile): GoalPlan[] {
   try {
     return mergeExternalPlans(profileId, profile)
   } catch {
@@ -182,14 +201,26 @@ export function loadGoalPlans(profileId: string, profile?: SelfProfile): GoalPla
   }
 }
 
+/** 화면·편집용 — 삭제(툼스톤)된 목표는 제외 */
+export function loadGoalPlans(profileId: string, profile?: SelfProfile): GoalPlan[] {
+  return loadAllGoalPlans(profileId, profile).filter(isActivePlan)
+}
+
+/** 동기화용 — 툼스톤 포함 전체 */
+export function loadGoalPlansForSync(profileId: string, profile?: SelfProfile): GoalPlan[] {
+  return loadAllGoalPlans(profileId, profile)
+}
+
 export function saveGoalPlan(plan: GoalPlan): void {
-  const list = loadGoalPlans(plan.profileId).filter((p) => p.id !== plan.id)
-  list.unshift({ ...plan, updatedAt: new Date().toISOString() })
+  const list = loadAllGoalPlans(plan.profileId).filter((p) => p.id !== plan.id)
+  list.unshift({ ...plan, deletedAt: undefined, updatedAt: new Date().toISOString() })
   saveAll(plan.profileId, list)
 }
 
 export function deleteGoalPlan(profileId: string, planId: string): void {
-  const list = loadGoalPlans(profileId).filter((p) => p.id !== planId)
+  const list = loadAllGoalPlans(profileId).map((p) =>
+    p.id === planId && isActivePlan(p) ? toPlanTombstone(p) : p,
+  )
   saveAll(profileId, list)
 }
 

@@ -194,6 +194,11 @@ export interface GoalPlan {
   motivation?: GoalMotivationAnswers
   createdAt: string
   updatedAt: string
+  /**
+   * 삭제 표식(툼스톤, ms). 설정돼 있으면 화면에 안 뜨지만 배열에 남아
+   * 클라우드 동기화로 다른 기기까지 삭제를 전파한다.
+   */
+  deletedAt?: number
 }
 
 export function emptyGoalIntake(): GoalIntake {

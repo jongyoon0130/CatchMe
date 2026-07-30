@@ -68,6 +68,7 @@ import { GoalMotivationCard, GoalMotivationForm } from './GoalMotivationForm'
 import { GoalRoutineDashboard } from './GoalRoutineDashboard'
 import { GoalTaskTimeSheet } from './GoalTaskTimeSheet'
 import { GoalSwipeDelete } from './GoalSwipeDelete'
+import { goalPlanIconKind } from './GoalBranchIcons'
 import { EditableChecklist } from './GoalEditableChecklist'
 import {
   GoalBranch,
@@ -190,26 +191,23 @@ export function GoalDrilldownHome({
       {
         key: 'daily' as const,
         list: sortDailyByTime([...aggregated.daily, ...miscAgg.daily]),
-        title: isTodaySelected ? '오늘 할 일' : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()} 할 일`,
-        badge: 'd' as const,
+        title: '일간',
         placeholder: '할 일 입력',
       },
       {
         key: 'weekly' as const,
         list: [...aggregated.weekly, ...miscAgg.weekly],
-        title: isTodaySelected ? '이번 주' : '그 주 목표',
-        badge: 'w' as const,
+        title: '주간',
         placeholder: weekLabel ? `${weekLabel} 목표` : '이번 주 목표',
       },
       {
         key: 'monthly' as const,
         list: [...aggregated.monthly, ...miscAgg.monthly],
-        title: isTodaySelected ? '이번 달' : `${selectedDate.getMonth() + 1}월`,
-        badge: 'm' as const,
+        title: '월간',
         placeholder: monthLabel ? `${monthLabel} 목표` : '이번 달 목표',
       },
     ]
-  }, [aggregated, miscAgg, eligiblePlans, isTodaySelected, selectedDate])
+  }, [aggregated, miscAgg, eligiblePlans])
 
   const plan = plans.find((p) => p.id === planId) ?? null
   const h = plan?.hierarchy
@@ -425,8 +423,7 @@ export function GoalDrilldownHome({
   const homeScreen = (
     <>
       <div className="goal-scroll">
-        <p className="goal-home-title">{isTodaySelected ? '오늘' : '선택한 날'}</p>
-        <p className="goal-home-sub">
+        <p className="goal-home-title">
           {todayStr} · {dailyCount.done}/{dailyCount.total}
         </p>
         <MiniCalendar
@@ -441,13 +438,10 @@ export function GoalDrilldownHome({
           onJumpToday={jumpToToday}
           getDailyStats={getDailyStats}
         />
-        {tierSections.map(({ key, list, title, badge, placeholder }) => (
+        {tierSections.map(({ key, list, title, placeholder }) => (
           <section key={key} className="goal-sec">
             <div className="goal-sec-head">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className={`goal-badge ${badge}`}>{badge === 'd' ? '일간' : badge === 'w' ? '주간' : '월간'}</span>
-                <h2>{title}</h2>
-              </div>
+              <h2 className="goal-sec-tier">{title}</h2>
               <div className="goal-sec-actions">
                 <button
                   type="button"
@@ -564,7 +558,7 @@ export function GoalDrilldownHome({
           <GoalSwipeDelete key={p.id} onDelete={() => handleDeletePlan(p.id)}>
             <GoalBranch
               tone="g"
-              icon={isRoutinePlan(p) ? '🔄' : '🎯'}
+              icon={goalPlanIconKind(isRoutinePlan(p))}
               title={p.title}
               sub={planSummaryFromHierarchy(p)}
               onClick={() => openRoot(p.id)}

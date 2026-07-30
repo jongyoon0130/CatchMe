@@ -11,15 +11,15 @@
   --color-border: #e8ebf0;
   --color-ink: #3a4048;
   --color-muted: #6b7583;
-  --color-accent: #62d98a;
-  --color-accent-dim: #4bc878;
-  --color-glow: #8ee8ae;
-  --color-glow-dim: #62d98a;
-  --color-bubble-me: #e9fbf0;
+  --color-accent: #8692ff;
+  --color-accent-dim: #8692ff;
+  --color-glow: #8692ff;
+  --color-glow-dim: #8692ff;
+  --color-bubble-me: #8692ff;
   --color-bubble-them: #ffffff;
-  --color-avatar: #62d98a;
+  --color-avatar: #8692ff;
   --color-avatar-ink: #ffffff;
-  --color-status-ok: #62d98a;
+  --color-status-ok: #8692ff;
   --color-status-warn: #ffc861;
   --color-status-error: #f08080;
   --color-scrollbar: #dde2e8;
@@ -52,7 +52,7 @@ body {
 
 .chat-bubble-me {
   background: var(--color-bubble-me);
-  color: var(--color-ink);
+  color: #ffffff;
   border-radius: 20px 20px 6px 20px;
 }
 
@@ -90,6 +90,17 @@ body {
 .chat-avatar {
   background: var(--color-avatar);
   color: var(--color-avatar-ink);
+}
+
+.chat-composer-input {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-composer-input::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 @keyframes fade-up {

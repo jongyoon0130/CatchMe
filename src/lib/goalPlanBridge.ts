@@ -53,7 +53,9 @@ export function readGoalPlansLite(): GoalPlan[] {
     if (!owner) return []
     const list = readJson<GoalPlan[]>(`${PLANS_PREFIX}${owner}`)
     if (!Array.isArray(list)) return []
-    return [...list].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    return [...list]
+      .filter((p) => p.deletedAt == null)
+      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   } catch {
     return []
   }

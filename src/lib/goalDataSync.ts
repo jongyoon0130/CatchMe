@@ -7,7 +7,7 @@ import {
   pushGoalDataToCloud,
   type RemoteGoalDataRow,
 } from './cloudSync'
-import { loadGoalPlans } from './goalPlanStore'
+import { loadGoalPlansForSync } from './goalPlanStore'
 import { writeGoalPlanSnapshot } from './goalPlanSnapshot'
 import { loadMiscTodos, type MiscTodoItem } from './goalMiscTodos'
 import { loadRoutines, type MiscRoutine } from './goalRoutines'
@@ -58,7 +58,7 @@ export function loadLocalGoalDataBundle(): GoalDataBundle {
   const ownerId = getGoalAppOwnerId()
   return {
     ownerId,
-    plans: loadGoalPlans(ownerId),
+    plans: loadGoalPlansForSync(ownerId),
     miscTodos: loadMiscTodos(ownerId),
     routines: loadRoutines(ownerId),
     updatedAt: getGoalDataRevision(),
@@ -89,7 +89,7 @@ export function applyLocalGoalDataBundle(bundle: GoalDataBundle): void {
     localStorage.setItem(plansKey(bundle.ownerId), JSON.stringify(bundle.plans))
     localStorage.setItem(miscKey(bundle.ownerId), JSON.stringify(bundle.miscTodos))
     localStorage.setItem(routinesKey(bundle.ownerId), JSON.stringify(bundle.routines))
-    writeGoalPlanSnapshot(bundle.ownerId, bundle.plans)
+    writeGoalPlanSnapshot(bundle.ownerId, bundle.plans.filter((p) => p.deletedAt == null))
     markGoalDataRevision(bundle.updatedAt)
   } finally {
     setApplyingRemoteGoalData(false)
@@ -97,16 +97,28 @@ export function applyLocalGoalDataBundle(bundle: GoalDataBundle): void {
   window.dispatchEvent(new CustomEvent(GOAL_DATA_SYNC_EVENT))
 }
 
+function planTime(plan: GoalPlan): number | undefined {
+  if (plan.deletedAt != null) return plan.deletedAt
+  const t = Date.parse(plan.updatedAt)
+  return Number.isFinite(t) ? t : undefined
+}
+
+function pickNewerPlan(local: GoalPlan, remote: GoalPlan, preferLocal: boolean): GoalPlan {
+  const lt = planTime(local)
+  const rt = planTime(remote)
+  if (lt != null && rt != null) return lt >= rt ? local : remote
+  if (lt != null) return local
+  if (rt != null) return remote
+  return preferLocal ? local : remote
+}
+
 function mergePlans(local: GoalPlan[], remote: GoalPlan[], localRev: number, remoteRev: number): GoalPlan[] {
-  if (localRev > remoteRev) return [...local].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  if (remoteRev > localRev) return [...remote].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const preferLocal = localRev >= remoteRev
   const byId = new Map<string, GoalPlan>()
   for (const plan of remote) byId.set(plan.id, plan)
   for (const plan of local) {
     const existing = byId.get(plan.id)
-    if (!existing || plan.updatedAt.localeCompare(existing.updatedAt) >= 0) {
-      byId.set(plan.id, plan)
-    }
+    byId.set(plan.id, existing ? pickNewerPlan(plan, existing, preferLocal) : plan)
   }
   return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
