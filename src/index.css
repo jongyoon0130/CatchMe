@@ -11,15 +11,15 @@
   --color-border: #e8ebf0;
   --color-ink: #3a4048;
   --color-muted: #6b7583;
-  --color-accent: #8692ff;
-  --color-accent-dim: #8692ff;
-  --color-glow: #8692ff;
-  --color-glow-dim: #8692ff;
-  --color-bubble-me: #8692ff;
+  --color-accent: #62d98a;
+  --color-accent-dim: #4bc878;
+  --color-glow: #8ee8ae;
+  --color-glow-dim: #62d98a;
+  --color-bubble-me: #e9fbf0;
   --color-bubble-them: #ffffff;
-  --color-avatar: #8692ff;
+  --color-avatar: #62d98a;
   --color-avatar-ink: #ffffff;
-  --color-status-ok: #8692ff;
+  --color-status-ok: #62d98a;
   --color-status-warn: #ffc861;
   --color-status-error: #f08080;
   --color-scrollbar: #dde2e8;
@@ -34,12 +34,6 @@ html, body, #root {
   margin: 0;
 }
 
-html {
-  /* 가로 방향 확대(글자 자동 키움) 방지 */
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
 body {
   font-family: var(--font-sans);
   background: var(--color-void);
@@ -49,24 +43,6 @@ body {
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-
-  /* 네이티브 앱처럼 "고정된" 느낌:
-     - manipulation: 더블탭 확대와 300ms 탭 지연 제거 (좌우 스와이프·세로 스크롤은 유지)
-     - user-select/touch-callout: 버튼 누를 때 글자가 선택되거나 iOS 길게-누름 메뉴가 뜨는 것 방지
-     - overscroll: 화면 끝에서의 고무줄 바운스 줄임 */
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  overscroll-behavior-y: none;
-}
-
-/* 입력이 필요한 곳은 다시 선택 가능하게 (위 user-select:none 예외) */
-input,
-textarea,
-[contenteditable="true"] {
-  -webkit-user-select: text;
-  user-select: text;
 }
 
 .font-serif {
@@ -76,7 +52,7 @@ textarea,
 
 .chat-bubble-me {
   background: var(--color-bubble-me);
-  color: #ffffff;
+  color: var(--color-ink);
   border-radius: 20px 20px 6px 20px;
 }
 
@@ -114,17 +90,6 @@ textarea,
 .chat-avatar {
   background: var(--color-avatar);
   color: var(--color-avatar-ink);
-}
-
-.chat-composer-input {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.chat-composer-input::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 @keyframes fade-up {

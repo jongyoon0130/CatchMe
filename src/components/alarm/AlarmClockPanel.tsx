@@ -199,7 +199,7 @@ export function AlarmClockPanel() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-full bg-accent px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(134,146,255,0.35)] active:scale-[0.98]"
+          className="rounded-full bg-ink px-4 py-2 text-[13px] font-bold text-surface shadow-[0_4px_14px_rgba(20,22,28,0.18)] active:scale-[0.98]"
         >
           + 추가
         </button>
@@ -218,7 +218,7 @@ export function AlarmClockPanel() {
               <button
                 type="button"
                 onClick={() => void handleEnableNotify()}
-                className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-bold text-white"
+                className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface"
               >
                 알림 허용하기
               </button>
@@ -228,7 +228,7 @@ export function AlarmClockPanel() {
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void handleConnectPush()}
-                className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+                className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface disabled:opacity-50"
               >
                 {busy === 'connect' ? '연결 중…' : '연결하기'}
               </button>
@@ -335,7 +335,7 @@ export function AlarmClockPanel() {
           <button
             type="button"
             onClick={() => setEditing('new')}
-            className="rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white"
+            className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-surface"
           >
             알람 추가
           </button>

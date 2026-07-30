@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { GoalBatteryIcon } from './GoalBatteryIcon'
-import { renderGoalBranchIcon, type GoalBranchIconKind } from './GoalBranchIcons'
+import type { GoalBranchIconKind } from './GoalBranchIcons'
+import { renderGoalBranchIcon } from './GoalBranchIcons'
 import { GoalCategoryPicker, type GoalCategoryOption } from './GoalCategoryPicker'
 import { GoalSwipeDelete } from './GoalSwipeDelete'
 
@@ -205,6 +206,7 @@ export function MiniCalendar({
                 total={stats?.total}
                 pct={stats?.pct}
                 hasTasks={hasTasks}
+                inRange={inRange}
               />
               <span className={`goal-mc-day ${isSelected ? 'selected-num' : isToday ? 'today-num' : ''}`}>{day}</span>
             </>
@@ -428,7 +430,7 @@ export function GoalBranch({
   onClick,
 }: {
   tone: 'g' | 'w' | 'd'
-  icon: GoalBranchIconKind | ReactNode
+  icon: GoalBranchIconKind | React.ReactNode
   title: string
   sub: string
   pct?: number

@@ -191,23 +191,23 @@ export function GoalDrilldownHome({
       {
         key: 'daily' as const,
         list: sortDailyByTime([...aggregated.daily, ...miscAgg.daily]),
-        title: '일간',
+        tierLabel: '일간',
         placeholder: '할 일 입력',
       },
       {
         key: 'weekly' as const,
         list: [...aggregated.weekly, ...miscAgg.weekly],
-        title: '주간',
+        tierLabel: '주간',
         placeholder: weekLabel ? `${weekLabel} 목표` : '이번 주 목표',
       },
       {
         key: 'monthly' as const,
         list: [...aggregated.monthly, ...miscAgg.monthly],
-        title: '월간',
+        tierLabel: '월간',
         placeholder: monthLabel ? `${monthLabel} 목표` : '이번 달 목표',
       },
     ]
-  }, [aggregated, miscAgg, eligiblePlans])
+  }, [aggregated, miscAgg, eligiblePlans, selectedDate])
 
   const plan = plans.find((p) => p.id === planId) ?? null
   const h = plan?.hierarchy
@@ -365,9 +365,7 @@ export function GoalDrilldownHome({
     setStack((st) => [...st, 'day'])
   }
 
-  const todayStr = isTodaySelected
-    ? `${now.getMonth() + 1}월 ${now.getDate()}일`
-    : `${selectedDate.getMonth() + 1}월 ${selectedDate.getDate()}일`
+  const dateLabel = `${selectedDate.getMonth() + 1}월 ${selectedDate.getDate()}일`
   // 배터리·날짜 옆 진행률 = "오늘 할 일"만 (목표 일간 + 일상 투두)
   const dailyCount = countItems([...aggregated.daily, ...miscAgg.daily])
   // 타임캡슐 — 목표를 만들 때 쓴 "이뤘을 때" 답변이, 다 이뤘거나 마감일이 온 날 편지로 도착
@@ -423,8 +421,9 @@ export function GoalDrilldownHome({
   const homeScreen = (
     <>
       <div className="goal-scroll">
-        <p className="goal-home-title">
-          {todayStr} · {dailyCount.done}/{dailyCount.total}
+        <p className="goal-home-title">{dateLabel}</p>
+        <p className="goal-home-sub">
+          {dailyCount.done}/{dailyCount.total}
         </p>
         <MiniCalendar
           year={calYear}
@@ -438,16 +437,16 @@ export function GoalDrilldownHome({
           onJumpToday={jumpToToday}
           getDailyStats={getDailyStats}
         />
-        {tierSections.map(({ key, list, title, placeholder }) => (
+        {tierSections.map(({ key, list, tierLabel, placeholder }) => (
           <section key={key} className="goal-sec">
             <div className="goal-sec-head">
-              <h2 className="goal-sec-tier">{title}</h2>
+              <span className="goal-badge">{tierLabel}</span>
               <div className="goal-sec-actions">
                 <button
                   type="button"
                   className={`goal-sec-add ${addingTier === key ? 'on' : ''}`}
                   onClick={() => setAddingTier((t) => (t === key ? null : key))}
-                  aria-label={`${title} 추가`}
+                  aria-label={`${tierLabel} 추가`}
                 >
                   +
                 </button>
