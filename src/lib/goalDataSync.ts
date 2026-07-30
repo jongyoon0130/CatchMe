@@ -112,36 +112,6 @@ function dayKey(d: PlanDay): string {
   return `${d.dateLabel}|${d.dayOfWeek}`
 }
 
-/** 지운 항목 기록을 60일까지만 둔다 — 그쯤이면 모든 기기가 삭제를 받아갔다고 본다 */
-const DELETED_ITEM_TTL_MS = 60 * 24 * 60 * 60 * 1000
-
-/** 두 기기의 "지운 항목 id→시각" 기록을 합친다 (늦은 시각 우선, 오래된 건 버림) */
-function mergeDeletedItems(
-  a: Record<string, number> | undefined,
-  b: Record<string, number> | undefined,
-): Record<string, number> {
-  const out: Record<string, number> = {}
-  const cutoff = Date.now() - DELETED_ITEM_TTL_MS
-  for (const src of [a, b]) {
-    if (!src) continue
-    for (const [id, t] of Object.entries(src)) {
-      if (t >= cutoff && (out[id] === undefined || t > out[id])) out[id] = t
-    }
-  }
-  return out
-}
-
-/** 병합된 트리에서 "지운 항목"을 걸러낸다 → 한 기기의 삭제가 다른 기기까지 전파된다 */
-function stripDeleted(h: GoalHierarchy, deleted: Record<string, number>): GoalHierarchy {
-  const keep = (items: PlanCheckItem[]) => items.filter((it) => !(it.id in deleted))
-  return {
-    ...h,
-    months: h.months.map((m) => ({ ...m, items: keep(m.items) })),
-    weeks: h.weeks.map((w) => ({ ...w, items: keep(w.items), days: w.days.map((d) => ({ ...d, items: keep(d.items) })) })),
-    days: h.days.map((d) => ({ ...d, items: keep(d.items) })),
-  }
-}
-
 function allItemIds(h: GoalHierarchy): Set<string> {
   const s = new Set<string>()
   for (const m of h.months) for (const it of m.items) s.add(it.id)
@@ -231,14 +201,7 @@ function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
     }
   }
 
-  // 삭제 전파: 두 기기의 "지운 항목" 기록을 합쳐, 합집합으로 되살아난 항목을 다시 걸러낸다.
-  const deleted = mergeDeletedItems(local.deletedItems, remote.deletedItems)
-  const hasDeleted = Object.keys(deleted).length > 0
-  return {
-    ...pref,
-    hierarchy: hasDeleted ? stripDeleted(merged, deleted) : merged,
-    deletedItems: hasDeleted ? deleted : pref.deletedItems,
-  }
+  return { ...pref, hierarchy: merged }
 }
 
 /**

@@ -170,22 +170,3 @@ describe('mergePlans — 두 기기 날 노드 id가 달라도 항목 안 잃음
     expect(labels).toContain('맥에서추가')
   })
 })
-
-describe('mergePlans — 목표 항목 삭제 전파(deletedItems)', () => {
-  it('한 기기에서 지운 목표 항목은, 다른 기기에 아직 살아 있어도 되살아나지 않는다', () => {
-    // 맥: X를 지움(항목 배열에서 빠지고 deletedItems에 기록)
-    const macDeleted = planWithDayItems('2026-07-30T10:00:00Z', [{ id: 'A', label: '남김', done: false }])
-    macDeleted.deletedItems = { X: Date.now() }
-    // 폰: X가 아직 살아 있음
-    const phoneStillHas = planWithDayItems('2026-07-30T09:00:00Z', [
-      { id: 'A', label: '남김', done: false },
-      { id: 'X', label: '지워질것', done: false },
-    ])
-    const ids1 = dayItems(mergeGoalDataBundles(pbundle(200, [macDeleted]), pbundle(100, [phoneStillHas]))).map((i) => i.id)
-    expect(ids1).toContain('A')
-    expect(ids1).not.toContain('X') // 삭제 전파됨
-    // 방향 반대도 동일해야 한다
-    const ids2 = dayItems(mergeGoalDataBundles(pbundle(100, [phoneStillHas]), pbundle(200, [macDeleted]))).map((i) => i.id)
-    expect(ids2).not.toContain('X')
-  })
-})
