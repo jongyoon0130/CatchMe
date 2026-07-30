@@ -192,6 +192,11 @@ export interface GoalPlan {
   hierarchy?: GoalHierarchy
   /** 동기·미래상·미달 — 미래의 나 대화용 */
   motivation?: GoalMotivationAnswers
+  /**
+   * 지운 목표 항목 id → 지운 시각(ms). 화면에선 항목을 실제로 빼지만(유령 빈 줄 방지),
+   * 이 기록으로 **기기 간 삭제를 전파**한다(병합 때 여기 있는 id는 걸러낸다). 오래되면 정리.
+   */
+  deletedItems?: Record<string, number>
   createdAt: string
   updatedAt: string
 }
