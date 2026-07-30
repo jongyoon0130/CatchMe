@@ -170,3 +170,35 @@ describe('mergePlans — 두 기기 날 노드 id가 달라도 항목 안 잃음
     expect(labels).toContain('맥에서추가')
   })
 })
+
+// 실사용 버그: 상대 기기에만 있는 "날짜 노드"의 항목이, skeleton엔 그 날이 없으면
+// 예전엔 첫 날(노드[0])로 몰려가 "오늘 화면에서 사라진" 것처럼 보였다. 이제 제 날짜에 남는다.
+describe('mergePlans — 상대에만 있는 날짜의 항목은 그 날짜에 남는다(엉뚱한 날로 안 옮김)', () => {
+  function planTwoDays(updatedAt: string, day2Items: PlanCheckItem[]): GoalPlan {
+    const p = planWithDayItems(updatedAt, [{ id: 'A', label: '7/29것', done: false }])
+    // 7/30 날 노드를 추가 (여기에 항목을 둔다)
+    p.hierarchy!.weeks[0].days.push({ id: 'd2', dateLabel: '7/30', dayOfWeek: '목', focus: '', items: day2Items })
+    return p
+  }
+  function dayByLabel(merged: GoalDataBundle, label: string): string | undefined {
+    for (const d of merged.plans[0]?.hierarchy?.weeks[0]?.days ?? []) {
+      if (d.items.some((i) => i.label === label)) return d.dateLabel
+    }
+    return undefined
+  }
+
+  it('맥 skeleton(7/29만·rev높음)에 없는 7/30의 폰 항목 X는 7/30에 남는다', () => {
+    const mac = pbundle(0, [planWithDayItems('2026-07-30T10:00:00Z', [{ id: 'A', label: '7/29것', done: false }])])
+    const phone = pbundle(0, [planTwoDays('2026-07-30T09:00:00Z', [{ id: 'X', label: '7/30에추가', done: false }])])
+    const merged = mergeGoalDataBundles(mac, phone)
+    expect(dayByLabel(merged, '7/30에추가')).toBe('7/30') // 예전엔 '7/29'(첫 날)로 몰렸다
+  })
+
+  it('같은 항목이 두 날에 중복 생성되지 않는다', () => {
+    const mac = pbundle(0, [planTwoDays('2026-07-30T10:00:00Z', [{ id: 'X', label: '공통X', done: false }])])
+    const phone = pbundle(0, [planTwoDays('2026-07-30T09:00:00Z', [{ id: 'X', label: '공통X', done: false }])])
+    const merged = mergeGoalDataBundles(mac, phone)
+    const all = merged.plans[0]?.hierarchy?.weeks[0]?.days.flatMap((d) => d.items.filter((i) => i.id === 'X')) ?? []
+    expect(all.length).toBe(1)
+  })
+})

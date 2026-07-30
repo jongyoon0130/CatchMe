@@ -154,6 +154,18 @@ function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
   const oWeek = new Map(oh.weeks.map((w) => [String(w.globalIndex), w]))
   const oDayTop = new Map(oh.days.map((d) => [dayKey(d), d]))
 
+  // pref에 이미 있는 항목 id — other 노드를 통째로 들여올 때 같은 항목이 두 노드에
+  // 중복되지 않게 거른다.
+  const prefItemIds = allItemIds(ph)
+  const withoutPrefItems = <T extends { items: PlanCheckItem[] }>(node: T): T => ({
+    ...node,
+    items: node.items.filter((it) => !prefItemIds.has(it.id)),
+  })
+
+  const prefMonthKeys = new Set(ph.months.map((m) => m.key))
+  const prefWeekKeys = new Set(ph.weeks.map((w) => String(w.globalIndex)))
+  const prefDayTopKeys = new Set(ph.days.map((d) => dayKey(d)))
+
   const merged: GoalHierarchy = {
     ...ph,
     months: ph.months.map((m) => {
@@ -164,14 +176,18 @@ function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
       const ow = oWeek.get(String(w.globalIndex))
       if (!ow) return w
       const oDay = new Map(ow.days.map((d) => [dayKey(d), d]))
-      return {
-        ...w,
-        items: unionItems(w.items, ow.items),
-        days: w.days.map((d) => {
-          const od = oDay.get(dayKey(d))
-          return od ? { ...d, items: unionItems(d.items, od.items) } : d
-        }),
+      const prefWeekDayKeys = new Set(w.days.map((d) => dayKey(d)))
+      // 이 주에서 pref가 가진 날은 항목 union, pref에 없는 other 날은 통째로 추가(제 날짜 유지)
+      const days = w.days.map((d) => {
+        const od = oDay.get(dayKey(d))
+        return od ? { ...d, items: unionItems(d.items, od.items) } : d
+      })
+      for (const od of ow.days) {
+        if (prefWeekDayKeys.has(dayKey(od))) continue
+        const fresh = withoutPrefItems(od)
+        if (fresh.items.length) days.push(fresh)
       }
+      return { ...w, items: unionItems(w.items, ow.items), days }
     }),
     days: ph.days.map((d) => {
       const o = oDayTop.get(dayKey(d))
@@ -179,7 +195,27 @@ function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
     }),
   }
 
-  // 안전망: 날짜 매칭에도 안 들어간 other 항목(고아)을 tier별 대표 노드에 붙인다 → 손실 0.
+  // pref에 아예 없던 other의 월·주·일 노드는 **그 항목을 제 날짜에 살려두기 위해** 통째로 들여온다.
+  // (예전 고아 안전망은 매칭 안 된 항목을 노드[0]=첫 날로 몰아넣어, 폰이 7/31에 넣은 항목이
+  //  맥엔 7/31 노드가 없을 때 7/30으로 옮겨져 "오늘 화면에서 사라진" 것처럼 보였다.)
+  for (const om of oh.months) {
+    if (prefMonthKeys.has(om.key)) continue
+    const fresh = withoutPrefItems(om)
+    if (fresh.items.length) merged.months.push(fresh)
+  }
+  for (const ow of oh.weeks) {
+    if (prefWeekKeys.has(String(ow.globalIndex))) continue
+    const freshDays = ow.days.map(withoutPrefItems).filter((d) => d.items.length)
+    const freshWeekItems = ow.items.filter((it) => !prefItemIds.has(it.id))
+    if (freshDays.length || freshWeekItems.length) merged.weeks.push({ ...ow, items: freshWeekItems, days: freshDays })
+  }
+  for (const od of oh.days) {
+    if (prefDayTopKeys.has(dayKey(od))) continue
+    const fresh = withoutPrefItems(od)
+    if (fresh.items.length) merged.days.push(fresh)
+  }
+
+  // 최후 안전망: horizon이 서로 달라 노드 자체가 없어 위에서도 못 들인 항목만 tier 대표 노드에 붙인다.
   const placed = allItemIds(merged)
   const { monthly, weekly, daily } = collectByTier(oh)
   const orphanMonthly = monthly.filter((it) => !placed.has(it.id))
