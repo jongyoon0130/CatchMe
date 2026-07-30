@@ -6,6 +6,11 @@ function withHierarchy(plan: GoalPlan, fn: (h: GoalHierarchy) => GoalHierarchy):
   return { ...plan, hierarchy: fn(plan.hierarchy) }
 }
 
+/** 지운 항목 id를 기록한다 — 기기 간 삭제 전파용(병합이 이 id를 걸러낸다) */
+function markDeleted(plan: GoalPlan, itemId: string): GoalPlan {
+  return { ...plan, deletedItems: { ...plan.deletedItems, [itemId]: Date.now() } }
+}
+
 function mapItems(items: PlanCheckItem[], itemId: string, fn: (it: PlanCheckItem) => PlanCheckItem): PlanCheckItem[] {
   return items.map((it) => (it.id === itemId ? fn(it) : it))
 }
@@ -107,14 +112,17 @@ export function upsertMonthItemLabel(plan: GoalPlan, monthId: string, itemId: st
 }
 
 export function removeMonthItem(plan: GoalPlan, monthId: string, itemId: string): GoalPlan {
-  return withHierarchy(plan, (h) => ({
-    ...h,
-    months: h.months.map((m) => {
-      if (m.id !== monthId) return m
-      const next = m.items.filter((it) => it.id !== itemId)
-      return { ...m, items: next.length ? next : [newItem('')] }
-    }),
-  }))
+  return markDeleted(
+    withHierarchy(plan, (h) => ({
+      ...h,
+      months: h.months.map((m) => {
+        if (m.id !== monthId) return m
+        const next = m.items.filter((it) => it.id !== itemId)
+        return { ...m, items: next.length ? next : [newItem('')] }
+      }),
+    })),
+    itemId,
+  )
 }
 
 export function addWeekItem(plan: GoalPlan, weekId: string): GoalPlan {
@@ -146,14 +154,17 @@ export function upsertWeekItemLabel(plan: GoalPlan, weekId: string, itemId: stri
 }
 
 export function removeWeekItem(plan: GoalPlan, weekId: string, itemId: string): GoalPlan {
-  return withHierarchy(plan, (h) => ({
-    ...h,
-    weeks: h.weeks.map((w) => {
-      if (w.id !== weekId) return w
-      const next = w.items.filter((it) => it.id !== itemId)
-      return { ...w, items: next.length ? next : [newItem('')] }
-    }),
-  }))
+  return markDeleted(
+    withHierarchy(plan, (h) => ({
+      ...h,
+      weeks: h.weeks.map((w) => {
+        if (w.id !== weekId) return w
+        const next = w.items.filter((it) => it.id !== itemId)
+        return { ...w, items: next.length ? next : [newItem('')] }
+      }),
+    })),
+    itemId,
+  )
 }
 
 export function addDayItem(plan: GoalPlan, weekId: string | null, dayId: string): GoalPlan {
@@ -243,18 +254,21 @@ export function upsertDayItemLabel(plan: GoalPlan, weekId: string | null, dayId:
 }
 
 export function removeDayItem(plan: GoalPlan, weekId: string | null, dayId: string, itemId: string): GoalPlan {
-  return withHierarchy(plan, (h) => {
-    const trimDay = (d: PlanDay): PlanDay => {
-      if (d.id !== dayId) return d
-      const next = d.items.filter((it) => it.id !== itemId)
-      return { ...d, items: next.length ? next : [newItem('')] }
-    }
-    if (h.horizon === 'day-only') return { ...h, days: h.days.map(trimDay) }
-    return {
-      ...h,
-      weeks: h.weeks.map((w) => (w.id !== weekId ? w : { ...w, days: w.days.map(trimDay) })),
-    }
-  })
+  return markDeleted(
+    withHierarchy(plan, (h) => {
+      const trimDay = (d: PlanDay): PlanDay => {
+        if (d.id !== dayId) return d
+        const next = d.items.filter((it) => it.id !== itemId)
+        return { ...d, items: next.length ? next : [newItem('')] }
+      }
+      if (h.horizon === 'day-only') return { ...h, days: h.days.map(trimDay) }
+      return {
+        ...h,
+        weeks: h.weeks.map((w) => (w.id !== weekId ? w : { ...w, days: w.days.map(trimDay) })),
+      }
+    }),
+    itemId,
+  )
 }
 
 export function toggleMonthNodeItem(plan: GoalPlan, monthId: string, itemId: string): GoalPlan {
