@@ -14,6 +14,15 @@ function newItem(label = ''): PlanCheckItem {
   return { id: crypto.randomUUID(), label, done: false }
 }
 
+/**
+ * 지운 항목 id를 plan의 묘비(itemTombstones)에 남긴다 → 병합이 다른 기기에서 삭제를 전파한다.
+ * 재추가·이동은 새 id를 받으므로 여기 안 걸린다(같은 id 부활 방지가 아니라 그 id의 삭제 전파).
+ */
+function withItemTombstone(plan: GoalPlan, itemId: string): GoalPlan {
+  if (!itemId || itemId === '__blank__') return plan
+  return { ...plan, itemTombstones: { ...(plan.itemTombstones ?? {}), [itemId]: Date.now() } }
+}
+
 /** 일간 항목이 속한 day 슬롯 — date가 있으면 그 날짜 노드만, 없으면 첫 전역 매치 */
 function findDailyItemSlot(
   h: GoalHierarchy,
@@ -107,14 +116,17 @@ export function upsertMonthItemLabel(plan: GoalPlan, monthId: string, itemId: st
 }
 
 export function removeMonthItem(plan: GoalPlan, monthId: string, itemId: string): GoalPlan {
-  return withHierarchy(plan, (h) => ({
-    ...h,
-    months: h.months.map((m) => {
-      if (m.id !== monthId) return m
-      const next = m.items.filter((it) => it.id !== itemId)
-      return { ...m, items: next.length ? next : [newItem('')] }
-    }),
-  }))
+  return withItemTombstone(
+    withHierarchy(plan, (h) => ({
+      ...h,
+      months: h.months.map((m) => {
+        if (m.id !== monthId) return m
+        const next = m.items.filter((it) => it.id !== itemId)
+        return { ...m, items: next.length ? next : [newItem('')] }
+      }),
+    })),
+    itemId,
+  )
 }
 
 export function addWeekItem(plan: GoalPlan, weekId: string): GoalPlan {
@@ -146,14 +158,17 @@ export function upsertWeekItemLabel(plan: GoalPlan, weekId: string, itemId: stri
 }
 
 export function removeWeekItem(plan: GoalPlan, weekId: string, itemId: string): GoalPlan {
-  return withHierarchy(plan, (h) => ({
-    ...h,
-    weeks: h.weeks.map((w) => {
-      if (w.id !== weekId) return w
-      const next = w.items.filter((it) => it.id !== itemId)
-      return { ...w, items: next.length ? next : [newItem('')] }
-    }),
-  }))
+  return withItemTombstone(
+    withHierarchy(plan, (h) => ({
+      ...h,
+      weeks: h.weeks.map((w) => {
+        if (w.id !== weekId) return w
+        const next = w.items.filter((it) => it.id !== itemId)
+        return { ...w, items: next.length ? next : [newItem('')] }
+      }),
+    })),
+    itemId,
+  )
 }
 
 export function addDayItem(plan: GoalPlan, weekId: string | null, dayId: string): GoalPlan {
@@ -243,7 +258,8 @@ export function upsertDayItemLabel(plan: GoalPlan, weekId: string | null, dayId:
 }
 
 export function removeDayItem(plan: GoalPlan, weekId: string | null, dayId: string, itemId: string): GoalPlan {
-  return withHierarchy(plan, (h) => {
+  return withItemTombstone(
+    withHierarchy(plan, (h) => {
     const trimDay = (d: PlanDay): PlanDay => {
       if (d.id !== dayId) return d
       const next = d.items.filter((it) => it.id !== itemId)
@@ -254,7 +270,9 @@ export function removeDayItem(plan: GoalPlan, weekId: string | null, dayId: stri
       ...h,
       weeks: h.weeks.map((w) => (w.id !== weekId ? w : { ...w, days: w.days.map(trimDay) })),
     }
-  })
+    }),
+    itemId,
+  )
 }
 
 export function toggleMonthNodeItem(plan: GoalPlan, monthId: string, itemId: string): GoalPlan {

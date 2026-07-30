@@ -112,6 +112,35 @@ function dayKey(d: PlanDay): string {
   return `${d.dateLabel}|${d.dayOfWeek}`
 }
 
+const TOMBSTONE_TTL_MS = 60 * 24 * 60 * 60 * 1000 // 60일 뒤 묘비 정리
+
+/** 두 목표의 삭제 묘비(id→시각)를 합친다 — 더 늦은 삭제를 쓰고, 오래된 건 버린다. */
+function mergeItemTombstones(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): Record<string, number> | undefined {
+  if (!a && !b) return undefined
+  const out: Record<string, number> = { ...(a ?? {}) }
+  for (const [id, t] of Object.entries(b ?? {})) {
+    if (out[id] == null || t > out[id]) out[id] = t
+  }
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS
+  for (const [id, t] of Object.entries(out)) if (t < cutoff) delete out[id]
+  return Object.keys(out).length ? out : undefined
+}
+
+/** 묘비에 오른 id의 항목을 트리에서 제거한다(삭제 전파). 재추가·이동은 새 id라 안 걸린다. */
+function stripTombstonedItems(h: GoalHierarchy, tombs: Record<string, number> | undefined): GoalHierarchy {
+  if (!tombs || !Object.keys(tombs).length) return h
+  const keep = (items: PlanCheckItem[]) => items.filter((it) => tombs[it.id] == null)
+  return {
+    ...h,
+    months: h.months.map((m) => ({ ...m, items: keep(m.items) })),
+    weeks: h.weeks.map((w) => ({ ...w, items: keep(w.items), days: w.days.map((d) => ({ ...d, items: keep(d.items) })) })),
+    days: h.days.map((d) => ({ ...d, items: keep(d.items) })),
+  }
+}
+
 function allItemIds(h: GoalHierarchy): Set<string> {
   const s = new Set<string>()
   for (const m of h.months) for (const it of m.items) s.add(it.id)
@@ -237,7 +266,10 @@ function mergePlanPair(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
     }
   }
 
-  return { ...pref, hierarchy: merged }
+  // 삭제 묘비를 합치고, 묘비에 오른 항목은 트리에서 제거한다 → 한 기기 삭제가 다른 기기에 전파.
+  // (union 병합이라 이게 없으면 상대에 남아 있는 항목이 1~2초 만에 되살아난다.)
+  const itemTombstones = mergeItemTombstones(pref.itemTombstones, other.itemTombstones)
+  return { ...pref, hierarchy: stripTombstonedItems(merged, itemTombstones), itemTombstones }
 }
 
 /**
