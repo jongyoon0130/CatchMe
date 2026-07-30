@@ -192,6 +192,12 @@ export interface GoalPlan {
   hierarchy?: GoalHierarchy
   /** 동기·미래상·미달 — 미래의 나 대화용 */
   motivation?: GoalMotivationAnswers
+  /**
+   * 지운 트리 항목의 묘비 — 항목 id → 삭제 시각(ms). 병합에서 이 id는 트리에서 제거해
+   * **삭제를 기기 간 전파**한다(union 병합이라 표식이 없으면 상대에 남은 항목이 되살아남).
+   * 재추가·이동은 항상 새 id를 받으므로 여기 안 걸린다. 60일 지나면 정리한다.
+   */
+  itemTombstones?: Record<string, number>
   createdAt: string
   updatedAt: string
 }

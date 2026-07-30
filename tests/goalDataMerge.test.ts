@@ -202,3 +202,39 @@ describe('mergePlans — 상대에만 있는 날짜의 항목은 그 날짜에 �
     expect(all.length).toBe(1)
   })
 })
+
+// 삭제 전파: union 병합이라 표식이 없으면 삭제한 항목이 상대에 남아 되살아난다.
+// plan.itemTombstones(지운 id→시각)에 오른 항목은 병합에서 트리에서 제거된다.
+describe('mergePlans — 목표 항목 삭제 전파(묘비)', () => {
+  it('한 기기가 X를 지우면(묘비), 상대에 X가 살아 있어도 병합 후 사라진다', () => {
+    const deleted = planWithDayItems('2026-07-29T11:00:00Z', [{ id: 'A', label: '남김', done: false }])
+    deleted.itemTombstones = { X: Date.now() } // X를 지웠다는 표식
+    const other = planWithDayItems('2026-07-29T09:00:00Z', [
+      { id: 'A', label: '남김', done: false },
+      { id: 'X', label: '지운것', done: false },
+    ])
+    const merged = mergeGoalDataBundles(pbundle(0, [deleted]), pbundle(0, [other]))
+    const ids = dayItems(merged).map((i) => i.id)
+    expect(ids).toContain('A')
+    expect(ids).not.toContain('X') // 부활하지 않는다
+  })
+
+  it('방향 무관 — 상대가 지웠어도(묘비만 상대에) 내 X가 사라진다', () => {
+    const mine = planWithDayItems('2026-07-29T11:00:00Z', [
+      { id: 'A', label: '남김', done: false },
+      { id: 'X', label: '내게아직있음', done: false },
+    ])
+    const deleted = planWithDayItems('2026-07-29T09:00:00Z', [{ id: 'A', label: '남김', done: false }])
+    deleted.itemTombstones = { X: Date.now() }
+    const ids = dayItems(mergeGoalDataBundles(pbundle(0, [mine]), pbundle(0, [deleted]))).map((i) => i.id)
+    expect(ids).not.toContain('X')
+  })
+
+  it('이동 회귀 방지: 묘비는 지운 그 id만 지운다 — 새 id로 다시 넣은 항목은 안 지운다', () => {
+    // 이동 = 원본 old id 묘비 + 대상에 새 id. 묘비가 새 id를 건드리면 이동이 사라진다(PR#6).
+    const moved = planWithDayItems('2026-07-29T11:00:00Z', [{ id: 'new-id', label: '옮긴것', done: false }])
+    moved.itemTombstones = { 'old-id': Date.now() } // 원본에서 지운 옛 id
+    const merged = mergeGoalDataBundles(pbundle(0, [moved]), pbundle(0, [moved]))
+    expect(dayItems(merged).map((i) => i.id)).toContain('new-id') // 새 id는 살아있다
+  })
+})
