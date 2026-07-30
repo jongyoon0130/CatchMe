@@ -126,10 +126,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('focus', resyncOnReturn)
     document.addEventListener('visibilitychange', resyncOnReturn)
 
+    // iOS 사파리는 앱을 보고 있어도 실시간 소켓을 재워버려서, 맥의 변경이 폰에 늦게 온다.
+    // 그래서 **화면이 보이는 동안 30초마다** 가볍게 원격을 당겨 놓친 변경을 따라잡는다.
+    // (숨겨져 있으면 건너뛰어 배터리·데이터를 아낀다. 작은 행 하나 조회라 부담 없음.)
+    const catchUpTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') void pullRemoteGoalDataOnce()
+    }, 30_000)
+
     return () => {
       cancelled = true
       subscription.unsubscribe()
       stopGoalDataRealtime()
+      clearInterval(catchUpTimer)
       window.removeEventListener('focus', resyncOnReturn)
       document.removeEventListener('visibilitychange', resyncOnReturn)
     }
