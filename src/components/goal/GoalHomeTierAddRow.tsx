@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GoalPlan } from '../../types/goalPlan'
 import type { DateSlots } from '../../lib/goalHierarchyEngine'
 import { horizonShowsMonth, horizonShowsWeek } from '../../lib/goalHierarchyEngine'
-import { addTierGoalAtDate } from '../../lib/goalHierarchyMutations'
+import { insertTierGoalAtDate } from '../../lib/goalHierarchyMutations'
 import {
   MISC_PLAN_ID,
   MISC_PLAN_TITLE,
@@ -76,6 +76,7 @@ export function GoalHomeTierAddRow({
   )
 
   const [selectedId, setSelectedId] = useState(MISC_PLAN_ID)
+  const [selectedLabel, setSelectedLabel] = useState(MISC_PLAN_TITLE)
   const [menuOpen, setMenuOpen] = useState(false)
   const [text, setText] = useState('')
   /** 반복 요일 — 비어 있으면 이 날 하루짜리 할 일 */
@@ -86,11 +87,19 @@ export function GoalHomeTierAddRow({
 
   useEffect(() => {
     setSelectedId(MISC_PLAN_ID)
+    setSelectedLabel(MISC_PLAN_TITLE)
     setText('')
     setMenuOpen(false)
     setRepeatDays([])
     inputRef.current?.focus()
   }, [tier, date])
+
+  const pickGoal = (opt: PickerOption) => {
+    setSelectedId(opt.id)
+    setSelectedLabel(opt.label)
+    setMenuOpen(false)
+    inputRef.current?.focus()
+  }
 
   useEffect(() => {
     if (!menuOpen) return
@@ -101,16 +110,16 @@ export function GoalHomeTierAddRow({
     return () => document.removeEventListener('mousedown', close)
   }, [menuOpen])
 
-  const selected = pickerOptions.find((o) => o.id === selectedId) ?? pickerOptions[0]
+  const isMisc = selectedId === MISC_PLAN_ID
   // 반복은 "일상" 일간 할 일에만 — 목표 안의 주/월 항목은 목표 자체의 리듬을 따른다
-  const canRepeat = tier === 'daily' && selected.kind === 'misc'
+  const canRepeat = tier === 'daily' && isMisc
 
   const submit = () => {
     const trimmed = text.trim()
     if (!trimmed || submitting.current) return
     submitting.current = true
     try {
-      if (selected.kind === 'misc') {
+      if (isMisc) {
         // 반복이면 루틴으로 등록하고, 앞으로 2주치를 바로 만들어 둔다
         if (canRepeat && repeatDays.length) {
           const added = addRoutine(profileId, routines, trimmed, repeatDays, date)
@@ -131,9 +140,9 @@ export function GoalHomeTierAddRow({
         onCancel()
         return
       }
-      const entry = selected.entry
+      const entry = eligibleGoals.find((e) => e.plan.id === selectedId)
       if (!entry) return
-      const next = addTierGoalAtDate(entry.plan, date, tier, trimmed)
+      const next = insertTierGoalAtDate(entry.plan, date, tier, trimmed)
       if (next) {
         onGoalSave(next)
         setText('')
@@ -170,7 +179,7 @@ export function GoalHomeTierAddRow({
           aria-expanded={menuOpen}
           aria-haspopup="listbox"
         >
-          <span className="goal-tier-add-picker-label">{selected.label}</span>
+          <span className="goal-tier-add-picker-label">{selectedLabel}</span>
           <span className="goal-tier-add-picker-chevron" aria-hidden>
             ▾
           </span>
@@ -184,11 +193,7 @@ export function GoalHomeTierAddRow({
                 role="option"
                 aria-selected={opt.id === selectedId}
                 className={`goal-tier-add-menu-item ${opt.id === selectedId ? 'on' : ''}`}
-                onClick={() => {
-                  setSelectedId(opt.id)
-                  setMenuOpen(false)
-                  inputRef.current?.focus()
-                }}
+                onClick={() => pickGoal(opt)}
               >
                 {opt.label}
                 {opt.id === selectedId ? <span aria-hidden>✓</span> : null}
