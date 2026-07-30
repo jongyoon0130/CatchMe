@@ -63,7 +63,7 @@ import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
 import { getRoutineWeekProgress, isRoutinePlan } from '../../lib/goalRoutineEngine'
 import { GoalEditPlanForm } from './GoalEditPlanForm'
 import { GoalHierarchyTree } from './GoalHierarchyTree'
-import { GoalHomeTierAddRow, isSameCalendarDay } from './GoalHomeTierAddRow'
+import { GoalHomeTierAddRow } from './GoalHomeTierAddRow'
 import { GoalMotivationCard, GoalMotivationForm } from './GoalMotivationForm'
 import { GoalRoutineDashboard } from './GoalRoutineDashboard'
 import { GoalTaskTimeSheet } from './GoalTaskTimeSheet'
@@ -178,7 +178,6 @@ export function GoalDrilldownHome({
     setAddingTier(null)
   }
 
-  const isTodaySelected = isSameCalendarDay(selectedDate, now)
   const aggregated = useMemo(() => aggregateForDate(plans, selectedDate), [plans, selectedDate])
   const eligiblePlans = useMemo(() => plansForDate(plans, selectedDate), [plans, selectedDate])
   const miscAgg = useMemo(() => miscAggregatedForDate(miscTodos, selectedDate), [miscTodos, selectedDate])
