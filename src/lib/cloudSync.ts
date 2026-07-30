@@ -226,10 +226,10 @@ export async function pushAlarmDataToCloud(payload: AlarmDataPayload): Promise<v
     { onConflict: 'user_id' },
   )
   if (error) {
-    noteCloudPushFailure()
+    // 알람·푸시는 부가 기능 — 실패해도 홈 "클라우드 저장 실패" 배너는 띄우지 않는다.
+    console.info('[FutureMe/Cloud] alarm data push failed', error.message)
     throw error
   }
-  noteCloudPushSuccess()
 }
 
 export async function fetchRemoteAlarmData(userId: string): Promise<RemoteAlarmDataRow | null> {
@@ -263,10 +263,10 @@ export async function upsertPushSubscriptionToCloud(
     { onConflict: 'user_id,endpoint' },
   )
   if (error) {
-    noteCloudPushFailure()
+    // 푸시 구독은 알림 배선용 — 목표·채팅 저장과 별개로 배너에 올리지 않는다.
+    console.info('[FutureMe/Cloud] push subscription upsert failed', error.message)
     throw error
   }
-  noteCloudPushSuccess()
 }
 
 export async function fetchAlarmCronHeartbeat(): Promise<{ last_run_at: number; last_sent: number; last_hhmm: string } | null> {
