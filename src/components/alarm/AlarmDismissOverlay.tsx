@@ -184,7 +184,7 @@ export function AlarmDismissOverlay({
 
         <div className="rounded-2xl border border-border/60 bg-surface p-5 shadow-[0_8px_28px_rgba(20,22,28,0.06)] flex flex-col">
           <p className="text-[12px] text-muted mb-4 leading-relaxed">
-            전날 정해 둔 다짐 · 자음·모음 조합 중에도 실시간으로 덮어써져요
+            어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요.
           </p>
 
           <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />
