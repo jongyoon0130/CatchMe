@@ -60,6 +60,8 @@ import {
 import { touchGoalPlan, deleteGoalPlan } from '../../lib/goalPlanStore'
 import { homeCategoryOptionsForTier, moveHomeAggregatedItem } from '../../lib/goalHomeCategoryMove'
 import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
+import { APP_NAME } from '../../lib/brand'
+import { AccountMenuButton } from '../auth/AccountMenuButton'
 import { getRoutineWeekProgress, isRoutinePlan } from '../../lib/goalRoutineEngine'
 import { GoalEditPlanForm } from './GoalEditPlanForm'
 import { GoalHierarchyTree } from './GoalHierarchyTree'
@@ -419,6 +421,13 @@ export function GoalDrilldownHome({
 
   const homeScreen = (
     <>
+      <header className="goal-nav sticky top-0 z-10">
+        <div className="goal-crumb min-w-0 flex-1">
+          <p className="goal-crumb-lv f">홈</p>
+          <h1>{APP_NAME}</h1>
+        </div>
+        <AccountMenuButton />
+      </header>
       <div className="goal-scroll">
         <p className="goal-home-title">{dateLabel}</p>
         <p className="goal-home-sub">

@@ -1,8 +1,6 @@
 import { useRef, useState } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../../lib/brand'
 import { formatListTime, type ProfileSummary } from '../../lib/storage'
-import { deleteAccountWithConfirm } from '../../lib/accountActions'
-import { useAuth } from '../../contexts/AuthContext'
 import { FutureMeLogo } from '../brand/FutureMeLogo'
 import { SwipeableListRow } from './SwipeableListRow'
 
@@ -24,11 +22,9 @@ export function ProfileListScreen({
   onDelete,
   primaryId,
 }: Props) {
-  const { configured, user, signOut, uploadLocalData, syncing, lastSync } = useAuth()
   const hasProfiles = summaries.length > 0
   const importRef = useRef<HTMLInputElement>(null)
   const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'fail'>('idle')
-  const [accountOpen, setAccountOpen] = useState(false)
   const [openRowId, setOpenRowId] = useState<string | null>(null)
 
   const handleDelete = async (summary: ProfileSummary) => {
@@ -53,29 +49,6 @@ export function ProfileListScreen({
     }
   }
 
-  const handleUpload = async () => {
-    const result = await uploadLocalData()
-    if (result && result.count > 0) {
-      window.alert(`${result.count}개 프로필을 클라우드에 올렸어요.`)
-    }
-  }
-
-  const [deleting, setDeleting] = useState(false)
-  const handleDeleteAccount = async () => {
-    setDeleting(true)
-    const ok = await deleteAccountWithConfirm()
-    if (!ok) setDeleting(false) // 성공이면 새로고침되므로 상태를 그대로 둔다
-  }
-
-  const syncLabel =
-    lastSync?.mode === 'uploaded'
-      ? '클라우드에 올림'
-      : lastSync?.mode === 'downloaded'
-        ? '클라우드에서 받음'
-        : lastSync?.mode === 'merged'
-          ? '동기화됨'
-          : null
-
   return (
     <div className="h-full flex flex-col max-w-[480px] mx-auto">
       <header className="goal-nav sticky top-0 z-10">
@@ -84,88 +57,6 @@ export function ProfileListScreen({
           <h1>{APP_NAME}</h1>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {configured && user && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setAccountOpen((v) => !v)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-border bg-surface-2 text-xs font-medium text-ink hover:border-accent/40 hover:bg-accent/5 transition-colors overflow-hidden"
-                title={user.email ?? '계정'}
-              >
-                {user.user_metadata?.avatar_url ? (
-                  <img
-                    src={user.user_metadata.avatar_url as string}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  (user.email?.[0] ?? 'G').toUpperCase()
-                )}
-              </button>
-              {accountOpen && (
-                <>
-                  <button
-                    type="button"
-                    className="fixed inset-0 z-20 cursor-default"
-                    aria-label="메뉴 닫기"
-                    onClick={() => setAccountOpen(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-1 z-30 w-52 rounded-xl border border-border bg-surface shadow-lg py-1 text-sm">
-                    <p className="px-3 py-2 text-[11px] text-muted truncate border-b border-border/60">
-                      {user.email}
-                    </p>
-                    {syncLabel && (
-                      <p className="px-3 py-1.5 text-[11px] text-accent">{syncLabel}</p>
-                    )}
-                    <button
-                      type="button"
-                      disabled={syncing}
-                      onClick={() => {
-                        setAccountOpen(false)
-                        void handleUpload()
-                      }}
-                      className="w-full text-left px-3 py-2 text-ink hover:bg-ink/[0.04] disabled:opacity-50"
-                    >
-                      {syncing ? '동기화 중…' : '클라우드에 올리기'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountOpen(false)
-                        void signOut()
-                      }}
-                      className="w-full text-left px-3 py-2 text-muted hover:bg-ink/[0.04]"
-                    >
-                      로그아웃
-                    </button>
-                    <div className="border-t border-border/60 mt-1 pt-1">
-                      <a
-                        href="/privacy.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setAccountOpen(false)}
-                        className="block w-full px-3 py-2 text-[11px] text-muted hover:bg-ink/[0.04]"
-                      >
-                        개인정보 처리방침
-                      </a>
-                      <button
-                        type="button"
-                        disabled={deleting}
-                        onClick={() => {
-                          setAccountOpen(false)
-                          void handleDeleteAccount()
-                        }}
-                        className="w-full text-left px-3 py-2 text-status-error hover:bg-status-error/[0.06] disabled:opacity-50"
-                      >
-                        {deleting ? '삭제 중…' : '계정 삭제'}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          {/* 미래의 나는 한 명 — 아직 하나도 없을 때만 만들 수 있다 (primaryProfile.ts) */}
           {!hasProfiles && (
             <button
               type="button"
