@@ -1,4 +1,5 @@
 import type { ChatMessage, SelfProfile } from '../types/self'
+import type { ProfilePhotos } from './profilePhotos'
 import { supabase, isSupabaseConfigured } from './supabase'
 import { noteCloudPushFailure, noteCloudPushSuccess } from './syncStatus'
 
@@ -384,7 +385,7 @@ export async function pushSettingsToCloud(payload: SettingsCloudPayload): Promis
 
 export async function pushProfilePhotosToCloud(
   profileId: string,
-  photos: Record<string, unknown>,
+  photos: ProfilePhotos,
   updatedAt: number,
 ): Promise<void> {
   const ctx = requireClient()
