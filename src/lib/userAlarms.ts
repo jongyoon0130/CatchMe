@@ -7,6 +7,12 @@ export interface UserAlarm {
   enabled: boolean
   /** 0=일 … 6=토. 비어 있으면 매일 */
   repeatDays: number[]
+  /**
+   * 밤에 적어두는 "내일 아침의 다짐". 아침에 알람을 끄려면 이 문장을 따라 써야 한다
+   * (해제 문구가 된다 — alarmDismissPhrase.loadDismissPhrase). 밤의 의지를 아침까지 잇는 장치.
+   * 비어 있으면 기존 폴백 문구로 해제된다.
+   */
+  resolve?: string
   createdAt: number
   updatedAt: number
 }
@@ -74,7 +80,9 @@ function saveAll(alarms: UserAlarm[]): void {
   void import('./alarmSwSync').then(({ syncAlarmsToServiceWorker }) => syncAlarmsToServiceWorker())
 }
 
-export function addUserAlarm(partial?: Partial<Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>>): UserAlarm {
+export function addUserAlarm(
+  partial?: Partial<Pick<UserAlarm, 'time' | 'label' | 'repeatDays' | 'resolve'>>,
+): UserAlarm {
   const now = Date.now()
   const alarm: UserAlarm = {
     id: crypto.randomUUID(),
@@ -82,6 +90,7 @@ export function addUserAlarm(partial?: Partial<Pick<UserAlarm, 'time' | 'label' 
     label: partial?.label?.trim() || '알람',
     enabled: true,
     repeatDays: partial?.repeatDays ?? [0, 1, 2, 3, 4, 5, 6],
+    resolve: partial?.resolve?.trim() || undefined,
     createdAt: now,
     updatedAt: now,
   }
@@ -99,6 +108,7 @@ export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' 
     ...patch,
     time: patch.time !== undefined ? normalizeAlarmTime(patch.time) : list[idx]!.time,
     label: patch.label !== undefined ? patch.label.trim() || '알람' : list[idx]!.label,
+    resolve: patch.resolve !== undefined ? patch.resolve.trim() || undefined : list[idx]!.resolve,
     updatedAt: Date.now(),
   }
   list[idx] = next

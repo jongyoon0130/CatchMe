@@ -6,7 +6,7 @@ import { DOW_LABELS, type UserAlarm } from '../../lib/userAlarms'
 
 interface Props {
   alarm: UserAlarm | null
-  onSave: (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>) => void
+  onSave: (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays' | 'resolve'>) => void
   onDelete?: () => void
   onClose: () => void
 }
@@ -18,12 +18,14 @@ export function AlarmEditSheet({ alarm, onSave, onDelete, onClose }: Props) {
   const [time, setTime] = useState(alarm?.time ?? '07:00')
   const [label, setLabel] = useState(alarm?.label ?? '알람')
   const [repeatDays, setRepeatDays] = useState<number[]>(alarm?.repeatDays ?? [0, 1, 2, 3, 4, 5, 6])
+  const [resolve, setResolve] = useState(alarm?.resolve ?? '')
 
   useEffect(() => {
     if (!alarm) return
     setTime(alarm.time)
     setLabel(alarm.label)
     setRepeatDays(alarm.repeatDays.length ? alarm.repeatDays : [0, 1, 2, 3, 4, 5, 6])
+    setResolve(alarm.resolve ?? '')
   }, [alarm])
 
   const toggleDay = (d: number) => {
@@ -37,7 +39,7 @@ export function AlarmEditSheet({ alarm, onSave, onDelete, onClose }: Props) {
   }
 
   const handleSave = () => {
-    onSave({ time, label: label.trim() || '알람', repeatDays })
+    onSave({ time, label: label.trim() || '알람', repeatDays, resolve: resolve.trim() })
     onClose()
   }
 
@@ -79,6 +81,19 @@ export function AlarmEditSheet({ alarm, onSave, onDelete, onClose }: Props) {
               onChange={(e) => setLabel(e.target.value)}
               placeholder="알람"
               className="w-full rounded-xl border border-border bg-surface-2/50 px-3.5 py-3 text-[15px] text-ink focus:outline-none focus:border-ink/30"
+            />
+          </div>
+
+          <div className="mt-5">
+            <label className="text-[11px] text-muted mb-1.5 block">
+              내일 아침의 다짐 <span className="text-muted/60">· 아침에 이 말을 따라 써야 알람이 꺼져요</span>
+            </label>
+            <textarea
+              value={resolve}
+              onChange={(e) => setResolve(e.target.value)}
+              placeholder="예: 오늘 나는 미루지 않는다"
+              rows={2}
+              className="w-full resize-none rounded-xl border border-border bg-surface-2/50 px-3.5 py-3 text-[15px] text-ink focus:outline-none focus:border-ink/30"
             />
           </div>
 

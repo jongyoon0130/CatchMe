@@ -183,7 +183,7 @@ export function AlarmClockPanel() {
     window.alert(p === 'granted' ? '알림을 허용했어요.' : '알림이 거부되었거나 사용할 수 없어요.')
   }
 
-  const handleSave = (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays'>) => {
+  const handleSave = (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays' | 'resolve'>) => {
     if (editing === 'new') {
       addUserAlarm(draft)
     } else if (editing) {

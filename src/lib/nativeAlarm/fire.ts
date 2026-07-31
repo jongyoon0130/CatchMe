@@ -1,5 +1,5 @@
 import type { ClockAlarmTrigger } from '../clockAlarmEngine'
-import { activeDismissPhrase } from '../alarmDismissPhrase'
+import { activeDismissPhrase, loadDismissPhrase } from '../alarmDismissPhrase'
 import { startAlarmSoundLoop } from '../alarmSound'
 import { startRingingAlarm } from '../alarmRingingStore'
 import { loadUserAlarms } from '../userAlarms'
@@ -34,18 +34,20 @@ export async function runNativeAlarmSimulation(alarmId?: string): Promise<{
     return { ok: false, detail: '등록된 알람이 없어요. 먼저 알람을 추가해주세요.' }
   }
 
+  const dateKey = new Date().toISOString().slice(0, 10)
   const payload = {
     alarmId: alarm.id,
     label: alarm.label,
     time: alarm.time,
-    phrase: activeDismissPhrase(),
+    // 밤에 적어둔 다짐이 해제 문구가 된다. 없으면 폴백.
+    phrase: loadDismissPhrase(alarm.id, dateKey)?.phrase ?? activeDismissPhrase(),
   }
 
   const ok = await simulateNativeAlarmFire(payload)
   if (!ok) {
     fireNativeAlarmDismissUI({
       ...payload,
-      dateKey: new Date().toISOString().slice(0, 10),
+      dateKey,
       source: 'fallback',
     })
     return { ok: true, detail: '플러그인 없이 로컬 시뮬레이션으로 실행했어요.' }
