@@ -27,8 +27,8 @@
   --au-day-soft: #fff0e0;
   --au-week: #7c8fd4;
   --au-week-soft: #eef1fa;
-  --au-month: #5bb8a8;
-  --au-month-soft: #e6f7f8;
+  --au-month: var(--spray-accent-deep);
+  --au-month-soft: var(--spray-accent);
 
   --au-sh-xs: 2px 2px 0 rgba(20, 20, 20, 0.12);
   --au-sh-sm: 3px 3px 0 #141414;
@@ -70,6 +70,28 @@ body,
   font-family: var(--au-font);
   background: var(--au-bg);
   color: var(--au-ink);
+}
+
+/* aurora가 goal-accent를 #5bb8a8(쨍한 청록)으로 잡음 → 1번 pill/탭과 같은 밝은 톤 */
+.goal-app {
+  --goal-accent: var(--spray-accent);
+  --goal-accent-soft: var(--spray-accent);
+  --goal-accent-deep: var(--spray-accent-deep);
+  --color-accent: var(--spray-accent);
+  --color-accent-dim: var(--spray-accent-deep);
+  --color-glow: var(--spray-accent);
+  --color-glow-dim: var(--spray-accent-deep);
+  --color-bubble-me: var(--spray-accent);
+  --color-avatar: var(--spray-accent);
+}
+
+.goal-app .nb-card--mint,
+.goal-app .nb-btn--accent {
+  background: var(--spray-accent) !important;
+}
+
+.goal-app .nb-btn--accent:active:not(:disabled) {
+  background: var(--spray-accent-deep) !important;
 }
 
 /* 배경 — 단색 시안 틴트만 */
