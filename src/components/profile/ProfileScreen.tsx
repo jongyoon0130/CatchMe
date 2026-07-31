@@ -213,7 +213,7 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
                   key={facet}
                   className={`text-[11px] px-2.5 py-1 rounded-full border font-medium ${
                     on
-                      ? 'bg-accent/12 text-accent border-accent/25'
+                      ? 'bg-accent/12 text-ink border-accent/25'
                       : 'bg-ink/[0.03] text-muted/70 border-border/60'
                   }`}
                 >
