@@ -293,7 +293,14 @@ function mergePlanAtId(local: GoalPlan, remote: GoalPlan, preferLocal: boolean):
   if (newer.deletedAt != null) return newer
   const older = newer === local ? remote : local
   if (older.deletedAt != null) return newer // 삭제 뒤 더 늦은 편집 → 되살아남
-  return mergePlanPair(local, remote, preferLocal)
+  // 겹치는 항목(체크 등)은 **더 최근에 편집된 목표(plan.updatedAt)** 쪽을 따른다.
+  // 번들 rev(preferLocal)로 고르면, 방금 트리 항목을 체크했어도 다른 기기가 조금 뒤
+  // 올린 번들이 더 최신일 때 체크가 되돌아갔다(#3b). touchGoalPlan이 체크마다
+  // plan.updatedAt을 갱신하므로, 방금 체크한 쪽이 pickNewerPlan에서 이긴다.
+  // ponytail: 항목별 타임스탬프가 아니라 plan 단위 판정. 두 기기가 같은 목표의 *다른*
+  // 항목을 거의 동시에 체크하면 더 오래된 plan 쪽 체크는 아직 유실될 수 있다. 완전 대칭은
+  // PlanCheckItem에 updatedAt를 넣어야 함(일상 항목처럼) — 필요해지면 그때.
+  return mergePlanPair(local, remote, newer === local)
 }
 
 /**
