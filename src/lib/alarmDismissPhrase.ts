@@ -1,5 +1,6 @@
 import type { ClockAlarmTrigger } from './clockAlarmEngine'
 import { phraseFullyMatched } from './alarmDismissMatch'
+import { loadUserAlarms } from './userAlarms'
 
 export interface AlarmDismissPhrase {
   alarmId: string
@@ -7,7 +8,8 @@ export interface AlarmDismissPhrase {
   dateKey: string
   phrase: string
   generatedAt: number
-  source: 'ai' | 'fallback'
+  /** user=사용자가 밤에 적은 다짐, ai=미래의 나 초안(예정), fallback=기본 문구 */
+  source: 'user' | 'ai' | 'fallback'
 }
 
 const STORAGE_PREFIX = 'futureme-alarm-dismiss-'
@@ -39,13 +41,13 @@ export function normalizeDismissPhrase(raw: string): string {
 }
 
 export function loadDismissPhrase(alarmId: string, dateKey: string): AlarmDismissPhrase | null {
-  return {
-    alarmId,
-    dateKey,
-    phrase: activeDismissPhrase(),
-    generatedAt: Date.now(),
-    source: 'fallback',
+  // 사용자가 밤에 적어둔 다짐이 있으면 그게 해제 문구다. 없으면 폴백(해제는 되게).
+  const alarm = loadUserAlarms().find((a) => a.id === alarmId)
+  const resolve = alarm?.resolve?.trim()
+  if (resolve) {
+    return { alarmId, dateKey, phrase: resolve, generatedAt: alarm!.updatedAt, source: 'user' }
   }
+  return { alarmId, dateKey, phrase: activeDismissPhrase(), generatedAt: Date.now(), source: 'fallback' }
 }
 
 export function saveDismissPhrase(record: AlarmDismissPhrase): void {
