@@ -18,6 +18,7 @@
   /* 심플 액센트 — 무지개 대신 단색 */
   --spray-accent: #e6f7f8;
   --spray-accent-deep: #c5e8eb;
+  --spray-pill-ink: #078663;
 
   --au-gold: #d4a017;
   --au-gold-deep: #f59e0b;
@@ -159,8 +160,55 @@ body::after {
 
 .goal-app .goal-branch-icon {
   border: 2px solid var(--au-ink);
-  background: var(--au-surface-2);
-  box-shadow: 2px 2px 0 var(--au-ink);
+  background: var(--spray-accent);
+  box-shadow: none !important;
+}
+
+.goal-app .goal-branch-icon .goal-branch-svg {
+  color: var(--spray-pill-ink);
+}
+
+.goal-app .goal-branch.g .goal-branch-icon {
+  background: var(--spray-accent);
+  color: var(--spray-pill-ink);
+}
+
+.goal-app .goal-branch.w .goal-branch-icon,
+.goal-app .goal-branch.d .goal-branch-icon {
+  box-shadow: none !important;
+}
+
+/* 목표 생성 아이콘 — 일간 pill 색감(1번) */
+.goal-app .goal-mode-icon {
+  background: var(--spray-accent) !important;
+  border: 2px solid var(--au-ink) !important;
+  box-shadow: 2px 2px 0 var(--au-ink) !important;
+}
+
+.goal-app .goal-mode-icon .goal-branch-svg {
+  color: var(--spray-pill-ink) !important;
+}
+
+.goal-app .goal-mode-card.on .goal-mode-icon {
+  background: var(--spray-accent) !important;
+}
+
+.goal-app .goal-mode-card.on .goal-mode-icon .goal-branch-svg {
+  color: var(--spray-pill-ink) !important;
+}
+
+/* 미니 캘린더 — 선택 시 배터리: 연한 glow(1) → 선명한 청록 링(2) */
+.goal-app .goal-mc-cell.selected .goal-battery-body {
+  box-shadow: 0 0 0 3px var(--spray-accent-deep) !important;
+  border-color: var(--au-ink);
+}
+
+.goal-app .goal-mc-day.selected-num {
+  color: var(--au-ink) !important;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
 }
 
 .goal-app .goal-prog {
