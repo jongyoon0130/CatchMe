@@ -247,6 +247,7 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
 
     if (localHas && !remoteHas) {
       const count = await uploadAllLocal()
+      await syncProfilePhotosOnLogin(userId).catch(() => {})
       invalidateChatLoadCache()
       return { mode: 'uploaded', count }
     }

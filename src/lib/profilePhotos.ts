@@ -16,8 +16,14 @@ export function hasProfilePhotoContent(photos: ProfilePhotos): boolean {
 }
 
 export function profilePhotosUpdatedAt(photos: ProfilePhotos): number {
-  return photos.updatedAt ?? photos.futureVisionGeneratedAt ?? 0
+  if (photos.updatedAt) return photos.updatedAt
+  if (photos.futureVisionGeneratedAt) return photos.futureVisionGeneratedAt
+  // migration·로그인 전 저장분 — 0이면 원격 빈 행에 밀릴 수 있어 최소값 부여
+  if (hasProfilePhotoContent(photos)) return 1
+  return 0
 }
+
+export const PROFILE_PHOTOS_SYNC_EVENT = 'futureme-profile-photos-synced'
 
 export function loadProfilePhotos(profileId: string): ProfilePhotos {
   if (!profileId) return {}

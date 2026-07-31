@@ -6,10 +6,12 @@ import {
   fileToPortraitDataUrl,
   loadProfilePhotos,
   saveProfilePhotos,
+  PROFILE_PHOTOS_SYNC_EVENT,
   type ProfilePhotos,
 } from '../../lib/profilePhotos'
 import { loadApiKey } from '../../lib/storage'
 import { geminiErrorUserMessage } from '../../lib/selfEngine'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface Props {
   profile: SelfProfile
@@ -17,12 +19,25 @@ interface Props {
 
 export function ProfileFutureVision({ profile }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { syncing, lastSync } = useAuth()
   const [photos, setPhotos] = useState<ProfilePhotos>(() => loadProfilePhotos(profile.id))
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const reloadPhotos = () => setPhotos(loadProfilePhotos(profile.id))
+
   useEffect(() => {
-    setPhotos(loadProfilePhotos(profile.id))
+    reloadPhotos()
+  }, [profile.id])
+
+  useEffect(() => {
+    if (!syncing && lastSync) reloadPhotos()
+  }, [syncing, lastSync, profile.id])
+
+  useEffect(() => {
+    const onSynced = () => reloadPhotos()
+    window.addEventListener(PROFILE_PHOTOS_SYNC_EVENT, onSynced)
+    return () => window.removeEventListener(PROFILE_PHOTOS_SYNC_EVENT, onSynced)
   }, [profile.id])
 
   const persist = (next: ProfilePhotos) => {

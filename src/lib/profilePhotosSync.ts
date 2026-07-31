@@ -1,5 +1,11 @@
 import type { ProfilePhotos } from './profilePhotos'
-import { loadProfilePhotos, saveProfilePhotosLocal, hasProfilePhotoContent, profilePhotosUpdatedAt } from './profilePhotos'
+import {
+  loadProfilePhotos,
+  saveProfilePhotosLocal,
+  hasProfilePhotoContent,
+  profilePhotosUpdatedAt,
+  PROFILE_PHOTOS_SYNC_EVENT,
+} from './profilePhotos'
 import {
   fetchRemoteProfilePhotos,
   isCloudSyncAvailable,
@@ -20,6 +26,10 @@ function normalizeRemotePhotos(raw: Record<string, unknown>): ProfilePhotos {
   }
 }
 
+function notifyPhotosSynced(): void {
+  window.dispatchEvent(new CustomEvent(PROFILE_PHOTOS_SYNC_EVENT))
+}
+
 export function scheduleProfilePhotosSync(profileId: string): void {
   if (!isCloudSyncAvailable()) return
   const prev = pushTimers.get(profileId)
@@ -30,7 +40,9 @@ export function scheduleProfilePhotosSync(profileId: string): void {
       pushTimers.delete(profileId)
       const photos = loadProfilePhotos(profileId)
       if (!hasProfilePhotoContent(photos)) return
-      void pushProfilePhotosToCloud(profileId, photos, profilePhotosUpdatedAt(photos)).catch(() => {})
+      void pushProfilePhotosToCloud(profileId, photos, profilePhotosUpdatedAt(photos))
+        .then(() => notifyPhotosSynced())
+        .catch(() => {})
     }, 800),
   )
 }
@@ -43,9 +55,28 @@ export async function pushLocalProfilePhotos(): Promise<void> {
   }
 }
 
+/** 로그인 시 클라우드에 사진이 없는데 로컬에만 있는 경우 (migration 전 저장 등) */
+async function pushMissingLocalPhotos(remoteRows: RemoteProfilePhotosRow[]): Promise<void> {
+  for (const summary of loadProfileSummaries()) {
+    const local = loadProfilePhotos(summary.id)
+    if (!hasProfilePhotoContent(local)) continue
+
+    const remote = remoteRows.find((row) => row.profile_id === summary.id)
+    const remotePhotos = remote ? normalizeRemotePhotos(remote.photos) : null
+    if (remotePhotos && hasProfilePhotoContent(remotePhotos)) continue
+
+    const ts = Math.max(profilePhotosUpdatedAt(local), Date.now())
+    const payload = { ...local, updatedAt: ts }
+    saveProfilePhotosLocal(summary.id, payload)
+    await pushProfilePhotosToCloud(summary.id, payload, ts).catch(() => {})
+  }
+}
+
 export async function syncProfilePhotosOnLogin(userId: string): Promise<void> {
   const remoteRows = await fetchRemoteProfilePhotos(userId)
   mergeProfilePhotos(remoteRows)
+  await pushMissingLocalPhotos(remoteRows)
+  notifyPhotosSynced()
 }
 
 export function mergeProfilePhotos(remoteRows: RemoteProfilePhotosRow[]): void {
@@ -65,11 +96,13 @@ export function mergeProfilePhotos(remoteRows: RemoteProfilePhotosRow[]): void {
     const remotePhotos = normalizeRemotePhotos(remote.photos)
     const localTs = profilePhotosUpdatedAt(local)
     const remoteTs = remote.updated_at ?? profilePhotosUpdatedAt(remotePhotos)
+    const remoteHas = hasProfilePhotoContent(remotePhotos)
+    const localHas = hasProfilePhotoContent(local)
 
-    if (remoteTs > localTs) {
+    if (remoteHas && remoteTs > localTs) {
       saveProfilePhotosLocal(profileId, { ...remotePhotos, updatedAt: remoteTs })
-    } else if (localTs > remoteTs && hasProfilePhotoContent(local)) {
-      void pushProfilePhotosToCloud(profileId, local, localTs).catch(() => {})
+    } else if (localHas && (!remoteHas || localTs >= remoteTs)) {
+      void pushProfilePhotosToCloud(profileId, local, Math.max(localTs, Date.now())).catch(() => {})
     }
     remoteMap.delete(profileId)
   }
