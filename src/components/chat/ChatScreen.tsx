@@ -1182,7 +1182,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
           <span className="text-[11px] text-status-ok">{toast}</span>
         </div>
       )}
-      <div className="px-3 py-2.5">
+      <div className="chat-composer-bar px-3 pt-2.5">
         <div className="flex gap-2 items-end">
           <textarea
             ref={textareaRef}

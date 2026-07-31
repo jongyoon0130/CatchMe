@@ -199,3 +199,8 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 0 0 0 var(--color-ink);
 }
+
+.chat-composer-bar {
+  /* 입력창 높이의 절반 정도 여유 — 3D 그림자·모서리가 하단에서 잘리지 않게 */
+  padding-bottom: calc(0.625rem + 22px);
+}
