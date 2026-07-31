@@ -1,4 +1,4 @@
-import type { ClockAlarmTrigger } from './clockAlarmEngine'
+import { clockAlarmDedupKey, type ClockAlarmTrigger } from './clockAlarmEngine'
 
 export interface RingingAlarm {
   trigger: ClockAlarmTrigger
@@ -10,6 +10,9 @@ const PENDING_KEY = 'futureme-alarm-pending-dismiss'
 export const ALARM_RINGING_CHANGE = 'futureme-alarm-ringing-change'
 
 let ringing: RingingAlarm | null = null
+/** 방금 해제한 알람 — 해제 직후 뒤늦게 온 중복 경로(SW)가 되살리는 것을 이 시간 창에서만 막는다 */
+let lastHandled: { dedup: string; at: number } | null = null
+const DUP_WINDOW_MS = 60_000
 const listeners = new Set<() => void>()
 
 function emit(): void {
@@ -56,12 +59,18 @@ export function subscribeRingingAlarm(onStoreChange: () => void): () => void {
 }
 
 export function startRingingAlarm(trigger: ClockAlarmTrigger, phrase: string): void {
+  const dedup = clockAlarmDedupKey(trigger)
+  // 같은 알람이 이미 울리는 중이면(포그라운드+SW 두 경로) 덮어쓰지 않는다 — 먼저 뜬 게 유지
+  if (ringing && clockAlarmDedupKey(ringing.trigger) === dedup) return
+  // 방금 해제한 알람이 뒤늦게 온 중복 경로로 되살아나는 것 막기 (짧은 창에서만)
+  if (lastHandled && lastHandled.dedup === dedup && Date.now() - lastHandled.at < DUP_WINDOW_MS) return
   ringing = { trigger, phrase, startedAt: Date.now() }
   persistPending(ringing)
   emit()
 }
 
 export function stopRingingAlarm(): void {
+  if (ringing) lastHandled = { dedup: clockAlarmDedupKey(ringing.trigger), at: Date.now() }
   ringing = null
   persistPending(null)
   emit()

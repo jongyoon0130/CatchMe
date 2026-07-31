@@ -195,9 +195,13 @@ async function scheduleOne(alarm, phrase, fired, now = new Date()) {
 
   if (pendingTimers.has(next.dedup)) return
 
+  // 이 알람에 밤에 적어둔 다짐이 있으면 그게 해제 문구다. 없으면 전역 폴백.
+  const alarmPhrase =
+    typeof alarm.resolve === 'string' && alarm.resolve.trim() ? alarm.resolve.trim() : phrase
+
   const timer = setTimeout(() => {
     pendingTimers.delete(next.dedup)
-    eventWait(fireScheduledAlarm(next, phrase))
+    eventWait(fireScheduledAlarm(next, alarmPhrase))
   }, delay)
 
   pendingTimers.set(next.dedup, timer)
