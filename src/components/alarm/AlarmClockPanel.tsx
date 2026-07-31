@@ -199,7 +199,7 @@ export function AlarmClockPanel() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-full bg-ink px-4 py-2 text-[13px] font-bold text-surface shadow-[0_4px_14px_rgba(20,22,28,0.18)] active:scale-[0.98]"
+          className="nb-btn nb-btn--accent rounded-full px-4 py-2 text-[13px] active:scale-100"
         >
           + 추가
         </button>
@@ -320,14 +320,14 @@ export function AlarmClockPanel() {
       ) : null}
 
       {nextPhrase ? (
-        <div className="rounded-xl border border-border/70 bg-surface-2/50 px-3.5 py-3 mb-4">
+        <div className="nb-card nb-card--soft rounded-xl px-3.5 py-3 mb-4">
           <p className="text-[10px] uppercase tracking-[0.14em] text-muted mb-2">다음 알람 다짐 (미리보기)</p>
           <p className="font-serif text-[13px] leading-relaxed text-muted/80 whitespace-pre-wrap">{nextPhrase}</p>
         </div>
       ) : null}
 
       {alarms.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/80 bg-surface-2/30 px-4 py-10 text-center">
+        <div className="nb-card nb-card--soft rounded-2xl px-4 py-10 text-center">
           <p className="text-sm text-muted mb-1">등록된 알람이 없어요</p>
           <p className="text-[12px] text-muted/70 mb-4">
             위 <strong className="font-medium">+ 추가</strong>로 첫 알람을 만들어보세요
@@ -335,22 +335,20 @@ export function AlarmClockPanel() {
           <button
             type="button"
             onClick={() => setEditing('new')}
-            className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-surface"
+            className="nb-btn nb-btn--accent rounded-full px-5 py-2.5 text-sm"
           >
             알람 추가
           </button>
         </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {alarms.map((alarm) => (
             <li key={alarm.id}>
               <button
                 type="button"
                 onClick={() => setEditing(alarm)}
-                className={`w-full rounded-2xl border px-4 py-3.5 text-left transition-colors ${
-                  alarm.enabled
-                    ? 'border-border/60 bg-surface shadow-sm'
-                    : 'border-border/40 bg-surface-2/40 opacity-75'
+                className={`nb-card nb-card-interactive w-full rounded-2xl px-4 py-3.5 text-left transition-transform ${
+                  alarm.enabled ? '' : 'nb-card--soft opacity-75'
                 }`}
               >
                 <div className="flex items-center gap-3">

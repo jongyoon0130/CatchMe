@@ -119,6 +119,22 @@ body::after {
   border-color: var(--au-ink) !important;
 }
 
+.goal-app .goal-dayclose-btn {
+  border: 2px solid var(--au-ink) !important;
+  box-shadow: 2px 2px 0 var(--au-ink) !important;
+  background: var(--spray-accent) !important;
+  color: var(--au-ink) !important;
+}
+
+.goal-app .goal-dayclose-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--au-ink) !important;
+}
+
+.goal-app .goal-dayclose.evening {
+  background: var(--spray-accent) !important;
+}
+
 .goal-app .goal-branch-icon {
   border: 2px solid var(--au-ink);
   background: var(--au-surface-2);
@@ -284,6 +300,41 @@ body::after {
   font-weight: 800;
   border: 2px solid var(--au-ink);
   box-shadow: 2px 2px 0 var(--au-ink);
+}
+
+.chat-composer-input {
+  border: 2px solid var(--au-ink);
+  box-shadow: 2px 2px 0 var(--au-ink);
+  background: var(--au-surface);
+  scrollbar-width: none;
+}
+
+.chat-composer-input::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-composer-input:focus {
+  border-color: var(--au-ink);
+  box-shadow: 2px 2px 0 var(--spray-accent-deep);
+}
+
+.chat-composer-send {
+  border: 2px solid var(--au-ink);
+  box-shadow: 2px 2px 0 var(--au-ink);
+  background: var(--spray-accent);
+  color: var(--au-ink);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.chat-composer-send:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--au-ink);
+}
+
+/* 알람 카드 */
+.alarm-card-row.nb-card-interactive:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--au-ink);
 }
 
 ::selection {

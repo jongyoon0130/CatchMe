@@ -49,10 +49,8 @@ export function buildProfileIdentityPanel(profile: SelfProfile) {
 function ProfileChip({ children, tone }: { children: ReactNode; tone?: 'future' }) {
   return (
     <span
-      className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
-        tone === 'future'
-          ? 'border-border bg-accent/35 text-ink'
-          : 'border-border/70 bg-surface-2 text-muted'
+      className={`nb-pill text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+        tone === 'future' ? 'bg-accent/35 text-ink' : 'bg-surface-2 text-muted'
       }`}
     >
       {children}
@@ -73,25 +71,24 @@ function ProfilePane({
 }) {
   return (
     <div
-      className={`rounded-[20px] border-2 border-border p-3.5 flex flex-col min-h-[108px] ${
-        tone === 'future' ? 'bg-accent/25' : 'bg-surface'
+      className={`nb-card rounded-[20px] p-3.5 flex flex-col min-h-[108px] ${
+        tone === 'future' ? 'nb-card--mint bg-accent/25' : ''
       }`}
     >
       <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted mb-2">{title}</p>
       {chips.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {chips.map((chip) => (
             <ProfileChip key={chip} tone={tone}>
               {chip}
             </ProfileChip>
           ))}
         </div>
+      ) : line ? (
+        <p className="text-[11px] text-ink/70 leading-snug line-clamp-2">{line}</p>
       ) : (
         <p className="text-[11px] text-muted/70">아직 비어 있어요</p>
       )}
-      {line ? (
-        <p className="text-[11px] text-ink/70 mt-auto pt-2 leading-snug line-clamp-2">{line}</p>
-      ) : null}
     </div>
   )
 }

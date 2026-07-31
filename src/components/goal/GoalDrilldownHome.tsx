@@ -551,7 +551,7 @@ export function GoalDrilldownHome({
             </section>
           )
         })}
-        <SecLabel>최종 목표 · 탭하면 가지치기</SecLabel>
+        <SecLabel>최종 목표</SecLabel>
         {plans.map((p) => (
           <GoalSwipeDelete key={p.id} onDelete={() => handleDeletePlan(p.id)}>
             <GoalBranch

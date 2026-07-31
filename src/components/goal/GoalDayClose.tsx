@@ -176,9 +176,7 @@ export function GoalDayClose({ ownerId, selectedDate, done, total, plans, goalIt
       <div className="goal-dayclose-row">
         <div>
           <p className="goal-dayclose-tag">{isEvening ? '하루를 마감할 시간이야' : '하루 마감'}</p>
-          <p className="goal-dayclose-sub">
-            오늘 {done}/{total} · 기분 하나만 남기면 미래의 내가 인사할게
-          </p>
+          <p className="goal-dayclose-sub">오늘 {done}/{total}</p>
         </div>
         <button type="button" className="goal-dayclose-btn" onClick={openForm}>
           마감하기

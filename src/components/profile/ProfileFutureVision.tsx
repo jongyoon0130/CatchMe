@@ -40,15 +40,15 @@ export function ProfileFutureVision({ profile }: Props) {
   const onGenerate = async () => {
     const key = loadApiKey()?.trim()
     if (!key) {
-      setError('채팅 탭 ⚙️에서 Gemini API 키를 먼저 설정해주세요.')
+      setError('채팅 ⚙️에서 Gemini API 키를 설정해주세요.')
       return
     }
     if (!photos.presentDataUrl) {
-      setError('지금 사진을 먼저 올려주세요.')
+      setError('사진을 먼저 올려주세요.')
       return
     }
     if (!hasFutureVisionSource(profile)) {
-      setError('미래의 나 프로필(정체성·하루 등)을 먼저 채워주세요.')
+      setError('프로필(정체성·하루 등)을 먼저 채워주세요.')
       return
     }
 
@@ -68,41 +68,68 @@ export function ProfileFutureVision({ profile }: Props) {
     }
   }
 
-  const clearPresent = () => {
-    persist({
-      futureVisionDataUrl: photos.futureVisionDataUrl,
-      futureVisionGeneratedAt: photos.futureVisionGeneratedAt,
-    })
-  }
-
-  const clearFuture = () => {
-    persist({
-      presentDataUrl: photos.presentDataUrl,
-    })
-  }
+  const openPicker = () => inputRef.current?.click()
 
   return (
-    <section className="space-y-3">
-      <div className="px-0.5">
-        <h3 className="text-[11px] font-bold text-muted/70 uppercase tracking-[0.1em]">미래 비전</h3>
-        <p className="text-[11px] text-muted mt-1 leading-relaxed">
-          지금 사진을 올리면, 설정해 둔 {FUTURE_YEARS_AHEAD}년 뒤의 나를 담은 모습으로 바꿔줘요.
-        </p>
-      </div>
+    <section className="space-y-4">
+      <header className="px-0.5">
+        <h3 className="text-[22px] font-extrabold tracking-[-0.03em] text-ink leading-tight">미래 카메라</h3>
+        <p className="text-[12px] text-muted mt-1">AI 에이징 · {FUTURE_YEARS_AHEAD}년 뒤 모습</p>
+      </header>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <PhotoSlot
-          label="지금"
-          dataUrl={photos.presentDataUrl}
-          emptyHint="사진 올리기"
-          onClick={() => inputRef.current?.click()}
-        />
-        <PhotoSlot
-          label={`${FUTURE_YEARS_AHEAD}년 뒤`}
-          dataUrl={photos.futureVisionDataUrl}
-          emptyHint="아래 버튼으로 생성"
-          tone="future"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={openPicker}
+          className="nb-card nb-card-interactive relative aspect-[3/4] rounded-[20px] overflow-hidden text-left active:scale-100"
+        >
+          <span className="nb-pill absolute top-2.5 left-2.5 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold">
+            현재
+          </span>
+          {photos.presentDataUrl ? (
+            <img src={photos.presentDataUrl} alt="현재" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3">
+              <span className="nb-icon flex h-14 w-14 items-center justify-center rounded-full text-muted">
+                <CameraIcon />
+              </span>
+            </div>
+          )}
+          <span className="nb-pill absolute bottom-3 inset-x-3 z-10 rounded-full py-2 text-center text-[11px] font-bold">
+            {photos.presentDataUrl ? '사진 바꾸기' : '사진 업로드'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void onGenerate()}
+          disabled={generating || !photos.presentDataUrl}
+          className="nb-card nb-card--mint nb-card-interactive relative aspect-[3/4] rounded-[20px] overflow-hidden text-left active:scale-100 disabled:opacity-60"
+        >
+          <span className="nb-pill absolute top-2.5 left-2.5 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold bg-surface">
+            {FUTURE_YEARS_AHEAD}년 뒤
+          </span>
+          {photos.futureVisionDataUrl ? (
+            <img
+              src={photos.futureVisionDataUrl}
+              alt={`${FUTURE_YEARS_AHEAD}년 뒤`}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-3">
+              <div className="nb-icon relative flex h-[72%] max-h-[140px] w-[72%] max-w-[140px] items-center justify-center rounded-full bg-surface">
+                {generating ? (
+                  <span className="h-7 w-7 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
+                ) : (
+                  <SparkIcon />
+                )}
+              </div>
+            </div>
+          )}
+          <span className="nb-pill absolute bottom-3 inset-x-3 z-10 rounded-full py-2 text-center text-[11px] font-bold bg-surface">
+            {generating ? '그리는 중…' : '미래 확인하기'}
+          </span>
+        </button>
       </div>
 
       <input
@@ -116,80 +143,39 @@ export function ProfileFutureVision({ profile }: Props) {
         }}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="rounded-full border-2 border-border bg-surface px-4 py-2 text-xs font-bold text-ink active:scale-[0.98]"
-        >
-          {photos.presentDataUrl ? '사진 바꾸기' : '내 사진 올리기'}
-        </button>
-        <button
-          type="button"
-          onClick={() => void onGenerate()}
-          disabled={generating || !photos.presentDataUrl}
-          className="rounded-full border-2 border-border bg-accent/40 px-4 py-2 text-xs font-bold text-ink disabled:opacity-45 active:scale-[0.98]"
-        >
-          {generating ? '그리는 중…' : '미래의 나 그리기'}
-        </button>
-        {photos.presentDataUrl ? (
-          <button type="button" onClick={clearPresent} className="text-[11px] text-muted px-2 py-2">
-            지금 사진 지우기
-          </button>
-        ) : null}
-        {photos.futureVisionDataUrl ? (
-          <button type="button" onClick={clearFuture} className="text-[11px] text-muted px-2 py-2">
-            미래 사진 지우기
-          </button>
-        ) : null}
-      </div>
-
-      {generating ? (
-        <p className="text-[11px] text-muted px-0.5">30초~2분 정도 걸릴 수 있어요. 잠깐만 기다려줘.</p>
-      ) : null}
-
       {error ? <p className="text-[11px] text-status-error leading-relaxed px-0.5">{error}</p> : null}
 
-      <p className="text-[10px] text-muted/70 leading-relaxed px-0.5">
-        AI가 상상한 이미지예요. 실제 {FUTURE_YEARS_AHEAD}년 후 모습과 다를 수 있고, 사진은 이 기기에만
-        저장돼요.
+      <p className="text-[10px] text-muted/60 leading-relaxed px-0.5">
+        AI 상상 이미지 · 실제와 다를 수 있음 · 기기에만 저장
       </p>
     </section>
   )
 }
 
-function PhotoSlot({
-  label,
-  dataUrl,
-  emptyHint,
-  tone,
-  onClick,
-}: {
-  label: string
-  dataUrl?: string
-  emptyHint: string
-  tone?: 'future'
-  onClick?: () => void
-}) {
-  const Tag = onClick ? 'button' : 'div'
+function CameraIcon() {
   return (
-    <Tag
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      className={`relative aspect-[3/4] rounded-[20px] border-2 border-border overflow-hidden flex flex-col ${
-        tone === 'future' ? 'bg-accent/20' : 'bg-surface-2'
-      } ${onClick ? 'active:scale-[0.99] cursor-pointer' : ''}`}
-    >
-      <span className="absolute top-2 left-2 z-10 text-[10px] font-bold uppercase tracking-wider text-ink/80 bg-surface/80 border border-border/60 rounded-full px-2 py-0.5">
-        {label}
-      </span>
-      {dataUrl ? (
-        <img src={dataUrl} alt={label} className="absolute inset-0 w-full h-full object-cover" />
-      ) : (
-        <div className="flex-1 flex items-center justify-center px-3">
-          <p className="text-[11px] text-muted text-center leading-snug">{emptyHint}</p>
-        </div>
-      )}
-    </Tag>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 8h3.5L9 5h6l1.5 3H20a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2v-9a2 2 0 012-2z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  )
+}
+
+function SparkIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden className="text-ink/70">
+      <path
+        d="M12 3l1.4 4.6L18 9l-4.6 1.4L12 15l-1.4-4.6L6 9l4.6-1.4L12 3z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M18 16l.8 2.6L21.4 19l-2.6.8L18 22l-.8-2.6L14.6 19l2.6-.8L18 16z" fill="currentColor" opacity="0.55" />
+    </svg>
   )
 }

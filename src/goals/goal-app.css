@@ -1711,20 +1711,25 @@ html, body, #root {
   align-items: center;
   gap: 12px;
   background: var(--goal-surface);
-  border: 1px solid var(--goal-line);
+  border: 2px solid var(--goal-ink, #141414);
   border-radius: var(--goal-radius-lg);
   padding: 13px 15px;
   margin-bottom: 8px;
   width: 100%;
   text-align: left;
-  transition: 0.15s;
   cursor: pointer;
-  box-shadow: var(--goal-shadow);
+  box-shadow: 3px 3px 0 var(--goal-ink, #141414);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .goal-app .goal-branch:hover {
-  border-color: #dfe3ea;
-  transform: translateY(-1px);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--goal-ink, #141414);
+}
+
+.goal-app .goal-branch:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--goal-ink, #141414);
 }
 
 .goal-app .goal-branch-icon {
@@ -2596,16 +2601,17 @@ html, body, #root {
 /* ── 하루 마감 (GoalDayClose) ── */
 .goal-dayclose {
   background: var(--goal-surface, #fff);
-  border: 1px solid var(--goal-line, #e8ebf0);
+  border: 2px solid var(--goal-ink, #141414);
   border-radius: 18px;
   padding: 14px 16px;
   margin: 14px 0;
-  box-shadow: 0 1px 4px rgba(74, 81, 89, 0.04);
+  box-shadow: 3px 3px 0 var(--goal-ink, #141414);
 }
 
 .goal-dayclose.evening {
-  border-color: var(--goal-accent, #62d98a);
+  border-color: var(--goal-ink, #141414);
   background: var(--goal-accent-soft, #e9fbf0);
+  box-shadow: 3px 3px 0 var(--goal-ink, #141414);
 }
 
 .goal-dayclose-row {
@@ -2629,16 +2635,23 @@ html, body, #root {
 }
 
 .goal-dayclose-btn {
-  border: none;
+  border: 2px solid var(--goal-ink, #141414);
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 999px;
   padding: 9px 16px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
-  color: #fff;
+  color: var(--goal-ink, #141414);
   background: var(--goal-accent, #62d98a);
   flex-shrink: 0;
+  box-shadow: 2px 2px 0 var(--goal-ink, #141414);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.goal-dayclose-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--goal-ink, #141414);
 }
 
 .goal-dayclose-moods {
@@ -2649,33 +2662,35 @@ html, body, #root {
 }
 
 .goal-dayclose-mood {
-  border: 1px solid var(--goal-line, #e8ebf0);
-  background: transparent;
+  border: 2px solid var(--goal-ink, #141414);
+  background: var(--goal-surface, #fff);
   cursor: pointer;
   border-radius: 999px;
   padding: 7px 13px;
   font-size: 12.5px;
   font-family: inherit;
   color: var(--goal-muted, #6b7583);
+  box-shadow: 2px 2px 0 var(--goal-ink, #141414);
 }
 
 .goal-dayclose-mood.on {
-  border-color: var(--goal-accent, #62d98a);
+  border-color: var(--goal-ink, #141414);
   background: var(--goal-accent-soft, #e9fbf0);
   color: var(--goal-accent-deep, #4bc878);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .goal-dayclose-input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--goal-line, #e8ebf0);
+  border: 2px solid var(--goal-ink, #141414);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
   color: var(--goal-ink, #3a4048);
   background: var(--goal-bg, #f7f8fa);
+  box-shadow: 2px 2px 0 var(--goal-ink, #141414);
   resize: none;
   outline: none;
 }

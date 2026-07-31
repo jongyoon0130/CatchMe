@@ -141,7 +141,7 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
             ].map((s) => (
               <div
                 key={s.label}
-                className="rounded-2xl bg-surface px-3 py-4 text-center shadow-[0_1px_2px_rgba(16,18,24,0.04),0_2px_8px_rgba(16,18,24,0.04)]"
+                className="nb-card rounded-2xl px-3 py-4 text-center"
               >
                 <p className="text-[28px] font-extrabold tracking-[-0.04em] text-ink tabular-nums leading-none">
                   {s.value}
@@ -181,7 +181,7 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
                   key={g.title}
                   type="button"
                   onClick={onOpenHome}
-                  className="w-full flex items-center gap-2 rounded-xl border border-border/60 bg-surface/60 px-3.5 py-2.5 text-left"
+                  className="nb-card nb-card-interactive w-full flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-left"
                 >
                   <span className="text-sm text-ink flex-1 min-w-0 truncate">{g.title}</span>
                   {g.dday != null && (
