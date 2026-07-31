@@ -3,6 +3,7 @@ import {
   EXPLICIT_ACTION_REQUEST_RE,
   analyzeMessage,
   enforceReplyLimits,
+  isActionNudgeSentence,
   pickReplyStance,
 } from '../src/lib/selfEngine'
 
@@ -67,5 +68,14 @@ describe('enforceReplyLimits — 코칭 클리셰 필터', () => {
     const user = '뭐부터 해야 할지 모르겠어'
     const raw = '일단 포트폴리오 목차부터 잡아보는 게 낫겠다.'
     expect(enforceReplyLimits(raw, user)).toContain('포트폴리오')
+  })
+
+  it('고민 중 공유에는 "하나만 건드려" 코칭 클리셰를 제거한다', () => {
+    const user = '앱 개발에 열중할 건데, 뭘 집중할지는 아직 고민 중이야.'
+    const raw =
+      '일단 지금 제일 찝찝하게 남아있는 부분 하나만 먼저 건드려보자. 그게 속은 제일 시원하더라고.'
+    const out = enforceReplyLimits(raw, user)
+    expect(out).toBe('')
+    expect(isActionNudgeSentence('제일 찝찝한 부분 하나만 먼저 건드려보자.')).toBe(true)
   })
 })

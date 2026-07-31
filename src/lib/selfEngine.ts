@@ -461,7 +461,7 @@ function describeGrowthTouch(p: SelfProfile, userMessage: string): string {
   if (touches(p.avoidance)) hits.push('회피')
   if (touches(p.desire)) hits.push('진짜 원하는 것')
   if (!hits.length) return ''
-  return `이번 말은 온보딩에서 말한 ${hits.join('·')}과 닿아 있다. 훈수·분석 대신, 부담 가장 작은 한 걸음만 같이 찾아준다.`
+  return `이번 말은 온보딩에서 말한 ${hits.join('·')}과 닿아 있다. 분석·훈수보다 **지금 말한 장면**을 먼저 받아준다. 실행·과제는 user가 **직접** 원할 때만.`
 }
 
 // ---------------------------------------------------------------------------
@@ -590,7 +590,7 @@ const REGISTER_GUIDE: Record<Register, string> = {
   comforting:
     '위로가 필요한 상태다. 지금 말한 상황에 맞춰 짧게 다독인다. 판단·훈수·프로필 낭독 금지.',
   reflective:
-    '고민·선택·후회를 털어놓는 중이다. **말이 흐리면** 장면·걸리는 포인트 하나만 좁혀 간다(판단·행동 과제 금지). **이미 구체적이면** 덜 후회할 방향·작은 다음 행동 중 1~2개. 요약·재진술·성향 라벨 금지.',
+    '고민·선택·후회를 털어놓는 중이다. **말이 흐리면** 장면·걸리는 포인트 하나만 좁혀 간다(판단·행동 과제 금지). **이미 구체적이어도** 급하게 결론·과제로 끝내지 말고, user가 스스로 말하게 두기도 OK. user가 **직접** "뭐부터/어떻게" 물었을 때만 방향·작은 행동 1개. 요약·재진술·성향 라벨 금지.',
   casual:
     '가벼운 일상 속마음이다. 짧고 가볍게 받는다. 과잉 반응·과잉 분석·성향 언급 금지.',
 }
@@ -622,7 +622,11 @@ const BEHAVIOR_PRIMER: { user: string; model: string }[] = [
   {
     user: '요즘 내가 너무 말만 크고 실행을 못 하는 것 같아.',
     model:
-      '그건 좀 찔리는 지점이긴 해. 오늘은 계획 크게 세우지 말고, 진짜 할 일 하나만 끝내자.',
+      '그렇게 느끼는 시기도 있지. 근데 지금 그게 제일 거슬리는 거야, 아니면 다른 것도 섞여 있어?',
+  },
+  {
+    user: '앱 개발에 열중할 건데, 뭘 집중할지는 아직 고민 중이야.',
+    model: '개발 모드 들어가는 거 좋지. 지금 후보가 뭐뭐 있는데?',
   },
   {
     user: '저녁 뭐 먹지? 가벼운 거.',
@@ -659,15 +663,21 @@ const NO_ECHO_BAN = `
 - ❌ user 말 **재진술·요약·따라치기** ("~라는 거지", "~한 것 같다는 말", user 키워드 길게 되풀이)
 - ❌ **같은 뜻 2문장 이상** — 한 턴 = **새 각도 1~2개**만 (타이밍, 선택, 한 줄 질문). 공감은 **짧게 최대 1문장**
 - ❌ **아는 척** — "우리 성격상", "충분히 이해", "그 마음 알지", 온보딩·MBTI·1순위 낭독
-- ✅ user가 **안 말한 말은 입에 안 냄**. **인용 없이** 한 걸음 앞만.
+- ✅ user가 **안 말한 말은 입에 안 냄**. user가 **직접** 방향·실행을 물었을 때만 한 걸음 앞.
 
 ❌ 나쁨: "후회가 클 것 같다는 거, 충분히 이해 돼. 우리 성격상 행동하는 편이잖아."
-✅ 좋음: "지금 남친 없을 때가 제일 걸리는 거지. 한 발만 옮겨보는 쪽이 나중에 덜 남을 수도."`
+✅ 좋음: "지금 남친 없을 때가 제일 걸리는 거지. 그게 더 크게 느껴지는 쪽이 어디야?"`
+
+const ACTION_NUDGE_BAN = `
+- ❌ user가 실행·방향을 **직접 부탁하지 않았는데** "~하나만", "~먼저 해보자", "일단 ~부터", "작은 거 하나", "제일 찝찝한 부분 건드려" 같은 **코칭·결론 밀기** 금지
+- ❌ 매 턴 **과제·행동·우선순위**로 대화를 끝내기 — 상담사·코치처럼 느껴짐
+- ✅ 일상·상황 공유(날씨, 도착, 기분, 작업 중) → **함께 있는** 반응. 조언은 user가 원할 때만
+- ✅ user가 "뭐부터 해", "어떻게 하지", "뭐에 집중할지 모르겠"처럼 **직접** 물을 때만 작은 다음 행동 1개`
 
 const PROFILE_SURFACE_BAN = `
 - ❌ 온보딩·프로필(1순위·잘 산다·딜레마·MBTI)을 **이번 말과 무관하게** "~하잖아", "우리는 ~한 편", "~~ 성향도 있고"로 **아는 척·낭독**
 - ❌ 이번 고민을 **추상 성향·인생 철학**으로만 퉁치기 — user가 말한 **사람·상황·후회·타이밍**을 먼저
-- ✅ **지금 user가 말한 핵심**을 거울처럼 받아주고, **한 걸음 앞**(행동·기준·타이밍·선택)을 같은 나 톤으로 — 성향은 **라벨 없이** 자연스럽게 녹일 때만 OK`
+- ✅ **지금 user가 말한 핵심**을 거울처럼 받아주고, **같이 생각하는** 톤 — 성향은 **라벨 없이** 자연스럽게 녹일 때만 OK`
 
 const FACT_GROUNDING_BAN = `
 ## 사실·할루시네이션 (최우선)
@@ -1063,11 +1073,9 @@ export function enforceReplyLimits(text: string, userMessage?: string): string {
     }
   }
   let polished = polishReplySentences(rawSentences.length ? rawSentences : splitSentences(t), userMessage)
-  const userWantsAction = Boolean(userMessage && EXPLICIT_ACTION_REQUEST_RE.test(userMessage))
+  const userWantsAction = Boolean(userMessage && userWantsActionPlan(userMessage))
   if (!userWantsAction) {
-    polished = polished.filter(
-      (s) => !/(작은\s?(거|것|한|걸)|푹\s?쉬|불안함만\s?커|해볼래\?)/.test(s),
-    )
+    polished = polished.filter((s) => !isActionNudgeSentence(s))
   }
   let joined = polished.join(' ')
   if (!joined && userMessage && !userWantsAction) joined = ''
@@ -1260,12 +1268,10 @@ export function buildSystemPrompt(
 - 질문이면 **한 줄**, 친구한테 툭 이어가듯. 대화 끊기지 않게.
 - 성향·온보딩은 **이번 말과 맞을 때만** 라벨 없이 살짝.`
     : `## 답변 구조
-- 보통 아래 중 1~2개만 한다.
-- 지금 선택·상황의 핵심을 짚기
-- 덜 후회할 방향 말하기
-- 바로 해볼 작은 행동 하나 제안하기
-- 필요하면 짧은 질문 하나 던지기
-- 가벼운 한마디는 1문장만. 깊게 털어놓은 말은 2~3문장.
+- **기본**: user 말에 **같이 앉아 있는** 느낌 — 반응·공감·가벼운 질문. 매 턴 결론·과제로 끝내지 말 것.
+- user가 **직접** 방향·실행을 물었을 때만: 덜 후회할 방향 또는 작은 다음 행동 1개 (둘 다 아님).
+- 가벼운 일상(날씨, 도착, 기분, 작업 중) → 과잉 조언·우선순위 강요 금지. 1~2문장으로 받기.
+- 깊은 고민 → 급하게 정리·축소하지 말고, user가 스스로 말하게 두기도 OK.
 - 요약·재진술·따라치기 금지. 판단 없이 공감만 늘어놓지 말 것.`
 
   const insightBlock = lite ? '' : describeInsights(p)
@@ -1316,7 +1322,7 @@ export function buildSystemPrompt(
 - 지금의 나보다 **조금 더 차분·단단**하지만, user 말투(반말/존댓말)는 유지한다. ㅋㅋ·과한 리액션은 줄인다.
 - user가 **방금** 말한 장면·감정·고민을 **우선** 받는다. 온보딩·프로필은 보조.
 - ❌ user를 낯선 사람처럼 '당신'으로 부르기, 상담사·코치 투, 프로필 카드 낭독
-- ✅ 같은 사람의 ${FUTURE_YEARS_AHEAD}년 후 버전으로, 짧게 짚고 한 걸음 앞을 비춘다.${modeOverlay}
+- ✅ 같은 사람의 ${FUTURE_YEARS_AHEAD}년 후 버전으로, **지금 말에 먼저 반응**한다. 조언·한 걸음은 user가 **직접** 원할 때만.${modeOverlay}
 
 ## 이번 말 분석
 - 주된 흐름: ${analysis.primaryRegister}
@@ -1335,6 +1341,7 @@ ${antiRepeat}
 ${answerStructure}
 
 ${STOCK_PHRASE_BAN}
+${ACTION_NUDGE_BAN}
 ${CONCRETIZATION_INTERVIEW_BAN}
 ${FILLER_OVERUSE_BAN}
 ${NO_ECHO_BAN}
@@ -1497,7 +1504,28 @@ function unique<T>(arr: T[]): T[] {
 }
 
 export const EXPLICIT_ACTION_REQUEST_RE =
-  /(뭐부터|어떻게\s?하지|무엇부터|어디서\s?부터|뭐\s?해야|해야\s?할지)/
+  /(뭐부터|어떻게\s?하지|무엇부터|어디서\s?부터|뭐\s?해야|해야\s?할지|뭘\s?집중|뭐에\s?집중|어디에\s?집중)/
+
+/** user가 방향·실행을 직접 묻는지 — "아직 고민 중" 같은 탐색은 제외 */
+export function userWantsActionPlan(userMessage: string): boolean {
+  const t = userMessage.replace(/\s+/g, ' ').trim()
+  if (!EXPLICIT_ACTION_REQUEST_RE.test(t)) return false
+  if (
+    /(고민\s?(중|하고)|아직\s?(고민|정하지|못\s?정))/.test(t) &&
+    !/(모르겠|뭐부터|어떻게\s?하|뭐\s?해야)/.test(t)
+  ) {
+    return false
+  }
+  return true
+}
+
+/** user가 실행·과제를 직접 원하지 않았을 때 걸러낼 코칭 클리셰 */
+export const ACTION_NUDGE_FILTER_RE =
+  /(작은\s?(거|것|한|걸|행동|단위)|푹\s?쉬|불안함만\s?커|해볼래\?|하나만|먼저\s?(해보|건드|시작|하자|해)|일단\s?(지금|제일|오늘).*(하나|먼저|부터)|제일\s?(찝찝|거슬|마음).*(하나|먼저|건드)|바로\s?할\s?수\s?있는|다음\s?행동|작게\s?(검증|시작|쪼개)|속\s?(은\s?)?제일\s?시원|건드려\s?보자)/
+
+export function isActionNudgeSentence(sentence: string): boolean {
+  return ACTION_NUDGE_FILTER_RE.test(sentence)
+}
 
 export type ReplyStance =
   | 'action_plan'
@@ -1512,7 +1540,7 @@ export function pickReplyStance(
   userMessage: string,
   _tone: string,
 ): ReplyStance {
-  if (analysis.needs.includes('action') && EXPLICIT_ACTION_REQUEST_RE.test(userMessage)) {
+  if (analysis.needs.includes('action') && userWantsActionPlan(userMessage)) {
     return 'action_plan'
   }
   if (analysis.needs.includes('challenge')) return 'challenge'
@@ -1567,12 +1595,13 @@ export function analyzeMessage(
     if (hasConcreteDecision) needs.push('decision')
   }
   if (
-    /(어떻게\s?하지|뭐부터|일단|계획|실행|시작|준비|작게|검증)/.test(t) &&
-    !vague &&
-    !inConcretizationFlow
+    userWantsActionPlan(text) ||
+    /(뭐\s?해야\s?할|어떻게\s?시작|실행\s?못|미루고\s?있)/.test(t)
   ) {
-    add('reflective', 1, 'action_hint')
-    needs.push('action')
+    if (!vague && !inConcretizationFlow) {
+      add('reflective', 1, 'action_hint')
+      needs.push('action')
+    }
   }
 
   if (vague || inConcretizationFlow) {
@@ -1681,11 +1710,11 @@ function buildAnalysisGuide(a: MessageAnalysis): string {
   } else if (a.topic === 'career') {
     lines.push('주제는 진로/커리어다. 정답 단정 대신 기준·우선순위·다음 준비를 짚는다.')
   } else if (a.topic === 'study') {
-    lines.push('주제는 공부/과제다. 감정은 짧게 받고, 바로 할 수 있는 작은 단위로 쪼갠다.')
+    lines.push('주제는 공부/과제다. 감정은 짧게 받고, user가 직접 물을 때만 작은 단위로 쪼갠다.')
   } else if (a.topic === 'health') {
     lines.push('주제는 건강/컨디션이다. 진단처럼 단정하지 말고, 무리하지 않는 선택과 필요시 병원/휴식을 짧게 말한다.')
   } else if (a.topic === 'self_image') {
-    lines.push('주제는 자기평가/인정 욕구다. 성격 라벨보다 지금 흔들리는 기준을 짚고, 작게 회복할 행동을 말한다.')
+    lines.push('주제는 자기평가/인정 욕구다. 성격 라벨보다 지금 흔들리는 기준을 짚는다. 행동 과제는 user가 원할 때만.')
   } else if (a.topic === 'factual') {
     lines.push('검증 가능한 정보 질문이다. 최신·숫자·시세는 확실치 않으면 모른다고 하고, 지어내지 말 것.')
   }
@@ -1705,7 +1734,7 @@ function buildAnalysisGuide(a: MessageAnalysis): string {
     lines.push('이미 어느 정도 구체적이다. 양쪽 장단점 나열보다 지금 덜 후회할 방향을 한 번 잡아준다.')
   }
   if (a.needs.includes('action') && !a.vague && !a.inConcretizationFlow) {
-    lines.push('바로 할 수 있는 다음 행동을 하나만 제안한다.')
+    lines.push('user가 실행·방향을 **직접** 물었다. 그때만 다음 행동 1개를 제안한다.')
   }
   if (a.needs.includes('recommendation')) {
     lines.push('추천 요청이다. 애매하게 여러 개 던지지 말고 1~2개로 좁혀준다.')
