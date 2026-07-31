@@ -1,13 +1,22 @@
-/** 프로필 사진 — 로컬 전용 (클라우드 동기화 X, 용량 큼) */
+/** 프로필 사진 — 로컬 저장 + (로그인 시) 클라우드 동기화 */
 
 export interface ProfilePhotos {
   presentDataUrl?: string
   futureVisionDataUrl?: string
   futureVisionGeneratedAt?: number
+  updatedAt?: number
 }
 
 function photosKey(profileId: string): string {
   return `futureme-profile-photos-${profileId}`
+}
+
+export function hasProfilePhotoContent(photos: ProfilePhotos): boolean {
+  return Boolean(photos.presentDataUrl || photos.futureVisionDataUrl)
+}
+
+export function profilePhotosUpdatedAt(photos: ProfilePhotos): number {
+  return photos.updatedAt ?? photos.futureVisionGeneratedAt ?? 0
 }
 
 export function loadProfilePhotos(profileId: string): ProfilePhotos {
@@ -21,9 +30,24 @@ export function loadProfilePhotos(profileId: string): ProfilePhotos {
   }
 }
 
-export function saveProfilePhotos(profileId: string, photos: ProfilePhotos): void {
+/** 클라우드 푸시 없이 로컬만 저장 (다운로드·병합용) */
+export function clearProfilePhotos(profileId: string): void {
+  if (!profileId) return
+  localStorage.removeItem(photosKey(profileId))
+}
+
+export function saveProfilePhotosLocal(profileId: string, photos: ProfilePhotos): void {
   if (!profileId) return
   localStorage.setItem(photosKey(profileId), JSON.stringify(photos))
+}
+
+export function saveProfilePhotos(profileId: string, photos: ProfilePhotos): void {
+  if (!profileId) return
+  const withTs = { ...photos, updatedAt: Date.now() }
+  saveProfilePhotosLocal(profileId, withTs)
+  void import('./profilePhotosSync').then(({ scheduleProfilePhotosSync }) => {
+    scheduleProfilePhotosSync(profileId)
+  })
 }
 
 export function parseDataUrl(dataUrl: string): { mimeType: string; base64: string } | null {

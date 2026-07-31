@@ -813,7 +813,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
           <div>
             <p className="text-xs text-muted mb-1">Gemini API Key (무료 · 없으면 로컬 엔진 사용)</p>
             <p className="text-[11px] text-muted/70 mb-2">
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-accent underline">
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-ink/80 underline underline-offset-2">
                 aistudio.google.com/apikey
               </a>{' '}
               에서 무료로 발급 (구글 로그인만)
@@ -931,7 +931,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
                   }}
                   className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                     model === m.id
-                      ? 'bg-accent/15 text-accent border-accent/40'
+                      ? 'bg-accent/15 text-ink border-accent/40 font-medium'
                       : 'bg-surface border-border text-muted hover:text-ink'
                   }`}
                 >
@@ -957,9 +957,9 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
             <p className="text-xs text-muted mb-2">지금까지 학습한 내 말투</p>
             <div className="flex flex-wrap gap-1.5">
               {styleChips.length ? styleChips.map((c) => (
-                <span key={c} className="text-xs px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">{c}</span>
+                <span key={c} className="text-xs px-2.5 py-1 rounded-full bg-accent/10 text-ink border border-accent/20">{c}</span>
               )) : <span className="text-xs text-muted">아직 수집 중...</span>}
-              <span className="text-xs px-2.5 py-1 rounded-full bg-glow/10 text-glow border border-glow/20">
+              <span className="text-xs px-2.5 py-1 rounded-full bg-accent/10 text-ink border border-accent/20">
                 샘플 {self.styleSamples.length}개
               </span>
             </div>
@@ -970,7 +970,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
               <div className="space-y-1">
                 {surfacedInsights.map((i) => (
                   <div key={i.id} className="text-xs text-ink/80 flex items-start gap-1.5">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-glow/10 text-glow border border-glow/20 whitespace-nowrap mt-0.5">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-ink border border-accent/20 whitespace-nowrap mt-0.5">
                       {INSIGHT_LABELS[i.kind]}
                     </span>
                     <span className="leading-relaxed">{i.text}</span>
@@ -1025,7 +1025,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
               <p className="text-[11px] text-status-error mt-1.5">✕ 파일 형식이 맞지 않아요</p>
             )}
             <p className="text-[11px] text-muted/50 mt-1.5">
-              다른 기기·브라우저로 옮기거나, 혹시 모를 분실 대비용이에요. API 키는 포함되지 않아요.
+              다른 기기·브라우저로 옮기거나, 혹시 모를 분실 대비용이에요. API 키는 계정 동기화로 다른 기기에도 채워져요.
             </p>
           </div>
         </div>
@@ -1152,7 +1152,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
                       onClick={() => setPendingTodo({ ...pendingTodo, date: key })}
                       className={`px-2.5 py-1.5 rounded-lg text-[12px] transition-colors ${
                         active
-                          ? 'bg-accent text-surface'
+                          ? 'bg-accent text-ink font-medium'
                           : 'bg-surface border border-border/50 text-ink/80 hover:border-accent/40'
                       }`}
                     >
@@ -1172,7 +1172,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
                 type="button"
                 onClick={confirmPendingTodo}
                 disabled={!pendingTodo.title.trim()}
-                className="shrink-0 px-3.5 py-1.5 rounded-lg bg-accent text-surface text-[12px] font-medium disabled:opacity-40"
+                className="shrink-0 px-3.5 py-1.5 rounded-lg bg-accent text-ink text-[12px] font-medium disabled:opacity-40"
               >
                 추가
               </button>

@@ -54,7 +54,7 @@ export function AuthScreen() {
         <p className="text-[11px] text-muted/60 mt-6 leading-relaxed">
           로그인하면 프로필·채팅이 클라우드에 저장돼요.
           <br />
-          Gemini API 키는 이 기기에만 남아요.
+          Gemini API 키는 로그인한 계정에 동기화돼요.
         </p>
         <p className="text-[11px] text-muted/60 mt-3">
           <a

@@ -3,10 +3,8 @@ import {
   fetchRemoteChats,
   fetchRemoteGoalData,
   fetchRemoteProfiles,
-  fetchRemoteSettings,
   pushChatToCloud,
   pushProfileToCloud,
-  pushSettingsToCloud,
   tombstoneProfileInCloud,
   isCloudTombstone,
   setActiveSyncUser,
@@ -23,14 +21,14 @@ import {
   saveChatAsync,
   getLocalChatRevision,
   invalidateChatLoadCache,
-  loadModel,
-  saveModel,
   loadProfileTombstones,
   removeProfileTombstone,
   deleteProfileLocally,
 } from './storage'
 import { hasLocalGoalData, pushLocalGoalData, syncGoalDataOnLogin } from './goalDataSync'
 import { hasLocalAlarmData, pushLocalAlarmData, syncAlarmDataOnLogin } from './alarmDataSync'
+import { pushLocalProfilePhotos, syncProfilePhotosOnLogin } from './profilePhotosSync'
+import { pushLocalSettings, syncSettingsOnLogin } from './settingsSync'
 
 /** tombstone이 제거된, 실제 프로필 데이터가 담긴 행 */
 type LiveRemoteProfileRow = RemoteProfileRow & { profile_data: SelfProfile }
@@ -112,7 +110,8 @@ async function uploadAllLocal(): Promise<number> {
     await pushProfileToCloud(profile, s.preview, s.updatedAt)
     await pushChatToCloud(s.id, messages, getLocalChatRevision(s.id) || chatTimestamp(messages) || s.updatedAt)
   }
-  await pushSettingsToCloud(loadModel())
+  await pushLocalSettings()
+  await pushLocalProfilePhotos().catch(() => {})
   await pushLocalGoalData().catch(() => {})
   await pushLocalAlarmData().catch(() => {})
   return summaries.length
@@ -215,8 +214,16 @@ async function mergeLocalAndRemote(
     const chat = chatMap.get(remote.id)
     await applyRemoteProfile(remote, chat?.messages ?? [], chat?.updated_at)
   }
+}
 
-  await pushSettingsToCloud(loadModel())
+async function finalizeLoginSync(userId: string): Promise<void> {
+  await syncGoalDataOnLogin(userId)
+  await syncAlarmDataOnLogin(userId)
+  await syncProfilePhotosOnLogin(userId).catch(() => {})
+  await syncSettingsOnLogin(userId).catch(() => {})
+  const { ensureAlarmPushReady } = await import('./notify')
+  await ensureAlarmPushReady().catch(() => {})
+  invalidateChatLoadCache()
 }
 
 export async function syncOnLogin(userId: string): Promise<SyncResult> {
@@ -246,41 +253,19 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
 
     if (!localHas && remoteHas) {
       const count = await downloadAllRemote(remoteProfiles, remoteChats)
-      await syncGoalDataOnLogin(userId)
-      await syncAlarmDataOnLogin(userId)
-      const { ensureAlarmPushReady } = await import('./notify')
-      await ensureAlarmPushReady().catch(() => {})
-      invalidateChatLoadCache()
-      const settings = await fetchRemoteSettings(userId)
-      if (settings?.gemini_model) {
-        saveModel(settings.gemini_model)
-        const resolved = loadModel()
-        if (resolved && resolved !== settings.gemini_model.trim()) {
-          void pushSettingsToCloud(resolved)
-        }
-      }
+      await finalizeLoginSync(userId)
       return { mode: 'downloaded', count }
     }
 
     if (localHas && remoteHas) {
       await mergeLocalAndRemote(remoteProfiles, remoteChats)
-      await syncGoalDataOnLogin(userId)
-      await syncAlarmDataOnLogin(userId)
-      const { ensureAlarmPushReady } = await import('./notify')
-      await ensureAlarmPushReady().catch(() => {})
-      invalidateChatLoadCache()
-      const settings = await fetchRemoteSettings(userId)
-      if (settings?.gemini_model) {
-        saveModel(settings.gemini_model)
-        const resolved = loadModel()
-        if (resolved && resolved !== settings.gemini_model.trim()) {
-          void pushSettingsToCloud(resolved)
-        }
-      }
+      await finalizeLoginSync(userId)
       return { mode: 'merged', count: remoteProfiles.length }
     }
 
     await syncAlarmDataOnLogin(userId).catch(() => {})
+    await syncProfilePhotosOnLogin(userId).catch(() => {})
+    await syncSettingsOnLogin(userId).catch(() => {})
     const { ensureAlarmPushReady } = await import('./notify')
     await ensureAlarmPushReady().catch(() => {})
     return { mode: 'empty', count: 0 }
@@ -330,6 +315,8 @@ export function scheduleChatSync(profileId: string, messages: ChatMessage[]): vo
 }
 
 export function scheduleSettingsSync(): void {
-  void pushSettingsToCloud(loadModel()).catch(() => {})
+  void import('./settingsSync').then(({ scheduleSettingsSync: sync }) => {
+    sync()
+  })
 }
 

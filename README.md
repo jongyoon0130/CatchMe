@@ -191,7 +191,7 @@ bun run lint           # Oxlint
 ```
 
 - Supabase·Google 로그인 설정: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
-- AI 답변을 받으려면 앱 안 ⚙️ 설정에서 **본인 Gemini API 키**를 입력해야 한다 (키는 기기에만 저장)
+- AI 답변을 받으려면 앱 안 ⚙️ 설정에서 **본인 Gemini API 키**를 입력해야 한다 (로그인 시 계정에 동기화)
 - 로컬(localhost)과 배포 URL의 로컬 데이터는 분리된다 — 옮기려면 Google 로그인 동기화 또는 백업 JSON
 
 ### ⚠️ 커밋 전에 git 이메일부터 (Vercel 배포가 막힌다)

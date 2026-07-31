@@ -10,7 +10,8 @@ import {
   saveChatToDb,
   clearLegacyChatDb,
 } from './chatDb'
-import { isCloudSyncAvailable, pushProfileToCloud, pushChatToCloud, pushSettingsToCloud, tombstoneProfileInCloud } from './cloudSync'
+import { clearProfilePhotos } from './profilePhotos'
+import { isCloudSyncAvailable, pushProfileToCloud, pushChatToCloud, tombstoneProfileInCloud } from './cloudSync'
 
 /** 구버전 localStorage 키 (`aime-*` — 초기 프로젝트명 시절) */
 const LEGACY_PROFILE_KEY = 'aime-self-profile'
@@ -23,6 +24,7 @@ const LEGACY_PROFILE_PREFIX = 'aime-profile-'
 const INDEX_KEY = 'futureme-profiles-index'
 const API_KEY_KEY = 'futureme-gemini-key'
 const MODEL_KEY = 'futureme-gemini-model'
+const SETTINGS_UPDATED_KEY = 'futureme-settings-updated-at'
 const API_CHECK_CACHE_KEY = 'futureme-api-check-cache'
 // v5: 온보딩이 핵심(15)/심화 2단 구조로 재배열 — 구버전 중간 저장과 이어지지 않음
 export const ONBOARDING_PROGRESS_KEY = 'futureme-onboarding-v5'
@@ -221,6 +223,7 @@ export function updateProfilePreview(id: string, preview: string, lastMessageAt:
 export async function deleteProfileLocally(id: string): Promise<void> {
   localStorage.removeItem(profileKey(id))
   localStorage.removeItem(chatRevisionKey(id))
+  clearProfilePhotos(id)
   saveProfileSummaries(loadProfileSummaries().filter((s) => s.id !== id))
   chatLoadCache.delete(id)
   await deleteChatFromDb(id)
@@ -487,8 +490,24 @@ export function loadApiKey(): string | null {
   return localStorage.getItem(API_KEY_KEY)
 }
 
-export function saveApiKey(key: string): void {
+export function saveApiKeyLocal(key: string): void {
   localStorage.setItem(API_KEY_KEY, key)
+}
+
+export function saveApiKey(key: string): void {
+  saveApiKeyLocal(key)
+  setSettingsUpdatedAt(Date.now())
+  void import('./settingsSync').then(({ scheduleSettingsSync }) => {
+    scheduleSettingsSync()
+  })
+}
+
+export function loadSettingsUpdatedAt(): number {
+  return Number(localStorage.getItem(SETTINGS_UPDATED_KEY) || 0)
+}
+
+export function setSettingsUpdatedAt(ts: number): void {
+  localStorage.setItem(SETTINGS_UPDATED_KEY, String(ts))
 }
 
 export function loadModel(): string | null {
@@ -496,21 +515,29 @@ export function loadModel(): string | null {
   if (!raw) return null
   const resolved = resolveModel(raw)
   if (resolved !== raw.trim()) {
-    localStorage.setItem(MODEL_KEY, resolved)
+    saveModelLocal(resolved)
     try {
       sessionStorage.setItem('futureme-model-migrated-from', raw.trim())
     } catch {
       /* ignore */
     }
-    if (isCloudSyncAvailable()) void pushSettingsToCloud(resolved).catch(() => {})
+    void import('./settingsSync').then(({ scheduleSettingsSync }) => {
+      scheduleSettingsSync()
+    })
   }
   return resolved
 }
 
+export function saveModelLocal(model: string): void {
+  localStorage.setItem(MODEL_KEY, resolveModel(model))
+}
+
 export function saveModel(model: string): void {
-  const resolved = resolveModel(model)
-  localStorage.setItem(MODEL_KEY, resolved)
-  if (isCloudSyncAvailable()) void pushSettingsToCloud(resolved).catch(() => {})
+  saveModelLocal(model)
+  setSettingsUpdatedAt(Date.now())
+  void import('./settingsSync').then(({ scheduleSettingsSync }) => {
+    scheduleSettingsSync()
+  })
 }
 
 // ---------------------------------------------------------------------------

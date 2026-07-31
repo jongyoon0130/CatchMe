@@ -407,6 +407,27 @@ body::after {
   box-shadow: 0 0 0 var(--au-ink);
 }
 
+/* 밝은 accent 배경 — 흰/민트 글씨 대신 검정 */
+.bg-accent.text-surface,
+.bg-accent-dim.text-surface,
+button.bg-accent.text-surface,
+button.bg-accent-dim.text-surface {
+  color: var(--au-ink) !important;
+}
+
+/* text-accent / text-glow 는 밝은 민트라 밝은 배경에서 안 보임 → 검정 */
+.text-accent {
+  color: var(--au-ink);
+}
+
+.text-accent-dim {
+  color: var(--au-ink-soft);
+}
+
+.text-glow {
+  color: var(--au-ink);
+}
+
 ::selection {
   background: color-mix(in srgb, var(--spray-accent-deep) 65%, transparent);
   color: var(--au-ink);

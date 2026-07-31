@@ -20,6 +20,7 @@ create table if not exists public.futureme_chats (
 create table if not exists public.futureme_settings (
   user_id uuid primary key references auth.users (id) on delete cascade,
   gemini_model text,
+  gemini_api_key text,
   updated_at bigint not null default (extract(epoch from now()) * 1000)::bigint
 );
 
@@ -35,6 +36,22 @@ create policy "chats own" on public.futureme_chats
 
 create policy "settings own" on public.futureme_settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 미래 카메라 사진 (프로필별 · JSON data URL)
+create table if not exists public.futureme_profile_photos (
+  profile_id uuid not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  photos jsonb not null default '{}'::jsonb,
+  updated_at bigint not null,
+  primary key (user_id, profile_id)
+);
+
+alter table public.futureme_profile_photos enable row level security;
+
+create policy "profile photos own" on public.futureme_profile_photos
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists futureme_profile_photos_user on public.futureme_profile_photos (user_id, updated_at desc);
 
 create index if not exists futureme_profiles_user_updated on public.futureme_profiles (user_id, updated_at desc);
 

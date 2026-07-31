@@ -94,6 +94,24 @@ export type RemotePushSubscriptionRow = {
   updated_at: number
 }
 
+export type RemoteSettingsRow = {
+  gemini_model: string | null
+  gemini_api_key: string | null
+  updated_at: number
+}
+
+export type RemoteProfilePhotosRow = {
+  profile_id: string
+  photos: Record<string, unknown>
+  updated_at: number
+}
+
+export type SettingsCloudPayload = {
+  geminiModel: string | null
+  geminiApiKey?: string | null
+  updatedAt?: number
+}
+
 export type AlarmDataPayload = {
   alarms: unknown[]
   dismissPhrases: unknown[]
@@ -305,6 +323,11 @@ export async function tombstoneProfileInCloud(profileId: string, deletedAt: numb
     .delete()
     .eq('user_id', ctx.userId)
     .eq('profile_id', profileId)
+  const { error: photosError } = await ctx.client
+    .from('futureme_profile_photos')
+    .delete()
+    .eq('user_id', ctx.userId)
+    .eq('profile_id', profileId)
   const { error: profileError } = await ctx.client.from('futureme_profiles').upsert(
     {
       id: profileId,
@@ -315,7 +338,7 @@ export async function tombstoneProfileInCloud(profileId: string, deletedAt: numb
     },
     { onConflict: 'user_id,id' },
   )
-  const error = chatError ?? profileError
+  const error = chatError ?? photosError ?? profileError
   if (error) {
     noteCloudPushFailure()
     throw error
@@ -323,18 +346,65 @@ export async function tombstoneProfileInCloud(profileId: string, deletedAt: numb
   noteCloudPushSuccess()
 }
 
-export async function pushSettingsToCloud(geminiModel: string | null): Promise<void> {
+function isMissingGeminiApiKeyColumn(error: { message?: string } | null): boolean {
+  if (!error) return false
+  return /gemini_api_key/i.test(error.message ?? '') && /column|schema cache/i.test(error.message ?? '')
+}
+
+function isMissingProfilePhotosTable(error: { message?: string } | null): boolean {
+  if (!error) return false
+  return /futureme_profile_photos/i.test(error.message ?? '') && /relation|schema cache|does not exist/i.test(error.message ?? '')
+}
+
+export async function pushSettingsToCloud(payload: SettingsCloudPayload): Promise<void> {
   const ctx = requireClient()
   if (!ctx) return
 
-  const { error } = await ctx.client.from('futureme_settings').upsert(
+  const row = {
+    user_id: ctx.userId,
+    gemini_model: payload.geminiModel,
+    gemini_api_key: payload.geminiApiKey ?? null,
+    updated_at: payload.updatedAt ?? Date.now(),
+  }
+
+  let { error } = await ctx.client.from('futureme_settings').upsert(row, { onConflict: 'user_id' })
+
+  if (isMissingGeminiApiKeyColumn(error)) {
+    console.info('[FutureMe/Cloud] gemini_api_key 컬럼 없음 — 모델만 동기화 (migration 참고)')
+    const { gemini_api_key: _drop, ...withoutKey } = row
+    ;({ error } = await ctx.client.from('futureme_settings').upsert(withoutKey, { onConflict: 'user_id' }))
+  }
+
+  if (error) {
+    noteCloudPushFailure()
+    throw error
+  }
+  noteCloudPushSuccess()
+}
+
+export async function pushProfilePhotosToCloud(
+  profileId: string,
+  photos: Record<string, unknown>,
+  updatedAt: number,
+): Promise<void> {
+  const ctx = requireClient()
+  if (!ctx) return
+
+  const { error } = await ctx.client.from('futureme_profile_photos').upsert(
     {
+      profile_id: profileId,
       user_id: ctx.userId,
-      gemini_model: geminiModel,
-      updated_at: Date.now(),
+      photos,
+      updated_at: updatedAt,
     },
-    { onConflict: 'user_id' },
+    { onConflict: 'user_id,profile_id' },
   )
+
+  if (isMissingProfilePhotosTable(error)) {
+    console.info('[FutureMe/Cloud] futureme_profile_photos 테이블 없음 — 사진 동기화 생략 (migration 참고)')
+    return
+  }
+
   if (error) {
     noteCloudPushFailure()
     throw error
@@ -362,15 +432,44 @@ export async function fetchRemoteChats(userId: string): Promise<RemoteChatRow[]>
   return (data ?? []) as RemoteChatRow[]
 }
 
-export async function fetchRemoteSettings(userId: string): Promise<{ gemini_model: string | null } | null> {
+export async function fetchRemoteSettings(userId: string): Promise<RemoteSettingsRow | null> {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('futureme_settings')
-    .select('gemini_model')
+    .select('gemini_model, gemini_api_key, updated_at')
     .eq('user_id', userId)
     .maybeSingle()
-  if (error) throw error
-  return data
+  if (error) {
+    if (isMissingGeminiApiKeyColumn(error)) {
+      const fallback = await supabase
+        .from('futureme_settings')
+        .select('gemini_model, updated_at')
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (fallback.error) throw fallback.error
+      if (!fallback.data) return null
+      return {
+        gemini_model: fallback.data.gemini_model,
+        gemini_api_key: null,
+        updated_at: fallback.data.updated_at,
+      }
+    }
+    throw error
+  }
+  return data as RemoteSettingsRow | null
+}
+
+export async function fetchRemoteProfilePhotos(userId: string): Promise<RemoteProfilePhotosRow[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('futureme_profile_photos')
+    .select('profile_id, photos, updated_at')
+    .eq('user_id', userId)
+  if (error) {
+    if (isMissingProfilePhotosTable(error)) return []
+    throw error
+  }
+  return (data ?? []) as RemoteProfilePhotosRow[]
 }
 
 export function isCloudSyncAvailable(): boolean {

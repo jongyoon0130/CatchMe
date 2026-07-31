@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SelfProfile } from '../../types/self'
 import { FUTURE_YEARS_AHEAD } from '../../lib/brand'
 import { generateFutureVisionImage, hasFutureVisionSource } from '../../lib/futureVisionEngine'
@@ -20,6 +20,10 @@ export function ProfileFutureVision({ profile }: Props) {
   const [photos, setPhotos] = useState<ProfilePhotos>(() => loadProfilePhotos(profile.id))
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPhotos(loadProfilePhotos(profile.id))
+  }, [profile.id])
 
   const persist = (next: ProfilePhotos) => {
     setPhotos(next)
@@ -78,58 +82,66 @@ export function ProfileFutureVision({ profile }: Props) {
       </header>
 
       <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={openPicker}
-          className="nb-card nb-card-interactive relative aspect-[3/4] rounded-[20px] overflow-hidden text-left active:scale-100"
-        >
-          <span className="nb-pill absolute top-2.5 left-2.5 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold">
-            현재
-          </span>
-          {photos.presentDataUrl ? (
-            <img src={photos.presentDataUrl} alt="현재" className="absolute inset-0 h-full w-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3">
-              <span className="nb-icon flex h-14 w-14 items-center justify-center rounded-full text-muted">
-                <CameraIcon />
-              </span>
-            </div>
-          )}
-          <span className="nb-pill absolute bottom-3 inset-x-3 z-10 rounded-full py-2 text-center text-[11px] font-bold">
-            {photos.presentDataUrl ? '사진 바꾸기' : '사진 업로드'}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => void onGenerate()}
-          disabled={generating || !photos.presentDataUrl}
-          className="nb-card nb-card--mint nb-card-interactive relative aspect-[3/4] rounded-[20px] overflow-hidden text-left active:scale-100 disabled:opacity-60"
-        >
-          <span className="nb-pill absolute top-2.5 left-2.5 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold bg-surface">
-            {FUTURE_YEARS_AHEAD}년 뒤
-          </span>
-          {photos.futureVisionDataUrl ? (
-            <img
-              src={photos.futureVisionDataUrl}
-              alt={`${FUTURE_YEARS_AHEAD}년 뒤`}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center px-3">
-              <div className="nb-icon relative flex h-[72%] max-h-[140px] w-[72%] max-w-[140px] items-center justify-center rounded-full bg-surface">
-                {generating ? (
-                  <span className="h-7 w-7 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
-                ) : (
-                  <SparkIcon />
-                )}
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={openPicker}
+            className="nb-card nb-card-interactive relative aspect-[3/4] rounded-[20px] overflow-hidden text-left active:scale-100"
+          >
+            <span className="nb-pill absolute top-2.5 left-2.5 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold">
+              현재
+            </span>
+            {photos.presentDataUrl ? (
+              <img src={photos.presentDataUrl} alt="현재" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3">
+                <span className="nb-icon flex h-14 w-14 items-center justify-center rounded-full text-muted">
+                  <CameraIcon />
+                </span>
               </div>
-            </div>
-          )}
-          <span className="nb-pill absolute bottom-3 inset-x-3 z-10 rounded-full py-2 text-center text-[11px] font-bold bg-surface">
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={openPicker}
+            className="nb-pill w-full rounded-full py-2 text-center text-[11px] font-bold"
+          >
+            {photos.presentDataUrl ? '사진 바꾸기' : '사진 업로드'}
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="nb-card nb-card--mint relative aspect-[3/4] rounded-[20px] overflow-hidden">
+            <span className="nb-pill absolute top-2.5 left-2.5 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold bg-surface">
+              {FUTURE_YEARS_AHEAD}년 뒤
+            </span>
+            {photos.futureVisionDataUrl ? (
+              <img
+                src={photos.futureVisionDataUrl}
+                alt={`${FUTURE_YEARS_AHEAD}년 뒤`}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-3">
+                <div className="nb-icon relative flex h-[72%] max-h-[140px] w-[72%] max-w-[140px] items-center justify-center rounded-full bg-surface">
+                  {generating ? (
+                    <span className="h-7 w-7 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
+                  ) : (
+                    <SparkIcon />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => void onGenerate()}
+            disabled={generating || !photos.presentDataUrl}
+            className="nb-pill w-full rounded-full py-2 text-center text-[11px] font-bold bg-surface disabled:opacity-60"
+          >
             {generating ? '그리는 중…' : '미래 확인하기'}
-          </span>
-        </button>
+          </button>
+        </div>
       </div>
 
       <input
@@ -146,7 +158,7 @@ export function ProfileFutureVision({ profile }: Props) {
       {error ? <p className="text-[11px] text-status-error leading-relaxed px-0.5">{error}</p> : null}
 
       <p className="text-[10px] text-muted/60 leading-relaxed px-0.5">
-        AI 상상 이미지 · 실제와 다를 수 있음 · 기기에만 저장
+        AI 상상 이미지 · 실제와 다를 수 있음 · 로그인 시 계정에 동기화
       </p>
     </section>
   )
