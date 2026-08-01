@@ -211,6 +211,21 @@ body::after {
   text-decoration-thickness: 2px;
 }
 
+/* 오늘 날짜 — 연한 민트 글씨/배경 대신 검정+진한 민트 */
+.goal-app .goal-mc-day.today-num:not(.selected-num),
+.goal-app .goal-mc-day.today-num.selected-num {
+  background: var(--spray-accent-deep) !important;
+  color: var(--au-ink) !important;
+  font-weight: 700;
+}
+
+/* 카테고리·목표 선택 메뉴 — 선택 항목 글씨 */
+.goal-app .goal-tier-add-menu-item.on,
+.goal-app .goal-tier-add-menu-item.on:hover {
+  background: var(--spray-accent-deep) !important;
+  color: var(--au-ink) !important;
+}
+
 .goal-app .goal-prog {
   border: 1.5px solid var(--au-ink);
   background: var(--au-surface-2);
