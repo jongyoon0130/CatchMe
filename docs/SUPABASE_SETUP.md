@@ -46,12 +46,13 @@ App Store 제출을 위해 Google과 함께 Apple 로그인이 필요합니다.
 | 항목 | 값 |
 |------|-----|
 | Site URL | `https://futureme-beta.vercel.app` |
-| Redirect URLs | 아래 3개 모두 추가 |
+| Redirect URLs | 아래 **모두** 추가 |
 
 예 (현재 Future Me 프로덕션):
 - `https://futureme-beta.vercel.app`
-- `https://futureme-beta-jongyoon2580-9297s-projects.vercel.app`
+- `https://future-me-studio.vercel.app`
 - `http://localhost:5173`
+- `app.futureme.studio://auth/callback` ← **iOS/Android Capacitor OAuth**
 
 ## 4. 환경 변수
 

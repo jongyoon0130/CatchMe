@@ -9,6 +9,8 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { isAppleSignInCancelled, signInWithApple as performAppleSignIn } from '../lib/appleAuth'
+import { attachNativeOAuthListener, isNativeApp, signInWithOAuthNative } from '../lib/nativeOAuth'
+import { getOAuthRedirectUrl } from '../lib/oauthRedirect'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { setActiveSyncUser } from '../lib/cloudSync'
 import { syncOnLogin, uploadLocalWithConfirm, type SyncResult } from '../lib/syncOrchestrator'
@@ -83,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false
 
+    const detachOAuth = isNativeApp() && supabase ? attachNativeOAuthListener(supabase) : () => {}
+
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return
       setSession(data.session)
@@ -130,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true
+      detachOAuth()
       subscription.unsubscribe()
       stopGoalDataRealtime()
       window.removeEventListener('focus', resyncOnReturn)
@@ -139,10 +144,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) return
+    if (isNativeApp()) {
+      await signInWithOAuthNative(supabase, 'google')
+      return
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getOAuthRedirectUrl(),
       },
     })
     if (error) throw error

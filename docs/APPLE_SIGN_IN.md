@@ -56,7 +56,11 @@ Future Me는 Google과 함께 **Apple 로그인**을 제공합니다 (App Store 
 > **중요:** Client IDs 목록에서 **Services ID가 맨 위**여야 웹 OAuth가 동작합니다.  
 > 네이티브 iOS는 목록에 `app.futureme.studio`만 있어도 `signInWithIdToken`이 동작합니다.
 
-**Authentication → URL Configuration** — 기존 Redirect URLs 유지 (Google과 동일).
+**Authentication → URL Configuration** — Redirect URLs에 아래 **모두** 포함:
+
+- `https://future-me-studio.vercel.app`
+- `http://localhost:5173`
+- `app.futureme.studio://auth/callback` ← **iOS 앱 Google/Apple OAuth**
 
 ---
 

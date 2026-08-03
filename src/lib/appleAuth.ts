@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { generateRawNonce, sha256Hex } from './authNonce'
+import { getOAuthRedirectUrl } from './oauthRedirect'
 import { isIosNative } from './platform'
 
 /** Capacitor `appId` — Apple Developer App ID와 동일해야 함 */
@@ -15,7 +16,7 @@ async function signInWithAppleOAuth(client: SupabaseClient): Promise<void> {
   const { error } = await client.auth.signInWithOAuth({
     provider: 'apple',
     options: {
-      redirectTo: window.location.origin,
+      redirectTo: getOAuthRedirectUrl(),
     },
   })
   if (error) throw error
