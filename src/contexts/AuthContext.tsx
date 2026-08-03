@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { isAppleSignInCancelled, signInWithApple as performAppleSignIn } from '../lib/appleAuth'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { setActiveSyncUser } from '../lib/cloudSync'
 import { syncOnLogin, uploadLocalWithConfirm, type SyncResult } from '../lib/syncOrchestrator'
@@ -21,6 +22,7 @@ type AuthContextValue = {
   session: Session | null
   user: User | null
   signInWithGoogle: () => Promise<void>
+  signInWithApple: () => Promise<void>
   signOut: () => Promise<void>
   uploadLocalData: () => Promise<SyncResult | null>
   lastSync: SyncResult | null
@@ -146,6 +148,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }, [])
 
+  const signInWithApple = useCallback(async () => {
+    if (!supabase) return
+    try {
+      await performAppleSignIn(supabase)
+    } catch (error) {
+      if (isAppleSignInCancelled(error)) return
+      throw error
+    }
+  }, [])
+
   const signOut = useCallback(async () => {
     if (!supabase) return
     setActiveSyncUser(null)
@@ -175,11 +187,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user: session?.user ?? null,
       signInWithGoogle,
+      signInWithApple,
       signOut,
       uploadLocalData,
       lastSync,
     }),
-    [configured, loading, syncing, session, signInWithGoogle, signOut, uploadLocalData, lastSync],
+    [configured, loading, syncing, session, signInWithGoogle, signInWithApple, signOut, uploadLocalData, lastSync],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

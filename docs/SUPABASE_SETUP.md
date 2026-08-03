@@ -1,6 +1,6 @@
-# Future Me — Supabase + Google 로그인 설정
+# Future Me — Supabase + Google / Apple 로그인 설정
 
-클라우드 동기화와 Google 로그인을 쓰려면 **TalkBack과 별도** Supabase 프로젝트를 만들고 아래 순서대로 설정하세요.
+클라우드 동기화와 Google·Apple 로그인을 쓰려면 **TalkBack과 별도** Supabase 프로젝트를 만들고 아래 순서대로 설정하세요.
 
 ## 1. Supabase 프로젝트 만들기
 
@@ -27,6 +27,17 @@
    https://YOUR_PROJECT.supabase.co/auth/v1/callback
    ```
 4. Client ID / Secret → Supabase Google provider 입력
+
+## 2b. Sign in with Apple (Supabase)
+
+App Store 제출을 위해 Google과 함께 Apple 로그인이 필요합니다.  
+**상세:** [`docs/APPLE_SIGN_IN.md`](./APPLE_SIGN_IN.md)
+
+요약:
+
+1. Apple Developer: App ID `app.futureme.studio` + Services ID + `.p8` Key
+2. Supabase **Authentication → Providers → Apple** — Services ID를 Client IDs **첫 번째**로
+3. iOS: Xcode → Sign in with Apple capability
 
 ## 3. Redirect URL (Supabase Auth)
 
@@ -68,6 +79,7 @@ Project → **Settings → Environment Variables**
 |------|------|
 | env 없음 | 로그인 없이 로컬 전용 |
 | Google 로그인 | 프로필·채팅·홈 목표·할 일 클라우드 동기화 |
+| Apple 로그인 | Google과 동일 (웹 OAuth / iOS 네이티브) |
 | Gemini API 키 | **기기 localStorage만** (TalkBack과 동일) |
 
 ## 6. TalkBack과 분리
