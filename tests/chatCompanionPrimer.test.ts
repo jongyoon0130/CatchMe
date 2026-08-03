@@ -1,11 +1,25 @@
-// 채팅 1단계 회귀 방지 — docs/chat-cases.md의 실패 조건을 코드로 잠근다.
+// 채팅 1·1.5단계 회귀 방지 — docs/chat-cases.md의 실패 조건을 코드로 잠근다.
 //
-// 지키는 것 2개:
+// 지키는 것 3개:
 //  1. 일상·성취·미룸(A·B·C) 예시는 **되묻지 않는다** — 여기서 되물으면 코치가 된다.
 //  2. lite(긴 대화)에서 쓰는 **앞 2개**에 동행 예시가 반드시 포함된다
 //     — 예전엔 앞 2개가 전부 되묻기라 대화가 길어질수록 코치처럼 변했다.
+//  3. **user의 기분을 단정하지 않는다** — 실사용에서 "기분은 좀 개운하네"가 나왔다.
+//     미래의 나는 지금 user 옆에 없어 그 기분을 볼 수 없다. 내 경험으로 말해야 한다.
+class MemStorage implements Storage {
+  private m = new Map<string, string>()
+  get length() { return this.m.size }
+  clear() { this.m.clear() }
+  getItem(k: string) { return this.m.get(k) ?? null }
+  key(i: number) { return [...this.m.keys()][i] ?? null }
+  removeItem(k: string) { this.m.delete(k) }
+  setItem(k: string, v: string) { this.m.set(k, v) }
+}
+globalThis.localStorage = new MemStorage()
+
 import { describe, expect, it } from 'bun:test'
-import { BEHAVIOR_PRIMER } from '../src/lib/selfEngine'
+import { BEHAVIOR_PRIMER, buildSystemPrompt, analyzeMessage } from '../src/lib/selfEngine'
+import { emptyProfile } from '../src/types/self'
 
 /** 되묻기 = 물음표로 끝남 */
 function asksBack(reply: string): boolean {
@@ -52,5 +66,30 @@ describe('BEHAVIOR_PRIMER — lite 모드(앞 2개) 보호', () => {
   it('고민 예시도 남아 있다 — 되묻기가 맞는 자리까지 없애지는 않는다', () => {
     const someoneAsksBack = BEHAVIOR_PRIMER.some((ex) => asksBack(ex.model))
     expect(someoneAsksBack).toBe(true)
+  })
+})
+
+describe('감정 단정 금지 (1.5단계)', () => {
+  const prompt = () => {
+    const msg = '오늘 할 일 다 끝냈어!'
+    return buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('user 기분 단정 금지 규칙이 프롬프트에 있다', () => {
+    expect(prompt()).toContain('기분·상태를 단정')
+  })
+
+  it('실제로 나왔던 나쁜 예("기분은 좀 개운하네")가 금지 예시로 실린다', () => {
+    expect(prompt()).toContain('기분은 좀 개운하네')
+  })
+
+  it('겪어본 사람의 한 줄이 필수로 지시된다 (카톡 친구화 방지)', () => {
+    expect(prompt()).toContain('반드시 하나 넣는다')
+  })
+
+  it('성취 예시가 감정을 단정하지 않고 내 경험으로 말한다', () => {
+    const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes('다 끝냈어'))!
+    expect(ex.model).toContain('나도')
+    expect(ex.model).not.toMatch(/기분(은|이)? ?좀? ?개운하네/)
   })
 })
