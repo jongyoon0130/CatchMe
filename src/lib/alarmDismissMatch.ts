@@ -109,7 +109,21 @@ export function isAwaitingNextLine(phrase: string, typed: string): boolean {
   return pi < phrase.length && phrase[pi] === '\n'
 }
 
+/**
+ * 조합 중인 한글 낱자(ㅇ, ㅗ, ㅏ …) — **아직 틀린 게 아니다.**
+ *
+ * "오"는 ㅇ→ㅗ 두 단계로 완성된다. 첫 단계 "ㅇ"을 "오와 다르다"고 버리면
+ * React가 textarea 값을 되돌리고, 그 순간 iOS 키보드의 조합이 깨진다
+ * → **한글을 한 글자도 못 치고 알람이 안 꺼진다** (2026-08-06 폰에서 발생).
+ * 조합이 끝나야 맞는지 틀리는지 판정할 수 있으므로, 끝 낱자는 그대로 남긴다.
+ */
+const TRAILING_JAMO = /[ㄱ-ㆎ]$/
+
 export function normalizeTypedInput(phrase: string, raw: string): string {
+  if (TRAILING_JAMO.test(raw)) {
+    const composing = raw.slice(-1)
+    return alignTypedDisplay(phrase, commitTypedPrefix(phrase, raw.slice(0, -1))) + composing
+  }
   return alignTypedDisplay(phrase, commitTypedPrefix(phrase, raw))
 }
 

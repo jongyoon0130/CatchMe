@@ -148,13 +148,21 @@ function PhraseTypeMatch({
         className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-transparent outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
         autoFocus
         onChange={(e) => {
+          // 조합 중(한글)에는 거르지 않고 원본 그대로 — 아래 onCompositionUpdate 주석 참고
+          if (composingRef.current) {
+            onChange(e.target.value)
+            return
+          }
           handleRawInput(e.target.value)
         }}
         onCompositionStart={() => {
           composingRef.current = true
         }}
         onCompositionUpdate={(e) => {
-          handleRawInput(e.currentTarget.value)
+          // ⚠️ 여기서 handleRawInput(=일치하지 않는 글자 버리기)을 부르면 한글을 못 친다.
+          // "오"는 ㅇ→ㅗ 두 단계로 완성되는데, 첫 단계 "ㅇ"은 "오"와 달라서 버려지고
+          // 그 순간 조합이 깨진다(iOS WKWebView). 조합이 끝난 뒤에 판정한다.
+          onChange(e.currentTarget.value)
         }}
         onCompositionEnd={(e) => {
           composingRef.current = false
