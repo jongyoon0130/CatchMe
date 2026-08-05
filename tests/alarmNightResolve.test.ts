@@ -1,6 +1,12 @@
-// 밤 다짐 → 아침 해제 문구 연결의 기반 테스트.
-// 핵심 보장: 알람에 다짐(resolve)이 있으면 그게 해제 문구가 되고, 없으면 폴백으로 물러난다.
-import { beforeEach, describe, expect, it } from 'bun:test'
+// 밤 다짐(UserAlarm.resolve) → 아침 해제 문구 연결.
+//
+// 지키려는 것은 처음과 같다: **밤에 적어둔 다짐이 아침 해제 문구에 반영된다.**
+// 다만 구조가 바뀌었다 —
+//   예전: loadDismissPhrase가 알람의 resolve를 직접 읽어 문구로 씀
+//   지금: resolve가 문구 생성 문맥(AlarmDismissContext)으로 넘어가고,
+//         AI 생성이 없거나 실패하면 buildFallbackDismissPhrase가 그걸 첫 줄로 쓴다
+// 그래서 검증 지점을 폴백 생성기로 옮긴다. (AI 경로는 네트워크라 여기서 다루지 않음)
+import { describe, expect, it } from 'bun:test'
 
 class MemoryStorage implements Storage {
   private map = new Map<string, string>()
@@ -13,39 +19,43 @@ class MemoryStorage implements Storage {
 }
 globalThis.localStorage = new MemoryStorage()
 
-import type { UserAlarm } from '../src/lib/userAlarms'
-import { loadDismissPhrase, TEST_DISMISS_PHRASE } from '../src/lib/alarmDismissPhrase'
+import type { AlarmDismissContext } from '../src/lib/alarmDismissContext'
+import { buildFallbackDismissPhrase } from '../src/lib/alarmDismissPhraseEngine'
 
-// saveAll이 window/네이티브를 건드려 테스트 환경에서 못 도니, 알람을 저장소에 직접 넣어
-// loadDismissPhrase(실제 바꾼 로직)만 검증한다.
-function seedAlarm(over: Partial<UserAlarm>): UserAlarm {
-  const a: UserAlarm = {
-    id: 'a1', time: '07:00', label: '알람', enabled: true,
-    repeatDays: [0, 1, 2, 3, 4, 5, 6], createdAt: 1, updatedAt: 2, ...over,
+function ctx(over: Partial<AlarmDismissContext> = {}): AlarmDismissContext {
+  return {
+    alarmLabel: '알람',
+    futureIdentity: '',
+    futureAdvice: '',
+    futureTypicalDay: '',
+    futureAchievement: '',
+    futureThroughline: '',
+    currentRole: '',
+    goals: [],
+    hasPersonalData: false,
+    ...over,
   }
-  localStorage.setItem('futureme-user-alarms', JSON.stringify([a]))
-  return a
 }
 
-beforeEach(() => localStorage.clear())
-
-describe('밤 다짐 → 해제 문구', () => {
-  it('다짐이 있으면 그게 해제 문구가 된다 (source: user)', () => {
-    seedAlarm({ resolve: '오늘 나는 미루지 않는다' })
-    const phrase = loadDismissPhrase('a1', '2026-08-01')
-    expect(phrase?.phrase).toBe('오늘 나는 미루지 않는다')
-    expect(phrase?.source).toBe('user')
+describe('밤 다짐 → 아침 해제 문구', () => {
+  it('밤에 적은 다짐이 해제 문구에 들어간다', () => {
+    const phrase = buildFallbackDismissPhrase(ctx({ alarmResolve: '오늘 나는 미루지 않는다' }))
+    expect(phrase).toContain('오늘 나는 미루지 않는다')
   })
 
-  it('다짐이 없으면 폴백 문구로 물러난다 (해제는 되게)', () => {
-    seedAlarm({})
-    const phrase = loadDismissPhrase('a1', '2026-08-01')
-    expect(phrase?.phrase).toBe(TEST_DISMISS_PHRASE)
-    expect(phrase?.source).toBe('fallback')
+  it('다짐이 맨 앞에 온다 — 아침에 제일 먼저 마주치는 말이어야 한다', () => {
+    const phrase = buildFallbackDismissPhrase(
+      ctx({ alarmResolve: '오늘 나는 미루지 않는다', futureIdentity: '창업가' }),
+    )
+    expect(phrase.split('\n')[0]).toContain('오늘 나는 미루지 않는다')
   })
 
-  it('다짐이 공백뿐이면 폴백으로 물러난다', () => {
-    seedAlarm({ resolve: '   ' })
-    expect(loadDismissPhrase('a1', '2026-08-01')?.source).toBe('fallback')
+  it('다짐이 없어도 해제 문구는 만들어진다 (알람이 안 꺼지면 안 되니까)', () => {
+    const phrase = buildFallbackDismissPhrase(ctx({ futureIdentity: '창업가' }))
+    expect(phrase.trim().length).toBeGreaterThan(0)
+  })
+
+  it('아무 재료가 없어도 빈 문구를 내지 않는다', () => {
+    expect(buildFallbackDismissPhrase(ctx()).trim().length).toBeGreaterThan(0)
   })
 })
