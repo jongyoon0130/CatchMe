@@ -17,10 +17,12 @@ import { startAlarmSoundLoop } from './alarmSound'
 import { showAlarmNotification } from './notify'
 import { buildAlarmDeepLinkUrl } from './alarmDeepLink'
 import { loadUserAlarms, USER_ALARMS_CHANGE } from './userAlarms'
-import { dismissPhraseForTrigger, activeDismissPhrase } from './alarmDismissPhrase'
+import { dismissPhraseForTrigger } from './alarmDismissPhrase'
+import { resolveDismissPhraseSync } from './alarmDismissPhraseEngine'
 import { generateDismissPhraseWithAI, ensureDismissPhrasesForAlarms } from './alarmDismissPhraseEngine'
 import { startRingingAlarm } from './alarmRingingStore'
 import { syncAlarmsToServiceWorker, markAlarmFiredInServiceWorker } from './alarmSwSync'
+import { isNativeAlarmAvailable } from './nativeAlarm/plugin'
 
 const VISIBLE_TICK_MS = 3_000
 const HIDDEN_TICK_MS = 10_000
@@ -38,11 +40,20 @@ export function getNextAlarmPreview(now = new Date()): ClockAlarmTrigger | null 
 }
 
 async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
+  // iOS AlarmKit — 잠금 화면 알람·재울림은 네이티브가 담당. 웹 스케줄러는 중복·따라치기 유실 방지
+  if (isNativeAlarmAvailable()) return
+
   const dedup = clockAlarmDedupKey(trigger)
   markAlarmFired(trigger.dateKey, dedup)
   markAlarmFiredInServiceWorker(dedup)
 
-  const phrase = dismissPhraseForTrigger(trigger)?.phrase ?? activeDismissPhrase()
+  const phrase =
+    dismissPhraseForTrigger(trigger)?.phrase ??
+    resolveDismissPhraseSync({
+      alarmId: trigger.alarmId,
+      dateKey: trigger.dateKey,
+      alarmLabel: trigger.label,
+    })
 
   const result = await showAlarmNotification({
     title: trigger.label || '알람',
@@ -82,6 +93,10 @@ async function maybePrepareDismissPhrases(now: Date): Promise<void> {
 
 export async function tickAlarms(now = new Date()): Promise<number> {
   if (ticking) return 0
+  if (isNativeAlarmAvailable()) {
+    planExactAlarmWake(now)
+    return 0
+  }
   ticking = true
   try {
     const settings = loadAlarmSettings()

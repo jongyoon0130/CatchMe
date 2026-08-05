@@ -23,6 +23,96 @@ export function longestMatchingPrefix(phrase: string, typed: string): string {
   return typed.slice(0, ti)
 }
 
+/**
+ * 화면·textarea 표시용 — 다음 줄 글자를 치는 순간 phrase의 줄바꿈을 자동 삽입.
+ * (Enter 없이 이어 쳐도 줄이 맞게 보이도록)
+ */
+export function alignTypedDisplay(phrase: string, raw: string): string {
+  let pi = 0
+  let ti = 0
+  let out = ''
+
+  while (ti < raw.length) {
+    while (pi < phrase.length && phrase[pi] === '\n') {
+      out += '\n'
+      pi++
+    }
+
+    const got = raw[ti]!
+    if (got === '\n') {
+      ti++
+      continue
+    }
+
+    if (pi < phrase.length && phrase[pi] === got) {
+      out += got
+      pi++
+      ti++
+      continue
+    }
+
+    out += got
+    ti++
+  }
+
+  return out
+}
+
+/** 다음에 쳐야 할 글자 — null이면 입력 완료 */
+export function nextExpectedChar(phrase: string, typed: string): string | null {
+  let pi = 0
+  let ti = 0
+  while (pi < phrase.length && ti < typed.length) {
+    const expected = phrase[pi]!
+    const got = typed[ti]!
+    if (expected === '\n') {
+      pi++
+      continue
+    }
+    if (got === '\n') {
+      ti++
+      continue
+    }
+    if (expected === got) {
+      pi++
+      ti++
+      continue
+    }
+    return expected
+  }
+  while (pi < phrase.length && phrase[pi] === '\n') pi++
+  return pi < phrase.length ? phrase[pi]! : null
+}
+
+/** 줄 끝까지 맞췄고, 다음은 줄바꿈(자동) 뒤 다음 줄 */
+export function isAwaitingNextLine(phrase: string, typed: string): boolean {
+  let pi = 0
+  let ti = 0
+  while (pi < phrase.length && ti < typed.length) {
+    const expected = phrase[pi]!
+    const got = typed[ti]!
+    if (expected === '\n') {
+      pi++
+      continue
+    }
+    if (got === '\n') {
+      ti++
+      continue
+    }
+    if (expected === got) {
+      pi++
+      ti++
+      continue
+    }
+    return false
+  }
+  return pi < phrase.length && phrase[pi] === '\n'
+}
+
+export function normalizeTypedInput(phrase: string, raw: string): string {
+  return alignTypedDisplay(phrase, commitTypedPrefix(phrase, raw))
+}
+
 export function commitTypedPrefix(phrase: string, raw: string): string {
   if (phraseFullyMatched(phrase, raw)) return raw
   return longestMatchingPrefix(phrase, raw)

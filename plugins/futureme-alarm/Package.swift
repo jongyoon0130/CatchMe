@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "FuturemeAlarm",
-    platforms: [.iOS(.v15)],
+    platforms: [.iOS(.v26)],
     products: [
         .library(name: "FuturemeAlarm", targets: ["FutureMeAlarmPlugin"]),
     ],

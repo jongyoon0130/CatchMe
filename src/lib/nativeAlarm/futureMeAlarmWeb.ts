@@ -4,6 +4,7 @@ import type {
   NativeAlarmFiredEvent,
   NativeAlarmRecord,
   NativeAlarmStatus,
+  AlarmAlertMode,
 } from './types'
 import { NATIVE_ALARM_FIRED_EVENT } from './types'
 
@@ -18,11 +19,12 @@ export class FutureMeAlarmWeb extends WebPlugin implements FutureMeAlarmPlugin {
       alarmKitEntitled: false,
       notificationPermission: typeof Notification !== 'undefined' ? mapWebPermission(Notification.permission) : 'unknown',
       scheduledCount: this.stored.filter((a) => a.enabled).length,
+      hasAwaitingPhrase: false,
       message: '웹 Mock — 「알람 울림 시뮬레이션」으로 따라치기 UX 테스트',
     }
   }
 
-  async syncAlarms(options: { alarms: NativeAlarmRecord[] }): Promise<{ ok: boolean; count: number; mode?: string }> {
+  async syncAlarms(options: { alarms: NativeAlarmRecord[]; alertMode?: AlarmAlertMode }): Promise<{ ok: boolean; count: number; mode?: string }> {
     this.stored = options.alarms
     return { ok: true, count: options.alarms.length, mode: 'mock' }
   }
@@ -81,6 +83,37 @@ export class FutureMeAlarmWeb extends WebPlugin implements FutureMeAlarmPlugin {
       }
     }, seconds * 1000)
     return { ok: true, seconds }
+  }
+
+  async stopActiveAlarm(): Promise<{ ok: boolean }> {
+    return { ok: true }
+  }
+
+  async getPendingDismiss(): Promise<{ pending: false }> {
+    return { pending: false }
+  }
+
+  async cancelAllPending(): Promise<{ ok: boolean }> {
+    return { ok: true }
+  }
+
+  async refillChain(): Promise<{ ok: boolean }> {
+    return { ok: true }
+  }
+
+  async getDebugInfo(): Promise<{ plans: []; log: string[] }> {
+    return { plans: [], log: ['웹 Mock — 네이티브 알람 로그 없음'] }
+  }
+
+  async pulseAlarmHaptic(): Promise<{ ok: boolean }> {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate([200, 120, 200])
+    }
+    return { ok: true }
+  }
+
+  async setAlertMode(options: { mode: AlarmAlertMode }): Promise<{ ok: boolean; mode?: AlarmAlertMode }> {
+    return { ok: true, mode: options.mode }
   }
 }
 

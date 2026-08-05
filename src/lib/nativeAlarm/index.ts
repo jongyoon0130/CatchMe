@@ -1,19 +1,37 @@
 export type {
+  AlarmAlertMode,
   FutureMeAlarmPlugin,
+  NativeAlarmDebugInfo,
   NativeAlarmFiredEvent,
   NativeAlarmMode,
+  NativeAlarmPlanInfo,
   NativeAlarmRecord,
   NativeAlarmStatus,
 } from './types'
 export {
   FutureMeAlarm,
   attachNativeAlarmFiredListener,
+  cancelNativePendingAlarms,
+  getNativeAlarmDebugInfo,
   getNativeAlarmStatus,
   isNativeAlarmAvailable,
   isNativeAlarmDevMode,
+  pulseNativeAlarmHaptic,
   requestNativeNotificationPermission,
   scheduleNativeTestNotification,
+  setNativeAlarmAlertMode,
   simulateNativeAlarmFire,
+  stopNativeActiveAlarm,
 } from './plugin'
-export { syncAlarmsToNative, buildNativeAlarmRecords } from './sync'
-export { fireNativeAlarmDismissUI, runNativeAlarmSimulation, nativeEventToTrigger } from './fire'
+export {
+  autoSyncAlarmsToNative,
+  buildNativeAlarmRecords,
+  refillNativeAlarmChain,
+  syncAlarmsToNative,
+} from './sync'
+export {
+  consumeNativePendingDismiss,
+  fireNativeAlarmDismissUI,
+  nativeEventToTrigger,
+  runNativeAlarmSimulation,
+} from './fire'

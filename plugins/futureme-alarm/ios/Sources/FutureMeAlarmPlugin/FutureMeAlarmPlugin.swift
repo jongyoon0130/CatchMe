@@ -1,11 +1,8 @@
 import Foundation
 import Capacitor
 import UserNotifications
+import UIKit
 
-/// AlarmKit entitlement 전 mock 모드.
-/// - syncAlarms: UserDefaults에 저장
-/// - simulateAlarm: JS로 alarmFired 이벤트 + (선택) 로컬 알림
-/// entitlement 승인 후 `#if canImport(AlarmKit)` 블록에서 AlarmManager 연동
 @objc(FutureMeAlarmPlugin)
 public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "FutureMeAlarmPlugin"
@@ -16,52 +13,282 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "simulateAlarm", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestNotificationPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "scheduleTestNotification", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopActiveAlarm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPendingDismiss", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelAllPending", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pulseAlarmHaptic", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAlertMode", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getDebugInfo", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "refillChain", returnType: CAPPluginReturnPromise),
     ]
 
     private let storageKey = "futureme-native-alarms-json"
-    /// entitlement 승인 후 true — AlarmKit 스케줄링으로 전환
-    private let useAlarmKit = false
+
+    override public func load() {
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                AlarmKitBridge.shared.setAlertHandler { [weak self] pending in
+                    self?.notifyAlarmFired(pending)
+                }
+                AlarmKitBridge.shared.startObserving()
+                self.observeAppBecomeActive()
+                self.deliverPendingDismissIfNeeded()
+            }
+        }
+        #endif
+    }
+
+    private func observeAppBecomeActive() {
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            #if canImport(AlarmKit)
+            if #available(iOS 26.0, *) {
+                Task { @MainActor in
+                    self?.deliverPendingDismissIfNeeded()
+                    await AlarmKitBridge.shared.refillAwaitingPlans()
+                }
+            }
+            #endif
+        }
+    }
+
+    // MARK: - 따라치기
+
+    @objc func getPendingDismiss(_ call: CAPPluginCall) {
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                guard let pending = AlarmKitBridge.shared.pendingDismiss() else {
+                    call.resolve(["pending": false])
+                    return
+                }
+                call.resolve(Self.pendingPayload(pending, includePendingFlag: true))
+            }
+            return
+        }
+        #endif
+        call.resolve(["pending": false])
+    }
+
+    /// 다짐 완료 — 남은 울림·푸시 전부 취소
+    @objc func stopActiveAlarm(_ call: CAPPluginCall) {
+        let alarmKitId = call.getString("alarmKitId")
+        let alarmId = call.getString("alarmId")
+
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                await AlarmKitBridge.shared.completePlan(alarmId: alarmId, kitId: alarmKitId)
+                call.resolve(["ok": true])
+            }
+            return
+        }
+        #endif
+        call.resolve(["ok": false, "detail": "AlarmKit unavailable"])
+    }
+
+    @objc func cancelAllPending(_ call: CAPPluginCall) {
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                await AlarmKitBridge.shared.cancelEverything()
+                call.resolve(["ok": true])
+            }
+            return
+        }
+        #endif
+        FutureMeAlarmNotificationBridge.cancelAllFutureMePushes()
+        call.resolve(["ok": true])
+    }
+
+    @objc func refillChain(_ call: CAPPluginCall) {
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                await AlarmKitBridge.shared.refillAwaitingPlans()
+                call.resolve(["ok": true])
+            }
+            return
+        }
+        #endif
+        call.resolve(["ok": true])
+    }
+
+    // MARK: - 상태
 
     @objc func getStatus(_ call: CAPPluginCall) {
         let count = loadStoredAlarms().count
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            let permission: String
-            switch settings.authorizationStatus {
-            case .authorized, .provisional, .ephemeral:
-                permission = "granted"
-            case .denied:
-                permission = "denied"
-            case .notDetermined:
-                permission = "prompt"
-            @unknown default:
-                permission = "unknown"
-            }
 
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                let permission = AlarmKitBridge.shared.authorizationLabel()
+                let notifySettings = await UNUserNotificationCenter.current().notificationSettings()
+                call.resolve([
+                    "platform": "ios",
+                    "mode": "alarmkit",
+                    "alarmKitEntitled": permission == "granted",
+                    "notificationPermission": Self.notificationPermissionLabel(
+                        notifySettings.authorizationStatus
+                    ),
+                    "alarmKitPermission": permission,
+                    "scheduledCount": count,
+                    "hasAwaitingPhrase": AlarmKitBridge.shared.hasAwaitingPhrasePlan(),
+                    "alarmKitScheduledCount": AlarmKitBridge.shared.alarmKitScheduledCount(),
+                    "message": permission == "granted"
+                        ? "AlarmKit 활성 — 20초 간격 재울림 체인 예약됨"
+                        : "설정 > Future Me > 알람에서 허용해주세요",
+                ])
+            }
+            return
+        }
+        #endif
+
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
             call.resolve([
                 "platform": "ios",
-                "mode": self.useAlarmKit ? "alarmkit" : "mock",
-                "alarmKitEntitled": self.useAlarmKit,
-                "notificationPermission": permission,
+                "mode": "mock",
+                "alarmKitEntitled": false,
+                "notificationPermission": Self.notificationPermissionLabel(settings.authorizationStatus),
                 "scheduledCount": count,
-                "message": self.useAlarmKit
-                    ? "AlarmKit 활성 — 시스템 알람으로 스케줄됨"
-                    : "Mock 모드 — AlarmKit entitlement 승인 전. 시뮬레이션·로컬 알림으로 테스트",
+                "message": "iOS 26+ 와 AlarmKit 이 필요합니다",
             ])
         }
     }
+
+    @objc func getDebugInfo(_ call: CAPPluginCall) {
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                let pendingRequests = await UNUserNotificationCenter.current().pendingNotificationRequests()
+                call.resolve([
+                    "plans": AlarmKitBridge.shared.planSummaries(),
+                    "log": FutureMeAlarmStorage.readLog().reversed(),
+                    "alarmKitScheduledCount": AlarmKitBridge.shared.alarmKitScheduledCount(),
+                    "pendingPushCount": pendingRequests.filter {
+                        $0.identifier.hasPrefix("futureme-")
+                    }.count,
+                    "alertMode": FutureMeAlarmStorage.loadAlertMode(),
+                ])
+            }
+            return
+        }
+        #endif
+        call.resolve(["plans": [], "log": FutureMeAlarmStorage.readLog().reversed()])
+    }
+
+    // MARK: - 동기화
 
     @objc func syncAlarms(_ call: CAPPluginCall) {
         guard let alarms = call.getArray("alarms") else {
             call.reject("alarms array required")
             return
         }
-        UserDefaults.standard.set(alarms, forKey: storageKey)
-        if useAlarmKit {
-            // TODO(entitlement): AlarmManager.shared.schedule(...) for each enabled alarm
-        } else {
-            scheduleLocalAlarmNotifications(alarms: alarms)
+        if let alertMode = call.getString("alertMode") {
+            FutureMeAlarmStorage.saveAlertMode(alertMode)
         }
-        call.resolve(["ok": true, "count": alarms.count, "mode": useAlarmKit ? "alarmkit" : "mock"])
+        UserDefaults.standard.set(alarms, forKey: storageKey)
+
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                do {
+                    let count = try await AlarmKitBridge.shared.syncAlarms(alarms)
+                    call.resolve(["ok": true, "count": count, "mode": "alarmkit"])
+                } catch {
+                    FutureMeAlarmStorage.log("sync 실패: \(error.localizedDescription)")
+                    call.resolve([
+                        "ok": false,
+                        "count": 0,
+                        "mode": "error",
+                        "detail": error.localizedDescription,
+                    ])
+                }
+            }
+            return
+        }
+        #endif
+
+        call.resolve(["ok": true, "count": alarms.count, "mode": "mock"])
+    }
+
+    // MARK: - 테스트 · 권한 · 기타
+
+    @objc func scheduleTestNotification(_ call: CAPPluginCall) {
+        let seconds = call.getInt("seconds") ?? 5
+        let label = call.getString("label") ?? "Future Me 테스트"
+        let phrase = call.getString("phrase") ?? "안녕"
+        let alarmId = call.getString("alarmId") ?? "test"
+        let time = call.getString("time") ?? "07:00"
+        if let alertMode = call.getString("alertMode") {
+            FutureMeAlarmStorage.saveAlertMode(alertMode)
+        }
+
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            Task { @MainActor in
+                do {
+                    let result = try await AlarmKitBridge.shared.scheduleFixedTest(
+                        seconds: seconds,
+                        alarmId: alarmId,
+                        label: label,
+                        time: time,
+                        phrase: phrase
+                    )
+                    call.resolve([
+                        "ok": true,
+                        "seconds": seconds,
+                        "mode": "alarmkit",
+                        "ringCount": result.ringCount,
+                        "pushCount": result.pushCount,
+                        "intentsAttached": result.intentsAttached,
+                    ])
+                } catch {
+                    call.resolve([
+                        "ok": false,
+                        "mode": "error",
+                        "detail": error.localizedDescription,
+                    ])
+                }
+            }
+            return
+        }
+        #endif
+        call.resolve(["ok": false, "detail": "AlarmKit unavailable"])
+    }
+
+    @objc func requestNotificationPermission(_ call: CAPPluginCall) {
+        Task {
+            let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .sound, .badge]
+            )) ?? false
+
+            #if canImport(AlarmKit)
+            if #available(iOS 26.0, *) {
+                let alarmPermission = await MainActor.run { () -> String in
+                    AlarmKitBridge.shared.authorizationLabel()
+                }
+                var resolved = alarmPermission
+                if alarmPermission != "granted" {
+                    resolved = (try? await AlarmKitBridge.shared.requestAuthorization()) ?? alarmPermission
+                }
+                call.resolve([
+                    "permission": resolved,
+                    "notificationPermission": granted ? "granted" : "denied",
+                ])
+                return
+            }
+            #endif
+
+            call.resolve([
+                "permission": granted ? "granted" : "denied",
+                "notificationPermission": granted ? "granted" : "denied",
+            ])
+        }
     }
 
     @objc func simulateAlarm(_ call: CAPPluginCall) {
@@ -69,117 +296,88 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
         let label = call.getString("label") ?? "알람"
         let time = call.getString("time") ?? "07:00"
         let phrase = call.getString("phrase") ?? "안녕"
-
-        notifyAlarmFired(alarmId: alarmId, label: label, time: time, phrase: phrase)
+        notifyListeners("alarmFired", data: [
+            "alarmId": alarmId,
+            "label": label,
+            "time": time,
+            "phrase": phrase,
+            "dateKey": FutureMeAlarmStorage.todayDateKey(),
+            "source": "simulate",
+        ], retainUntilConsumed: true)
         call.resolve(["ok": true])
     }
 
-    @objc func requestNotificationPermission(_ call: CAPPluginCall) {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-            call.resolve(["permission": granted ? "granted" : "denied"])
+    @objc func pulseAlarmHaptic(_ call: CAPPluginCall) {
+        guard FutureMeAlarmStorage.loadAlertMode() != "silent" else {
+            call.resolve(["ok": true])
+            return
         }
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.warning)
+        let impact = UIImpactFeedbackGenerator(style: .heavy)
+        impact.prepare()
+        impact.impactOccurred()
+        call.resolve(["ok": true])
     }
 
-    /// 약한 대용 — N초 뒤 로컬 알림 (AlarmKit 아님)
-    @objc func scheduleTestNotification(_ call: CAPPluginCall) {
-        let seconds = call.getInt("seconds") ?? 5
-        let label = call.getString("label") ?? "Future Me 테스트"
-        let phrase = call.getString("phrase") ?? "안녕"
-
-        let content = UNMutableNotificationContent()
-        content.title = label
-        content.body = "탭하면 따라치기 — \(phrase)"
-        content.sound = .default
-        content.userInfo = [
-            "futuremeAlarm": true,
-            "alarmId": call.getString("alarmId") ?? "test",
-            "phrase": phrase,
-            "time": call.getString("time") ?? "07:00",
-            "label": label,
-        ]
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(max(1, seconds)), repeats: false)
-        let request = UNNotificationRequest(identifier: "futureme-test-\(UUID().uuidString)", content: content, trigger: trigger)
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                call.reject("notification failed: \(error.localizedDescription)")
-            } else {
-                call.resolve(["ok": true, "seconds": seconds])
-            }
+    @objc func setAlertMode(_ call: CAPPluginCall) {
+        guard let mode = call.getString("mode") else {
+            call.reject("mode required")
+            return
         }
+        if mode == "sound" || mode == "vibrate" || mode == "silent" {
+            FutureMeAlarmStorage.saveAlertMode(mode)
+        }
+        call.resolve(["ok": true, "mode": FutureMeAlarmStorage.loadAlertMode()])
+    }
+
+    // MARK: - 내부
+
+    #if canImport(AlarmKit)
+    @available(iOS 26.0, *)
+    @MainActor
+    private func deliverPendingDismissIfNeeded() {
+        guard let pending = AlarmKitBridge.shared.pendingDismiss() else { return }
+        notifyAlarmFired(pending)
+    }
+    #endif
+
+    private func notifyAlarmFired(_ pending: FutureMePendingDismiss) {
+        notifyListeners(
+            "alarmFired",
+            data: Self.pendingPayload(pending, includePendingFlag: false),
+            retainUntilConsumed: true
+        )
+    }
+
+    private static func pendingPayload(
+        _ pending: FutureMePendingDismiss,
+        includePendingFlag: Bool
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "alarmId": pending.alarmId,
+            "label": pending.label,
+            "time": pending.time,
+            "phrase": pending.phrase,
+            "dateKey": pending.dateKey,
+            "alarmKitId": pending.kitId,
+            "source": "alarmkit",
+        ]
+        if includePendingFlag { payload["pending"] = true }
+        return payload
     }
 
     private func loadStoredAlarms() -> [[String: Any]] {
         UserDefaults.standard.array(forKey: storageKey) as? [[String: Any]] ?? []
     }
 
-    /// AlarmKit 전 — UNCalendarNotificationTrigger 로 앱 꺼져도 정각 알림 (시계앱급은 아님)
-    private func scheduleLocalAlarmNotifications(alarms: [Any]) {
-        let center = UNUserNotificationCenter.current()
-        center.getPendingNotificationRequests { pending in
-            let stale = pending
-                .map(\.identifier)
-                .filter { $0.hasPrefix("futureme-alarm-") }
-            center.removePendingNotificationRequests(withIdentifiers: stale)
-
-            for raw in alarms {
-                guard let alarm = raw as? [String: Any] else { continue }
-                if (alarm["enabled"] as? Bool) == false { continue }
-                guard let alarmId = alarm["id"] as? String,
-                      let time = alarm["time"] as? String else { continue }
-
-                let parts = time.split(separator: ":")
-                guard parts.count == 2,
-                      let hour = Int(parts[0]),
-                      let minute = Int(parts[1]) else { continue }
-
-                let label = alarm["label"] as? String ?? "알람"
-                let repeatDays = alarm["repeatDays"] as? [Int] ?? [0, 1, 2, 3, 4, 5, 6]
-
-                for dow in repeatDays {
-                    var dc = DateComponents()
-                    dc.hour = hour
-                    dc.minute = minute
-                    dc.weekday = dow + 1 // 1=일 … 7=토
-
-                    let content = UNMutableNotificationContent()
-                    content.title = label
-                    content.body = "다짐을 따라 쳐야 꺼져요 — Future Me"
-                    content.sound = .default
-                    content.userInfo = [
-                        "futuremeAlarm": true,
-                        "alarmId": alarmId,
-                        "label": label,
-                        "time": time,
-                        "phrase": "안녕",
-                    ]
-
-                    let trigger = UNCalendarNotificationTrigger(dateMatching: dc, repeats: true)
-                    let id = "futureme-alarm-\(alarmId)-\(dow)"
-                    let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-                    center.add(request)
-                }
-            }
+    private static func notificationPermissionLabel(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .authorized, .provisional, .ephemeral: return "granted"
+        case .denied: return "denied"
+        case .notDetermined: return "prompt"
+        @unknown default: return "unknown"
         }
-    }
-
-    private func notifyAlarmFired(alarmId: String, label: String, time: String, phrase: String) {
-        let payload: [String: Any] = [
-            "alarmId": alarmId,
-            "label": label,
-            "time": time,
-            "phrase": phrase,
-            "dateKey": todayDateKey(),
-            "source": useAlarmKit ? "alarmkit" : "mock",
-        ]
-        notifyListeners("alarmFired", data: payload)
-    }
-
-    private func todayDateKey() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = .current
-        return f.string(from: Date())
     }
 }

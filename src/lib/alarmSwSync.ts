@@ -1,8 +1,27 @@
 import { loadAlarmSettings, loadFiredAlarmKeys } from './alarmStore'
-import { activeDismissPhrase } from './alarmDismissPhrase'
+import { loadDismissPhrase } from './alarmDismissPhrase'
+import { resolveDismissPhraseSync } from './alarmDismissPhraseEngine'
 import { loadUserAlarms } from './userAlarms'
 import { readyNotifyWorker } from './notify'
 import { dateKeyFrom } from './clockAlarmEngine'
+
+function phraseForServiceWorker(): string {
+  const dateKey = dateKeyFrom(new Date())
+  const alarms = loadUserAlarms().filter((a) => a.enabled)
+  for (const alarm of alarms) {
+    const stored = loadDismissPhrase(alarm.id, dateKey)
+    if (stored?.phrase) return stored.phrase
+  }
+  const first = alarms[0]
+  if (first) {
+    return resolveDismissPhraseSync({
+      alarmId: first.id,
+      dateKey,
+      alarmLabel: first.label,
+    })
+  }
+  return '오늘도 미래의 나를 선택한다'
+}
 
 /** 메인 앱 → 서비스 워커: 백그라운드에서도 알람이 울리도록 예약 */
 export async function syncAlarmsToServiceWorker(): Promise<void> {
@@ -13,11 +32,13 @@ export async function syncAlarmsToServiceWorker(): Promise<void> {
   if (!worker) return
 
   const dateKey = dateKeyFrom(new Date())
+  const phrase = phraseForServiceWorker()
+
   worker.postMessage({
     type: 'sync-alarms',
     alarms: loadUserAlarms(),
     settings: loadAlarmSettings(),
-    phrase: activeDismissPhrase(),
+    phrase,
     firedKeys: [...loadFiredAlarmKeys(dateKey)],
   })
 }

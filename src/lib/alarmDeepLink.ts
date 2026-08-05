@@ -2,24 +2,33 @@ import type { ClockAlarmTrigger } from './clockAlarmEngine'
 import {
   loadDismissPhrase,
   saveDismissPhrase,
-  activeDismissPhrase,
   normalizeDismissPhrase,
   type AlarmDismissPhrase,
 } from './alarmDismissPhrase'
+import { resolveDismissPhraseSync } from './alarmDismissPhraseEngine'
 import { startRingingAlarm } from './alarmRingingStore'
 import { startAlarmSoundLoop } from './alarmSound'
 
 export type AlarmDeepLink = ClockAlarmTrigger & { phrase?: string }
 
-export function buildAlarmDeepLinkUrl(trigger: ClockAlarmTrigger, _phrase?: string): string {
+export function buildAlarmDeepLinkUrl(trigger: ClockAlarmTrigger, phrase?: string): string {
+  const resolved =
+    phrase?.trim() ||
+    loadDismissPhrase(trigger.alarmId, trigger.dateKey)?.phrase ||
+    resolveDismissPhraseSync({
+      alarmId: trigger.alarmId,
+      dateKey: trigger.dateKey,
+      alarmLabel: trigger.label,
+    })
+
   const params = new URLSearchParams({
     alarm: '1',
     alarmId: trigger.alarmId,
     dateKey: trigger.dateKey,
     time: trigger.time,
     label: trigger.label || '알람',
+    phrase: resolved,
   })
-  params.set('phrase', activeDismissPhrase())
   const base = typeof window !== 'undefined' ? window.location.pathname || '/index.html' : '/index.html'
   return `${base}?${params.toString()}`
 }
@@ -72,17 +81,19 @@ async function fetchDismissPhraseFromCloud(
     const hit = (row.dismiss_phrases as AlarmDismissPhrase[]).find(
       (p) => p.alarmId === alarmId && p.dateKey === dateKey && p.phrase?.trim(),
     )
-    if (!hit) return null
-    return { ...hit, phrase: activeDismissPhrase() }
+    return hit ?? null
   } catch {
     return null
   }
 }
 
 /** 로컬 → URL → 클라우드 순으로 다짐 문장을 찾는다 */
-export async function resolvePhraseForTrigger(trigger: ClockAlarmTrigger, phraseFromUrl?: string): Promise<string | null> {
+export async function resolvePhraseForTrigger(
+  trigger: ClockAlarmTrigger,
+  phraseFromUrl?: string,
+): Promise<string | null> {
   if (phraseFromUrl?.trim()) {
-    const phrase = activeDismissPhrase()
+    const phrase = normalizeDismissPhrase(phraseFromUrl)
     saveDismissPhrase({
       alarmId: trigger.alarmId,
       dateKey: trigger.dateKey,
@@ -94,15 +105,19 @@ export async function resolvePhraseForTrigger(trigger: ClockAlarmTrigger, phrase
   }
 
   const local = loadDismissPhrase(trigger.alarmId, trigger.dateKey)
-  if (local?.phrase) return activeDismissPhrase()
+  if (local?.phrase) return local.phrase
 
   const remote = await fetchDismissPhraseFromCloud(trigger.alarmId, trigger.dateKey)
   if (remote?.phrase) {
-    saveDismissPhrase({ ...remote, phrase: activeDismissPhrase() })
-    return activeDismissPhrase()
+    saveDismissPhrase(remote)
+    return remote.phrase
   }
 
-  return null
+  return resolveDismissPhraseSync({
+    alarmId: trigger.alarmId,
+    dateKey: trigger.dateKey,
+    alarmLabel: trigger.label,
+  })
 }
 
 /** 알림 탭·푸시로 열렸을 때 따라치기 화면을 띄운다 */

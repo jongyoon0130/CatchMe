@@ -73,7 +73,10 @@ function saveAll(alarms: UserAlarm[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(alarms))
   window.dispatchEvent(new CustomEvent(USER_ALARMS_CHANGE))
   void import('./alarmDataSync').then(({ scheduleAlarmDataSync }) => scheduleAlarmDataSync())
-  void import('./nativeAlarm').then(({ syncAlarmsToNative }) => syncAlarmsToNative())
+  // 네이티브가 따라치기 대기 중인 체인을 스스로 보호하므로 바로 동기화해도 안전하다
+  void import('./nativeAlarm').then(({ autoSyncAlarmsToNative }) => {
+    void autoSyncAlarmsToNative(true)
+  })
   void import('./alarmBootstrap').then(({ bootstrapAlarmDelivery }) =>
     bootstrapAlarmDelivery({ askPermission: true }),
   )

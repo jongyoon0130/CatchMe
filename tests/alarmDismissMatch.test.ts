@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alignTypedDisplay,
   commitTypedPrefix,
   dismissMatchProgress,
+  isAwaitingNextLine,
   longestMatchingPrefix,
+  nextExpectedChar,
+  normalizeTypedInput,
   phraseFullyMatched,
   phraseMatchStates,
 } from '../src/lib/alarmDismissMatch'
@@ -25,6 +29,21 @@ describe('alarmDismissMatch', () => {
     const phrase = 'abc'
     expect(commitTypedPrefix(phrase, 'ab')).toBe('ab')
     expect(commitTypedPrefix(phrase, 'ax')).toBe('a')
+  })
+
+  it('aligns display newlines when typing continues without Enter', () => {
+    const phrase = '첫째줄이다\n둘째줄이다'
+    expect(alignTypedDisplay(phrase, '첫째줄이다')).toBe('첫째줄이다')
+    expect(alignTypedDisplay(phrase, '첫째줄이다둘')).toBe('첫째줄이다\n둘')
+    expect(isAwaitingNextLine(phrase, '첫째줄이다')).toBe(true)
+    expect(nextExpectedChar(phrase, '첫째줄이다')).toBe('둘')
+  })
+
+  it('normalizes raw input with auto newlines and prefix commit', () => {
+    const phrase = 'abc\ndef'
+    expect(normalizeTypedInput(phrase, 'abc')).toBe('abc')
+    expect(normalizeTypedInput(phrase, 'abcd')).toBe('abc\nd')
+    expect(normalizeTypedInput(phrase, 'abcx')).toBe('abc')
   })
 
   it('marks wrong syllables red state', () => {

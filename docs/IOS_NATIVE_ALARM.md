@@ -1,57 +1,34 @@
-# iOS 네이티브 알람 (Capacitor + Mock)
+# iOS 네이티브 알람 (Capacitor + AlarmKit)
 
-AlarmKit **entitlement 승인 전**에 할 수 있는 작업을 모두 포함한 iOS 앱 골격입니다.
+iOS 26+ **AlarmKit** 으로 시스템 알람을 스케줄합니다. Apple 사전 entitlement 신청 없이 framework import + 사용자 허용으로 동작합니다.
 
-## 포함된 것 (승인 전)
+## 포함된 것
 
 | 기능 | 설명 |
 |------|------|
 | Capacitor iOS 프로젝트 | `app.futureme.studio` |
-| WebView | 기존 React 앱 (채팅·목표·알람 UI) |
-| `FutureMeAlarm` Bridge | JS ↔ Swift 플러그인 |
-| **Mock 모드** | AlarmKit 없이 UserDefaults + 이벤트 |
-| **알람 울림 시뮬레이션** | 따라치기(`안녕`) 전체 화면 + 소리 |
-| **네이티브 동기화** | 알람 저장 시 Swift에 전달 |
-| **5초 뒤 로컬 알림** | 약한 대용 (AlarmKit 아님) |
-| 웹 개발(mock) | 브라우저에서도 시뮬레이션 UI 표시 |
+| `FutureMeAlarm` Bridge | JS ↔ Swift — **AlarmKit** 스케줄링 |
+| **AlarmKit** | 잠금 화면 시스템 알람 (앱 꺼도 울림) |
+| **로컬 알림 폴백** | AlarmKit 실패 시 UNNotification |
+| **따라치기 UI** | 알람 울릴 때 `alarmFired` → 오버레이 |
 
-## 승인 후에 할 일
+## 필수 설정
 
-1. [AlarmKit entitlement 신청](https://developer.apple.com/contact/request/alarmkit)
-2. `FutureMeAlarmPlugin.swift`에서 `useAlarmKit = true` + AlarmManager 연동
-3. `Info.plist`에 `NSAlarmKitUsageDescription` 추가
-4. 실기기 end-to-end 테스트
-
----
+1. **Minimum Deployment iOS 26.0**
+2. **Info.plist** — `NSAlarmKitUsageDescription`
+3. 앱에서 **AlarmKit 알람 허용** (알람 탭 → 알람 권한)
 
 ## 로컬 개발 (Mac)
 
-**필요:** Xcode, CocoaPods (`brew install cocoapods`)
-
 ```bash
-chmod +x scripts/setup-ios.sh
-./scripts/setup-ios.sh   # 최초 1회 — ios/ 생성 + sync
-bun run ios:open         # Xcode
-```
-
-또는 수동:
-
-```bash
+cd FutureMe-studio
 bun install
-bun run build
-bunx cap add ios      # 최초 1회
-bunx cap sync ios
-bunx cap open ios
+bun run build:ios
+open ios/App/App.xcworkspace
 ```
 
-### Vite 라이브 리로드 (선택)
+Xcode ▶ Run → 알람 탭 → **알람 권한 (AlarmKit)** → **5초 뒤 AlarmKit 테스트**
 
-`capacitor.config.ts`의 `server.url` 주석 해제 후 `bun run dev:chat` + `cap sync ios`
+## AlarmKit 신청?
 
----
-
-## AlarmKit entitlement 신청 예시 (영문)
-
-**Bundle ID:** app.futureme.studio  
-
-> Future Me is a morning commitment alarm app. Users set wake-up alarms and must type a personalized affirmation phrase to dismiss the alarm. AlarmKit is required so alarms fire reliably on the lock screen when the app is not running. This is the app's core feature.
+공식 문서 기준 **별도 Apple entitlement 신청 불필요**. Capability 목록에 없어도 정상일 수 있습니다.

@@ -11,7 +11,8 @@ Pod::Spec.new do |s|
   s.author = 'Future Me'
   s.source = { :git => 'https://github.com/jongyoon0130/FutureMe-studio.git', :tag => s.version.to_s }
   s.source_files = 'ios/Sources/**/*.{swift,h,m,c,cc,mm,cpp}'
-  s.ios.deployment_target = '14.0'
+  s.ios.deployment_target = '26.0'
   s.dependency 'Capacitor'
-  s.swift_version = '5.1'
+  s.frameworks = 'AlarmKit', 'AppIntents'
+  s.swift_version = '5.9'
 end

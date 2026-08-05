@@ -1,10 +1,11 @@
 import type { ClockAlarmTrigger } from '../clockAlarmEngine'
-import { activeDismissPhrase, loadDismissPhrase } from '../alarmDismissPhrase'
+import { loadDismissPhrase } from '../alarmDismissPhrase'
+import { resolveDismissPhraseSync } from '../alarmDismissPhraseEngine'
 import { startAlarmSoundLoop } from '../alarmSound'
 import { startRingingAlarm } from '../alarmRingingStore'
 import { loadUserAlarms } from '../userAlarms'
 import type { NativeAlarmFiredEvent } from './types'
-import { simulateNativeAlarmFire } from './plugin'
+import { FutureMeAlarm, isNativeAlarmAvailable, simulateNativeAlarmFire } from './plugin'
 
 export function nativeEventToTrigger(event: NativeAlarmFiredEvent): ClockAlarmTrigger {
   return {
@@ -15,12 +16,36 @@ export function nativeEventToTrigger(event: NativeAlarmFiredEvent): ClockAlarmTr
   }
 }
 
-/** 따라치기 오버레이 + 소리 (웹 mock·iOS mock 공통) */
+/**
+ * 따라치기 오버레이 + 소리 (웹 mock·iOS AlarmKit 공통).
+ *
+ * AlarmKit 이 알린 울림은 네이티브가 이미 "다짐 미완료" 를 검증했으므로 무조건 띄운다.
+ */
 export function fireNativeAlarmDismissUI(event: NativeAlarmFiredEvent): void {
   const trigger = nativeEventToTrigger(event)
-  const phrase = event.phrase?.trim() || activeDismissPhrase()
-  startRingingAlarm(trigger, phrase)
+  const fromNative = event.source === 'alarmkit'
+  const phrase =
+    event.phrase?.trim() ||
+    resolveDismissPhraseSync({
+      alarmId: trigger.alarmId,
+      dateKey: trigger.dateKey,
+      alarmLabel: trigger.label,
+    })
+  startRingingAlarm(trigger, phrase, event.alarmKitId, { force: fromNative })
   startAlarmSoundLoop()
+}
+
+/** Intent/슬라이드로 앱이 열렸을 때 네이티브 pending → 따라치기 UI */
+export async function consumeNativePendingDismiss(): Promise<boolean> {
+  if (!isNativeAlarmAvailable()) return false
+  try {
+    const result = await FutureMeAlarm.getPendingDismiss()
+    if (!result.pending) return false
+    fireNativeAlarmDismissUI(result)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** 개발용 — 첫 번째(또는 지정) 알람으로 울림 시뮬레이션 */
@@ -40,7 +65,13 @@ export async function runNativeAlarmSimulation(alarmId?: string): Promise<{
     label: alarm.label,
     time: alarm.time,
     // 밤에 적어둔 다짐이 해제 문구가 된다. 없으면 폴백.
-    phrase: loadDismissPhrase(alarm.id, dateKey)?.phrase ?? activeDismissPhrase(),
+    phrase:
+      loadDismissPhrase(alarm.id, dateKey)?.phrase ??
+      resolveDismissPhraseSync({
+        alarmId: alarm.id,
+        dateKey,
+        alarmLabel: alarm.label,
+      }),
   }
 
   const ok = await simulateNativeAlarmFire(payload)

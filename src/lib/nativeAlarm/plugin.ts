@@ -1,5 +1,11 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
-import type { FutureMeAlarmPlugin, NativeAlarmFiredEvent, NativeAlarmStatus } from './types'
+import type {
+  AlarmAlertMode,
+  FutureMeAlarmPlugin,
+  NativeAlarmDebugInfo,
+  NativeAlarmFiredEvent,
+  NativeAlarmStatus,
+} from './types'
 import { NATIVE_ALARM_FIRED_EVENT } from './types'
 
 export const FutureMeAlarm = registerPlugin<FutureMeAlarmPlugin>('FutureMeAlarm', {
@@ -60,12 +66,73 @@ export async function scheduleNativeTestNotification(opts: {
   label: string
   time: string
   phrase: string
-}): Promise<boolean> {
+  alertMode?: AlarmAlertMode
+}): Promise<{
+  ok: boolean
+  ringCount?: number
+  pushCount?: number
+  intentsAttached?: boolean
+  detail?: string
+}> {
   try {
-    const { ok } = await FutureMeAlarm.scheduleTestNotification(opts)
+    const result = await FutureMeAlarm.scheduleTestNotification(opts)
+    return {
+      ok: result.ok,
+      ringCount: result.ringCount,
+      pushCount: result.pushCount,
+      intentsAttached: result.intentsAttached,
+      detail: result.detail,
+    }
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : undefined }
+  }
+}
+
+export async function getNativeAlarmDebugInfo(): Promise<NativeAlarmDebugInfo> {
+  try {
+    return await FutureMeAlarm.getDebugInfo()
+  } catch {
+    return { plans: [], log: ['디버그 정보를 읽을 수 없어요'] }
+  }
+}
+
+export async function cancelNativePendingAlarms(): Promise<boolean> {
+  if (!isNativeAlarmAvailable()) return false
+  try {
+    const { ok } = await FutureMeAlarm.cancelAllPending()
     return ok
   } catch {
     return false
+  }
+}
+
+export async function pulseNativeAlarmHaptic(): Promise<void> {
+  if (!isNativeAlarmAvailable()) return
+  try {
+    await FutureMeAlarm.pulseAlarmHaptic()
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function setNativeAlarmAlertMode(mode: AlarmAlertMode): Promise<void> {
+  if (!isNativeAlarmAvailable()) return
+  try {
+    await FutureMeAlarm.setAlertMode({ mode })
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function stopNativeActiveAlarm(opts: {
+  alarmId?: string
+  alarmKitId?: string
+}): Promise<void> {
+  if (!isNativeAlarmAvailable()) return
+  try {
+    await FutureMeAlarm.stopActiveAlarm(opts)
+  } catch {
+    /* ignore */
   }
 }
 

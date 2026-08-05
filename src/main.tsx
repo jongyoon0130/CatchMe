@@ -6,9 +6,13 @@ import './styles/aurora.css'
 import './styles/spray-theme.css' /* 로컬 미리보기 — 배포 전 제거 가능 */
 import { initTheme } from './lib/themes'
 import { registerNotifyWorker } from './lib/notify'
-import { attachNativeAlarmFiredListener, fireNativeAlarmDismissUI } from './lib/nativeAlarm'
+import { App as CapApp } from '@capacitor/app'
+import { attachNativeAlarmFiredListener, consumeNativePendingDismiss, fireNativeAlarmDismissUI, autoSyncAlarmsToNative } from './lib/nativeAlarm'
+import { loadAlarmAlertMode } from './lib/alarmAlertMode'
+import { setNativeAlarmAlertMode } from './lib/nativeAlarm/plugin'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { AlarmDismissProvider } from './components/alarm/AlarmDismissProvider'
 
 initTheme()
 
@@ -20,10 +24,30 @@ attachNativeAlarmFiredListener((event) => {
   fireNativeAlarmDismissUI(event)
 })
 
+void (async () => {
+  void setNativeAlarmAlertMode(loadAlarmAlertMode())
+  await consumeNativePendingDismiss()
+  await autoSyncAlarmsToNative()
+})()
+
+void CapApp.addListener('appStateChange', ({ isActive }) => {
+  if (!isActive) return
+  void (async () => {
+    await consumeNativePendingDismiss()
+    await autoSyncAlarmsToNative()
+  })()
+})
+void CapApp.addListener('appUrlOpen', ({ url }) => {
+  if (!url.includes('alarm-dismiss') && !url.includes('alarm=1')) return
+  void consumeNativePendingDismiss()
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <App />
+      <AlarmDismissProvider>
+        <App />
+      </AlarmDismissProvider>
     </AuthProvider>
   </StrictMode>,
 )

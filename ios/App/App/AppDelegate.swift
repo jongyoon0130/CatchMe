@@ -1,13 +1,16 @@
 import UIKit
 import Capacitor
+import UserNotifications
+import FuturemeAlarm
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        FutureMeAlarmIntentRegistry.install()
+        UNUserNotificationCenter.current().delegate = self
         return true
     }
 
@@ -26,7 +29,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // AlarmKit pending dismiss → FutureMeAlarmPlugin.load() / alarmUpdates
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
@@ -44,6 +47,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Feel free to add additional processing here, but if you want the App API to support
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        FutureMeAlarmNotificationBridge.stageOpenDismissFromNotification(
+            response.notification.request.content.userInfo
+        )
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        guard notification.request.content.userInfo["futuremeAlarm"] as? Bool == true else {
+            completionHandler([])
+            return
+        }
+        // 따라치기 화면을 보고 있는 중엔 배너가 입력을 방해한다
+        if FutureMeRingPlanStore.hasAwaitingPhrasePlan() {
+            completionHandler([])
+            return
+        }
+        if FutureMeAlarmStorage.pushUsesSound() {
+            completionHandler([.banner, .sound, .badge])
+        } else {
+            completionHandler([.banner, .badge])
+        }
     }
 
 }

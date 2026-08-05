@@ -7,9 +7,10 @@
     "dev": "vite --host 127.0.0.1 --open /goals.html",
     "dev:chat": "vite --open /index.html",
     "build": "tsc -b && vite build",
-    "build:ios": "bun run build && bunx cap sync ios",
+    "sync:plugin": "rm -rf node_modules/futureme-alarm/ios && cp -R plugins/futureme-alarm/ios node_modules/futureme-alarm/ios && cp plugins/futureme-alarm/package.json plugins/futureme-alarm/FuturemeAlarm.podspec node_modules/futureme-alarm/",
+    "build:ios": "bun run build && bun run sync:plugin && bunx cap sync ios",
     "ios:open": "bunx cap open ios",
-    "ios:sync": "bunx cap sync ios",
+    "ios:sync": "bun run sync:plugin && bunx cap sync ios",
     "lint": "oxlint",
     "test": "bun test",
     "preview": "vite preview"

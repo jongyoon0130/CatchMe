@@ -1,46 +1,85 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatAlarmClockTime } from '../../lib/userAlarms'
 import { isDismissPhraseComplete } from '../../lib/alarmDismissPhrase'
-import { dismissMatchProgress, phraseMatchStates } from '../../lib/alarmDismissMatch'
+import {
+  dismissMatchProgress,
+  isAwaitingNextLine,
+  normalizeTypedInput,
+  phraseMatchStates,
+  type PhraseCharState,
+} from '../../lib/alarmDismissMatch'
 import { stopAlarmSoundLoop } from '../../lib/alarmSound'
-import { stopRingingAlarm, type RingingAlarm } from '../../lib/alarmRingingStore'
+import { stopNativeActiveAlarm, autoSyncAlarmsToNative } from '../../lib/nativeAlarm'
+import { stopRingingAlarm, markPhraseSessionDone, type RingingAlarm } from '../../lib/alarmRingingStore'
 
 const PHRASE_CLASS =
   'font-serif text-[18px] leading-[1.9] whitespace-pre-wrap break-words tracking-[0.01em]'
 
+function TypingCursor() {
+  return (
+    <span
+      aria-hidden
+      className="inline-block w-[2px] h-[1.05em] bg-glow align-[-0.12em] mx-[1px] animate-pulse rounded-full"
+    />
+  )
+}
+
+function renderCharState(state: PhraseCharState, key: string) {
+  if (state.kind === 'wrong') {
+    return (
+      <span key={key} className="text-status-error font-semibold">
+        {state.typed}
+      </span>
+    )
+  }
+  if (state.char === '\n') return <br key={key} />
+
+  if (state.kind === 'pending') {
+    return (
+      <span key={key} className="text-muted/28">
+        {state.char}
+      </span>
+    )
+  }
+  if (state.kind === 'correct') {
+    return (
+      <span key={key} className="text-ink font-medium">
+        {state.char}
+      </span>
+    )
+  }
+  return (
+    <span key={key} className="text-status-error font-semibold">
+      {state.char}
+    </span>
+  )
+}
+
 function PhraseDisplay({ phrase, typed }: { phrase: string; typed: string }) {
   const states = phraseMatchStates(phrase, typed)
+  const cursorAt = states.findIndex((s) => s.kind === 'pending')
 
   return (
     <div className={`${PHRASE_CLASS} select-none pointer-events-none`} aria-hidden>
       {states.map((state, i) => {
-        if (state.kind === 'pending') {
+        const key = `${i}-${state.kind}-${state.kind === 'wrong' ? state.typed : 'char' in state ? state.char : i}`
+        const showCursor = cursorAt === i
+        if (state.kind !== 'wrong' && state.char === '\n') {
           return (
-            <span key={i} className="text-muted/28">
-              {state.char}
-            </span>
-          )
-        }
-        if (state.kind === 'correct') {
-          return (
-            <span key={i} className="text-ink font-medium">
-              {state.char}
-            </span>
-          )
-        }
-        if (state.kind === 'wrong') {
-          return (
-            <span key={i} className="text-status-error font-semibold">
-              {state.typed}
+            <span key={key}>
+              <br />
+              {showCursor ? <TypingCursor /> : null}
             </span>
           )
         }
         return (
-          <span key={i} className="text-status-error font-semibold">
-            {state.char}
+          <span key={key}>
+            {showCursor ? <TypingCursor /> : null}
+            {renderCharState(state, `${key}-c`)}
           </span>
         )
       })}
+      {cursorAt === -1 ? null : cursorAt === states.length ? <TypingCursor /> : null}
     </div>
   )
 }
@@ -56,6 +95,8 @@ function PhraseTypeMatch({
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const composingRef = useRef(false)
+  const awaitingNextLine = isAwaitingNextLine(phrase, value)
+  const lineCount = Math.max(3, phrase.split('\n').length)
 
   useEffect(() => {
     const el = inputRef.current
@@ -70,12 +111,18 @@ function PhraseTypeMatch({
     inputRef.current?.focus({ preventScroll: true })
   }
 
-  const handleInput = useCallback(
-    (next: string) => {
-      onChange(next)
+  const handleRawInput = useCallback(
+    (raw: string) => {
+      onChange(normalizeTypedInput(phrase, raw))
     },
-    [onChange],
+    [onChange, phrase],
   )
+
+  const hint = !value.length
+    ? '회색 글자를 그대로 따라 치세요 · Enter·스페이스 없이 이어서 입력'
+    : awaitingNextLine
+      ? '다음 줄 — Enter 누르지 말고 바로 이어서 치세요'
+      : '틀리면 빨간색 · 줄바꿈은 자동'
 
   return (
     <div
@@ -95,38 +142,42 @@ function PhraseTypeMatch({
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
-        enterKeyHint="done"
+        enterKeyHint="next"
         aria-label="다짐 문장 따라 입력"
-        rows={Math.max(3, phrase.split('\n').length)}
-        className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-ink outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
+        rows={lineCount}
+        className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-transparent outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
         autoFocus
         onChange={(e) => {
-          handleInput(e.target.value)
+          handleRawInput(e.target.value)
         }}
         onCompositionStart={() => {
           composingRef.current = true
         }}
         onCompositionUpdate={(e) => {
-          handleInput(e.currentTarget.value)
+          handleRawInput(e.currentTarget.value)
         }}
         onCompositionEnd={(e) => {
           composingRef.current = false
-          handleInput(e.currentTarget.value)
+          handleRawInput(e.currentTarget.value)
         }}
         onKeyDown={(e) => {
           if (composingRef.current) return
           if (e.key === 'Enter') {
             e.preventDefault()
-            if (phrase[value.length] === '\n') handleInput(`${value}\n`)
+            if (isAwaitingNextLine(phrase, value)) {
+              handleRawInput(`${value}\n`)
+            }
           }
         }}
       />
 
-      {!value.length ? (
-        <p className="absolute bottom-3 inset-x-4 text-[11px] text-muted/70 pointer-events-none z-0">
-          탭해서 회색 문장을 따라 입력하세요 · 틀리면 빨간색
-        </p>
-      ) : null}
+      <p
+        className={`absolute bottom-3 inset-x-4 text-[11px] pointer-events-none z-0 leading-relaxed ${
+          awaitingNextLine ? 'text-glow font-medium' : 'text-muted/70'
+        }`}
+      >
+        {hint}
+      </p>
     </div>
   )
 }
@@ -140,7 +191,7 @@ export function AlarmDismissOverlay({
 }) {
   const [typed, setTyped] = useState('')
   const [done, setDone] = useState(false)
-  const { trigger, phrase } = ringing
+  const { trigger, phrase, alarmKitId } = ringing
 
   const handleTyped = useCallback(
     (next: string) => {
@@ -148,11 +199,16 @@ export function AlarmDismissOverlay({
       if (isDismissPhraseComplete(phrase, next)) {
         setDone(true)
         stopAlarmSoundLoop()
+        markPhraseSessionDone(trigger)
         stopRingingAlarm()
+        void (async () => {
+          await stopNativeActiveAlarm({ alarmId: trigger.alarmId, alarmKitId })
+          await autoSyncAlarmsToNative(true)
+        })()
         window.setTimeout(onDismissed, 320)
       }
     },
-    [phrase, onDismissed],
+    [phrase, onDismissed, trigger, alarmKitId],
   )
 
   const progress = dismissMatchProgress(phrase, typed)
@@ -184,7 +240,8 @@ export function AlarmDismissOverlay({
 
         <div className="rounded-2xl border border-border/60 bg-surface p-5 shadow-[0_8px_28px_rgba(20,22,28,0.06)] flex flex-col">
           <p className="text-[12px] text-muted mb-4 leading-relaxed">
-            어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요.
+            어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요. 줄바꿈은 Enter 없이
+            이어서 치면 자동으로 넘어가요.
           </p>
 
           <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />

@@ -1,6 +1,5 @@
 import type { ClockAlarmTrigger } from './clockAlarmEngine'
 import { phraseFullyMatched } from './alarmDismissMatch'
-import { loadUserAlarms } from './userAlarms'
 
 export interface AlarmDismissPhrase {
   alarmId: string
@@ -8,18 +7,10 @@ export interface AlarmDismissPhrase {
   dateKey: string
   phrase: string
   generatedAt: number
-  /** user=사용자가 밤에 적은 다짐, ai=미래의 나 초안(예정), fallback=기본 문구 */
-  source: 'user' | 'ai' | 'fallback'
+  source: 'ai' | 'fallback'
 }
 
 const STORAGE_PREFIX = 'futureme-alarm-dismiss-'
-
-/** 테스트용 — 따라치기 문장 고정. 실서비스 전에 제거/AI 생성으로 되돌릴 것 */
-export const TEST_DISMISS_PHRASE = '안녕'
-
-export function activeDismissPhrase(): string {
-  return TEST_DISMISS_PHRASE
-}
 
 function storageKey(alarmId: string, dateKey: string): string {
   return `${STORAGE_PREFIX}${alarmId}:${dateKey}`
@@ -29,35 +20,40 @@ export function phraseRecordKey(alarmId: string, dateKey: string): string {
   return `${alarmId}:${dateKey}`
 }
 
-/** AI·폴백 출력을 3줄 다짐 형태로 정리 */
+/** AI·폴백 출력을 3~4줄 다짐 형태로 정리 */
 export function normalizeDismissPhrase(raw: string): string {
   const lines = raw
     .replace(/\r\n/g, '\n')
     .split('\n')
-    .map((l) => l.trim())
+    .map((l) => l.replace(/^[\s\-*•\d.]+/, '').trim())
     .filter(Boolean)
-    .slice(0, 3)
+    .slice(0, 4)
   return lines.join('\n')
 }
 
 export function loadDismissPhrase(alarmId: string, dateKey: string): AlarmDismissPhrase | null {
-  // 사용자가 밤에 적어둔 다짐이 있으면 그게 해제 문구다. 없으면 폴백(해제는 되게).
-  const alarm = loadUserAlarms().find((a) => a.id === alarmId)
-  const resolve = alarm?.resolve?.trim()
-  if (resolve) {
-    return { alarmId, dateKey, phrase: resolve, generatedAt: alarm!.updatedAt, source: 'user' }
+  try {
+    const raw = localStorage.getItem(storageKey(alarmId, dateKey))
+    if (!raw) return null
+    const data = JSON.parse(raw) as AlarmDismissPhrase
+    if (!data?.phrase?.trim() || !data.alarmId || !data.dateKey) return null
+    return { ...data, phrase: normalizeDismissPhrase(data.phrase) }
+  } catch {
+    return null
   }
-  return { alarmId, dateKey, phrase: activeDismissPhrase(), generatedAt: Date.now(), source: 'fallback' }
 }
 
 export function saveDismissPhrase(record: AlarmDismissPhrase): void {
-  const phrase = activeDismissPhrase()
+  const phrase = normalizeDismissPhrase(record.phrase)
   if (!phrase) return
   localStorage.setItem(
     storageKey(record.alarmId, record.dateKey),
     JSON.stringify({ ...record, phrase }),
   )
   void import('./alarmDataSync').then(({ scheduleAlarmDataSync }) => scheduleAlarmDataSync())
+  void import('./nativeAlarm').then(({ isNativeAlarmAvailable, autoSyncAlarmsToNative }) => {
+    if (isNativeAlarmAvailable()) void autoSyncAlarmsToNative(true)
+  })
 }
 
 export function loadAllDismissPhrases(): AlarmDismissPhrase[] {
@@ -70,7 +66,7 @@ export function loadAllDismissPhrases(): AlarmDismissPhrase[] {
       if (!raw) continue
       const data = JSON.parse(raw) as AlarmDismissPhrase
       if (!data?.phrase?.trim() || !data.alarmId || !data.dateKey) continue
-      out.push({ ...data, phrase: activeDismissPhrase() })
+      out.push({ ...data, phrase: normalizeDismissPhrase(data.phrase) })
     }
   } catch {
     /* ignore */
