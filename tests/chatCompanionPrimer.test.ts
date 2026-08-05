@@ -120,3 +120,67 @@ describe('실행 리듬 배선 (2단계) — 지난날이 프롬프트에 실린
     localStorage.clear()
   })
 })
+
+// C·D (docs/chat-cases.md) — 자책엔 반례, 힘듦엔 되묻지 않기.
+// D의 "무엇이 위로냐"는 사람마다 달라서 고정 답을 두지 않는다. 온보딩에서 user가
+// 직접 고른 future.adviceTone이 색을 정한다 — 예전엔 저장만 되고 안 쓰였다.
+describe('C·D — 자책 반례와 위로 방향', () => {
+  const HARD_CASES = ['오늘 아무것도 못했어', '하... 힘들다', '요즘 좀 우울해']
+
+  it('자책·힘듦 예시가 모두 들어 있고, 되묻기로 끝나지 않는다', () => {
+    for (const hint of HARD_CASES) {
+      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))
+      expect(ex).toBeDefined()
+      expect(asksBack(ex!.model)).toBe(false)
+    }
+  })
+
+  it('면접식 되묻기("특히 찌르는 순간")가 예시에서 사라졌다', () => {
+    expect(BEHAVIOR_PRIMER.some((e) => e.model.includes('찌르는 순간'))).toBe(false)
+  })
+
+  const promptFor = (tone: 'comfort' | 'tough', msg = '하... 힘들다') => {
+    const base = emptyProfile()
+    const p = { ...base, name: '지웅', comfortTarget: '네 페이스대로 가도 돼', future: { ...base.future, adviceTone: tone } }
+    return buildSystemPrompt(p, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('위로가 필요한 턴에 user가 고른 위로 방향이 실린다', () => {
+    expect(promptFor('comfort')).toContain('위로가 필요한 자리')
+    expect(promptFor('comfort')).toContain('네 페이스대로 가도 돼')
+  })
+
+  it('고른 톤에 따라 지시가 갈린다 — 따끔은 무르게 넘어가주지 않는다', () => {
+    expect(promptFor('tough')).toContain('무르게 넘어가주지 않기')
+    expect(promptFor('comfort')).not.toContain('무르게 넘어가주지 않기')
+    expect(promptFor('comfort')).toContain('받아주고 멈춰주기')
+  })
+
+  it('위로 턴이 아니면 싣지 않는다 — 매 턴 끌고 다니지 않는다', () => {
+    expect(promptFor('comfort', '오늘 할 일 다 끝냈어!')).not.toContain('위로가 필요한 자리')
+  })
+
+  it('구체화(좁히기) 지시가 힘듦 턴에서 꺼진다 — 되묻기의 진짜 출처였다', () => {
+    expect(promptFor('comfort')).not.toContain('구체화 단계')
+    expect(promptFor('comfort')).not.toContain('찔렀는지')
+    // 되묻기가 맞는 자리(E 고민)는 그대로 남는다
+    const e = '요즘 뭔가 고민인데'
+    expect(buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(e), undefined, e)).toContain('구체화 단계')
+  })
+
+  it('면죄부는 가벼운 날만이라는 규칙이 계획표 블록과 함께 실린다 (C-2)', () => {
+    // 이 규칙은 "며칠째 밀림"을 보고 판단하는 것이라, 계획표 데이터가 있을 때만 의미가 있다
+    localStorage.clear()
+    localStorage.setItem('goal-app-owner-id', 'owner-1')
+    const d = new Date()
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    localStorage.setItem(
+      'goal-misc-todos-owner-1',
+      JSON.stringify([{ id: 'm1', label: '운동', done: false, tier: 'daily', periodKey: key }]),
+    )
+    const out = promptFor('comfort')
+    expect(out).toContain('자책엔 반례로')
+    expect(out).toContain('면죄부는 가벼운 날만')
+    localStorage.clear()
+  })
+})
