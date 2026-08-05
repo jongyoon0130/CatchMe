@@ -16,8 +16,9 @@ export function isNativeAlarmAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
 }
 
+/** 개발 빌드에서만 디버그 UI·시뮬레이션 API 노출 */
 export function isNativeAlarmDevMode(): boolean {
-  return isNativeAlarmAvailable() || import.meta.env.DEV
+  return import.meta.env.DEV
 }
 
 export async function getNativeAlarmStatus(): Promise<NativeAlarmStatus> {

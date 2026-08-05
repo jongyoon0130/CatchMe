@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { startAlarmScheduler } from '../lib/alarmScheduler'
 import { ensureAlarmPushReady } from '../lib/notify'
 import { bootstrapAlarmDelivery } from '../lib/alarmBootstrap'
-import { isNativeAlarmDevMode, autoSyncAlarmsToNative, consumeNativePendingDismiss } from '../lib/nativeAlarm'
+import { isNativeAlarmAvailable, autoSyncAlarmsToNative, consumeNativePendingDismiss } from '../lib/nativeAlarm'
 import { markAlarmFired } from '../lib/alarmStore'
 import { watchServiceWorkerAlarmSync } from '../lib/alarmSwSync'
 import { startAlarmSoundLoop } from '../lib/alarmSound'
@@ -16,7 +16,7 @@ export function useAlarmScheduler(): void {
     const stopSwWatch = watchServiceWorkerAlarmSync()
     void bootstrapAlarmDelivery({ askPermission: false })
     void ensureAlarmPushReady()
-    if (isNativeAlarmDevMode()) {
+    if (isNativeAlarmAvailable()) {
       void (async () => {
         await consumeNativePendingDismiss()
         await autoSyncAlarmsToNative()

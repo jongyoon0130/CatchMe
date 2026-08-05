@@ -7,7 +7,7 @@ export interface AlarmDismissPhrase {
   dateKey: string
   phrase: string
   generatedAt: number
-  source: 'ai' | 'fallback'
+  source: 'ai' | 'fallback' | 'manual'
 }
 
 const STORAGE_PREFIX = 'futureme-alarm-dismiss-'
@@ -78,6 +78,35 @@ export function applyDismissPhrases(records: AlarmDismissPhrase[]): void {
   for (const record of records) {
     saveDismissPhrase(record)
   }
+}
+
+export function describeDismissPhraseSource(source: AlarmDismissPhrase['source']): string {
+  switch (source) {
+    case 'manual':
+      return '직접 작성'
+    case 'ai':
+      return 'AI 생성'
+    default:
+      return '자동 생성'
+  }
+}
+
+export function saveManualDismissPhrase(opts: {
+  alarmId: string
+  dateKey: string
+  phrase: string
+}): AlarmDismissPhrase | null {
+  const phrase = normalizeDismissPhrase(opts.phrase)
+  if (!phrase.trim()) return null
+  const record: AlarmDismissPhrase = {
+    alarmId: opts.alarmId,
+    dateKey: opts.dateKey,
+    phrase,
+    generatedAt: Date.now(),
+    source: 'manual',
+  }
+  saveDismissPhrase(record)
+  return record
 }
 
 export function isDismissPhraseComplete(phrase: string, typed: string): boolean {
