@@ -14,6 +14,8 @@ import {
   subscribeWebPush,
   type NotifyEnv,
 } from './notify'
+import { isIosNative } from './platform'
+import { getNativeAlarmStatus } from './nativeAlarm'
 
 export type LockScreenAlarmStatus = {
   env: NotifyEnv
@@ -86,6 +88,30 @@ export async function getLockScreenAlarmStatus(): Promise<LockScreenAlarmStatus>
     cronHealthy = false
   }
 
+  if (isIosNative()) {
+    const native = await getNativeAlarmStatus()
+    const alarmKitOk =
+      native.alarmKitPermission === 'granted' ||
+      (native.alarmKitPermission == null && native.alarmKitEntitled)
+    const notifyOk = native.notificationPermission === 'granted'
+    let blocker: string | null = null
+    if (alarmCount > 0 && !alarmKitOk && native.notificationPermission === 'denied') {
+      blocker = '알람 권한이 필요해요 — 알람 설정에서 허용해주세요'
+    }
+    const ready = alarmCount > 0 && native.scheduledCount > 0 && (alarmKitOk || notifyOk)
+    return {
+      env,
+      loggedIn,
+      pushSubscriptionLocal,
+      pushSubscriptionOnServer,
+      alarmsOnServer,
+      alarmCount,
+      cronHealthy,
+      ready,
+      blocker,
+    }
+  }
+
   let blocker: string | null = infraError
   if (!blocker && !env.secure) blocker = 'https로 열어야 해요'
   else if (!blocker && env.isIOS && !env.standalone) blocker = '홈 화면에 추가한 앱으로 열어야 잠금 알람이 와요'
@@ -138,7 +164,7 @@ function formatCloudSaveError(msg: string): string {
 export async function registerLockScreenAlarm(): Promise<{ ok: boolean; detail?: string }> {
   const env = readNotifyEnv()
 
-  if (env.isIOS && !env.standalone) {
+  if (!isIosNative() && env.isIOS && !env.standalone) {
     return { ok: false, detail: 'iPhone은 Safari 탭이 아니라 홈 화면 앱으로 열어주세요.' }
   }
   if (env.permission !== 'granted') {

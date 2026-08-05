@@ -18,19 +18,9 @@ import {
   type AlarmDismissPhrase,
 } from '../../lib/alarmDismissPhrase'
 import { ensureDismissPhrasesForAlarms, resolveDismissPhraseSync } from '../../lib/alarmDismissPhraseEngine'
-import {
-  describeNotifyBlocker,
-  enableAlarmNotifications,
-  readNotifyEnv,
-  type NotifyEnv,
-} from '../../lib/notify'
 import { bootstrapAlarmDelivery } from '../../lib/alarmBootstrap'
-import { getLockScreenAlarmStatus, registerLockScreenAlarm } from '../../lib/alarmPushClient'
-import {
-  autoSyncAlarmsToNative,
-  isNativeAlarmAvailable,
-  requestNativeNotificationPermission,
-} from '../../lib/nativeAlarm'
+import { loadAlarmSettingsSnapshot } from '../../lib/alarmSettingsStatus'
+import { autoSyncAlarmsToNative } from '../../lib/nativeAlarm'
 import {
   loadAlarmAlertMode,
   saveAlarmAlertMode,
@@ -41,21 +31,20 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { AlarmEditSheet } from './AlarmEditSheet'
 import { DismissPhraseEditSheet } from './DismissPhraseEditSheet'
+import { AlarmSettingsSheet } from './AlarmSettingsSheet'
 
 /** 핸드폰 시계 앱처럼 — 알람 목록 + 토글 + 추가 */
 export function AlarmClockPanel() {
   const { user } = useAuth()
   const [alarms, setAlarms] = useState<UserAlarm[]>(() => loadUserAlarms())
-  const [env, setEnv] = useState<NotifyEnv>(() => readNotifyEnv())
-  const [deliveryReady, setDeliveryReady] = useState(false)
-  const [deliveryBlocker, setDeliveryBlocker] = useState<string | null>(null)
   const [editing, setEditing] = useState<UserAlarm | null | 'new'>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [needsSetup, setNeedsSetup] = useState(false)
   const [nextLabel, setNextLabel] = useState<string | null>(null)
   const [nextTarget, setNextTarget] = useState<ClockAlarmTrigger | null>(null)
   const [nextPhrase, setNextPhrase] = useState<string | null>(null)
   const [nextPhraseSource, setNextPhraseSource] = useState<AlarmDismissPhrase['source'] | null>(null)
   const [phraseEditing, setPhraseEditing] = useState(false)
-  const [busy, setBusy] = useState<'connect' | null>(null)
   const [alertMode, setAlertMode] = useState<AlarmAlertMode>(() => loadAlarmAlertMode())
 
   const ALERT_MODE_OPTIONS: { id: AlarmAlertMode; label: string }[] = [
@@ -66,11 +55,7 @@ export function AlarmClockPanel() {
 
   const refresh = useCallback(() => {
     setAlarms(loadUserAlarms())
-    setEnv(readNotifyEnv())
-    void getLockScreenAlarmStatus().then((status) => {
-      setDeliveryBlocker(status.blocker)
-      setDeliveryReady(status.ready)
-    })
+    void loadAlarmSettingsSnapshot().then((snap) => setNeedsSetup(snap.needsAttention))
     const next = getNextAlarmPreview()
     setNextTarget(next)
     setNextLabel(next ? `${formatAlarmClockTime(next.time)} · ${next.label}` : null)
@@ -136,32 +121,6 @@ export function AlarmClockPanel() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  const blocker = describeNotifyBlocker(env)
-  const needPermission = env.permission !== 'granted'
-
-  const handleEnableNotify = async () => {
-    const { permission } = await enableAlarmNotifications()
-    if (isNativeAlarmAvailable()) {
-      await requestNativeNotificationPermission()
-    }
-    await bootstrapAlarmDelivery({ askPermission: false, forceRenew: true })
-    void autoSyncAlarmsToNative(true)
-    refresh()
-    if (permission !== 'granted') return
-    window.alert('알림을 켰어요. 설정한 시간에 자동으로 울려요.')
-  }
-
-  const handleConnectPush = async () => {
-    setBusy('connect')
-    try {
-      const result = await registerLockScreenAlarm()
-      refresh()
-      window.alert(result.ok ? '서버 연결 완료! 이제 앱을 꺼도 알람이 와요.' : result.detail ?? '연결에 실패했어요.')
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const handleAlertModeChange = (mode: AlarmAlertMode) => {
     if (mode === alertMode) return
     saveAlarmAlertMode(mode)
@@ -182,18 +141,31 @@ export function AlarmClockPanel() {
     <div>
       <div className="flex items-end justify-between mb-4">
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em] text-ink">알람</h1>
-        <button
-          type="button"
-          onClick={() => setEditing('new')}
-          className="nb-btn nb-btn--accent rounded-full px-4 py-2 text-[13px] active:scale-100"
-        >
-          + 추가
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="relative rounded-full border border-border bg-surface px-3 py-2 text-[13px] font-semibold text-ink/85"
+            aria-label="알람 설정"
+          >
+            설정
+            {needsSetup ? (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-status-warn" aria-hidden />
+            ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing('new')}
+            className="nb-btn nb-btn--accent rounded-full px-4 py-2 text-[13px] active:scale-100"
+          >
+            + 추가
+          </button>
+        </div>
       </div>
 
       <p className="text-[11px] text-muted/75 mb-3 leading-relaxed">
         알람을 켜두면 <strong className="font-medium text-ink/80">설정한 시간</strong>에 울려요.
-        앱을 닫거나 잠금 화면이어도 알림으로 와요.
+        앱을 닫거나 잠금 화면에서도 울립니다.
       </p>
 
       <div className="rounded-xl border border-border bg-surface px-3.5 py-3 mb-3">
@@ -221,41 +193,6 @@ export function AlarmClockPanel() {
           ))}
         </div>
       </div>
-
-      {deliveryBlocker ? (
-        <div className="rounded-xl border border-status-warn/30 bg-status-warn/8 px-3.5 py-3 mb-3 space-y-2">
-          <p className="text-[12px] text-ink/85 leading-relaxed">{deliveryBlocker}</p>
-          <div className="flex flex-wrap gap-2">
-            {needPermission && !blocker ? (
-              <button
-                type="button"
-                onClick={() => void handleEnableNotify()}
-                className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface"
-              >
-                알림 허용하기
-              </button>
-            ) : null}
-            {env.permission === 'granted' && user && !deliveryReady && alarms.some((a) => a.enabled) ? (
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void handleConnectPush()}
-                className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface disabled:opacity-50"
-              >
-                {busy === 'connect' ? '연결 중…' : '연결하기'}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      ) : alarms.some((a) => a.enabled) && deliveryReady ? (
-        <p className="text-[11px] text-status-ok mb-3">알람 준비 완료 — 앱을 꺼도 설정한 시간에 울려요</p>
-      ) : null}
-
-      {needPermission && blocker ? (
-        <div className="rounded-xl border border-status-warn/30 bg-status-warn/8 px-3.5 py-3 mb-3">
-          <p className="text-[12px] text-ink/85 leading-relaxed">{blocker}</p>
-        </div>
-      ) : null}
 
       {nextLabel ? (
         <p className="text-[11px] text-ink/70 mb-3">
@@ -348,6 +285,13 @@ export function AlarmClockPanel() {
           ))}
         </ul>
       )}
+
+      {settingsOpen ? (
+        <AlarmSettingsSheet
+          onClose={() => setSettingsOpen(false)}
+          onChanged={refresh}
+        />
+      ) : null}
 
       {phraseEditing && nextTarget && nextPhrase ? (
         <DismissPhraseEditSheet

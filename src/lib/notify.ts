@@ -25,6 +25,8 @@ export interface NotifyEnv {
   secure: boolean
 }
 
+import { isIosNative, isNativeApp } from './platform'
+
 const SW_URL = '/sw.js?v=8'
 const PENDING_PUSH_KEY = 'futureme-pending-push-sub'
 
@@ -44,17 +46,23 @@ function detectIOS(): boolean {
 }
 
 export function readNotifyEnv(): NotifyEnv {
+  const native = isNativeApp()
   const supportsServiceWorker = typeof navigator !== 'undefined' && 'serviceWorker' in navigator
   const supportsNotification = typeof window !== 'undefined' && 'Notification' in window
   const supportsPush = typeof window !== 'undefined' && 'PushManager' in window
 
   return {
-    standalone: detectStandalone(),
-    isIOS: detectIOS(),
-    supportsServiceWorker,
-    supportsNotification,
-    supportsPush,
-    permission: supportsNotification ? Notification.permission : 'unsupported',
+    standalone: native || detectStandalone(),
+    isIOS: native ? isIosNative() : detectIOS(),
+    supportsServiceWorker: native ? true : supportsServiceWorker,
+    supportsNotification: native ? true : supportsNotification,
+    supportsPush: native ? isIosNative() : supportsPush,
+    permission:
+      native || supportsNotification
+        ? typeof Notification !== 'undefined'
+          ? Notification.permission
+          : 'default'
+        : 'unsupported',
     secure: typeof window !== 'undefined' && window.isSecureContext,
   }
 }
@@ -177,6 +185,12 @@ export async function showTestNotification(delayMs = 5000): Promise<TestNotifyRe
 
 /** 지금 이 기기에서 알림을 켤 수 있는지 + 안 되면 왜 안 되는지 한 줄 */
 export function describeNotifyBlocker(env: NotifyEnv): string | null {
+  if (isNativeApp()) {
+    if (env.permission === 'denied') {
+      return '알림이 꺼져 있어요 — iPhone 설정 → Future Me → 알림에서 허용해주세요'
+    }
+    return null
+  }
   if (!env.secure) return 'https로 열어야 알림을 켤 수 있어 (localhost는 예외)'
   if (!env.supportsNotification || !env.supportsServiceWorker) {
     return '이 브라우저는 알림을 지원하지 않아'
