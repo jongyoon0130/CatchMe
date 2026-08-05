@@ -386,3 +386,81 @@ describe('describeKnownFactsBlock compact(lite) — 내일 일정 누락 회귀 
     expect(compact).toContain('내일 7/17(금): 등록된 일간 할 일 없음')
   })
 })
+
+// ---------------------------------------------------------------------------
+// 지난날·정체 — 채팅 2단계. 구 플래너(p.planner)는 화면이 안 열려 늘 비어 있었고,
+// 프롬프트엔 "앞날"만 실려서 "어제 미룬 그거"도 "5일째 그대로"도 말할 근거가 없었다.
+// docs/chat-cases.md C(반례) · C-2(채찍)의 재료가 여기서 나온다.
+// ---------------------------------------------------------------------------
+describe('지난 며칠 — 반례와 밀림의 근거', () => {
+  const seedMisc = (items: Record<string, unknown>[]) => {
+    const owner = seedOwner()
+    localStorage.setItem(`goal-misc-todos-${owner}`, JSON.stringify(items))
+  }
+
+  it('어제 안 한 것을 이름으로 싣는다 — "어제 미룬 그거"', () => {
+    seedMisc([
+      { id: 'a', label: '이력서 고치기', done: false, tier: 'daily', periodKey: '2026-07-15' },
+      { id: 'b', label: '운동', done: true, tier: 'daily', periodKey: '2026-07-15' },
+    ])
+    const out = describeGoalBoardForPrompt(NOW) // 2026-07-16
+    expect(out).toContain('어제 7/15(수): 1/2 완료 · 안 한 것: 이력서 고치기')
+  })
+
+  it('지난날을 다 했으면 "전부 함" — 자책에 반례로 쓸 근거', () => {
+    seedMisc([{ id: 'a', label: '운동', done: true, tier: 'daily', periodKey: '2026-07-14' }])
+    expect(describeGoalBoardForPrompt(NOW)).toContain('2일 전 7/14(화): 1/1 완료 (전부 함)')
+  })
+
+  it('3일보다 오래된 지난 일은 싣지 않는다 — 토큰과 잔소리 둘 다 아낀다', () => {
+    seedMisc([
+      { id: 'a', label: '사흘전 일', done: false, tier: 'daily', periodKey: '2026-07-13' },
+      { id: 'b', label: '나흘전 일', done: false, tier: 'daily', periodKey: '2026-07-12' },
+    ])
+    const out = describeGoalBoardForPrompt(NOW)
+    expect(out).toContain('사흘전 일')
+    expect(out).not.toContain('나흘전 일')
+  })
+})
+
+describe('정체한 목표 — C-2 채찍의 근거', () => {
+  const seedPlanWith = (updatedAt: string, done: boolean) => {
+    const owner = seedOwner()
+    localStorage.setItem(
+      `goal-plans-${owner}`,
+      JSON.stringify([
+        {
+          id: 'plan-s',
+          profileId: owner,
+          templateType: 'backplan',
+          title: '토익 900',
+          intake: { goal: '토익', deadline: '2026-12-01', successCriteria: '', progress: 'not_started' },
+          sections: [],
+          createdAt: '2026-06-01T12:00:00',
+          updatedAt,
+          hierarchy: {
+            horizon: 'day-only', rangeLabel: '7월', focus: '', startDate: '2026-07-01', deadline: '2026-07-31',
+            months: [], weeks: [],
+            days: [{ id: 'd1', dateLabel: '7/1', dayOfWeek: '수', focus: '', items: [{ id: 't1', label: '단어', done }] }],
+            currentWeekId: '',
+          },
+        },
+      ]),
+    )
+  }
+
+  it('5일 넘게 손 안 댄 미완 목표는 사실 한 줄로 싣는다', () => {
+    seedPlanWith('2026-07-10T12:00:00', false) // 6일 전
+    expect(describeGoalBoardForPrompt(NOW)).toContain('"토익 900" 목표: 6일째 손 안 댐')
+  })
+
+  it('5일 미만이면 싣지 않는다 — 기본값은 편들기, 함부로 채찍 금지', () => {
+    seedPlanWith('2026-07-12T12:00:00', false) // 4일 전
+    expect(describeGoalBoardForPrompt(NOW)).not.toContain('손 안 댐')
+  })
+
+  it('이미 다 이룬 목표는 정체가 아니다', () => {
+    seedPlanWith('2026-07-10T12:00:00', true)
+    expect(describeGoalBoardForPrompt(NOW)).not.toContain('손 안 댐')
+  })
+})

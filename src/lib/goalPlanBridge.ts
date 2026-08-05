@@ -196,6 +196,8 @@ function historyLines(now: Date): string[] {
     if (streak >= 2) lines.push(`하루 마감 ${streak}일 연속 — 완료 수보다 이 "돌아오는 리듬"을 알아봐줄 것`)
   }
 
+  lines.push(...stalledPlanLines(now))
+
   return lines
 }
 
@@ -257,6 +259,10 @@ function formatTaskTier(title: string, items: AggregatedItem[]): string[] {
 
 /** 프롬프트에 싣는 앞날 범위 — "내일 뭐 있지?"에 답하려면 오늘만으론 부족하다 */
 const UPCOMING_DAYS = 7
+/** 지난날 범위 — "어제 미룬 그거"를 말하려면 앞날만으론 부족하다 */
+const PAST_DAYS = 3
+/** 정체 판정 기준 (docs/chat-cases.md C-2 — 구 plannerStore.stalledGoals와 같은 5일) */
+const STALLED_DAYS = 5
 const DOW_KR = ['일', '월', '화', '수', '목', '금', '토'] as const
 
 function noonMs(d: Date): number {
@@ -271,6 +277,8 @@ function relativeDayLabel(d: Date, now: Date): string {
   if (diff === 0) return `오늘 ${base}`
   if (diff === 1) return `내일 ${base}`
   if (diff === 2) return `모레 ${base}`
+  if (diff === -1) return `어제 ${base}`
+  if (diff < 0) return `${-diff}일 전 ${base}`
   return base
 }
 
@@ -310,7 +318,9 @@ export function collectKnownFactCorpus(now = new Date()): string {
     }
   }
 
-  for (let i = 0; i <= UPCOMING_DAYS; i++) {
+  // 지난날도 포함 — 프롬프트에 실은 것은 전부 "사실"이어야 지우개(stripInventedTimes)가
+  // 어제 항목 얘기를 오답으로 지우지 않는다.
+  for (let i = -PAST_DAYS; i <= UPCOMING_DAYS; i++) {
     const d = new Date(now)
     d.setDate(d.getDate() + i)
     for (const it of dailyItemsForDate(plans, misc, d)) {
@@ -428,6 +438,50 @@ function upcomingDayLines(plans: GoalPlan[], misc: MiscTodoItem[], now: Date): s
   return lines
 }
 
+/**
+ * 지난 며칠의 일간 할 일 — 반례(당근)와 밀림(채찍)의 **유일한** 근거.
+ * "어제 미룬 그거 결국 했네" / "그거 3일째 그대로"는 지난날 데이터 없이는 못 한다.
+ * 앞날과 달리 항목을 다 싣지 않고 한 줄로 줄인다 — 지난 일은 요약이면 충분하고,
+ * 미완료만 이름을 남겨야 AI가 "아직 안 한 것"을 정확히 짚는다.
+ */
+function pastDayLines(plans: GoalPlan[], misc: MiscTodoItem[], now: Date): string[] {
+  const lines: string[] = []
+  for (let i = PAST_DAYS; i >= 1; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    const items = dailyItemsForDate(plans, misc, d)
+    if (!items.length) continue
+    const undone = items.filter((it) => !it.done)
+    const head = `${relativeDayLabel(d, now)}: ${items.length - undone.length}/${items.length} 완료`
+    lines.push(
+      undone.length
+        ? `${head} · 안 한 것: ${undone.slice(0, 3).map((it) => clip(it.label, 30)).join(', ')}${undone.length > 3 ? ` 외 ${undone.length - 3}개` : ''}`
+        : `${head} (전부 함)`,
+    )
+  }
+  return lines
+}
+
+/**
+ * 손 안 댄 지 오래된 목표 — C-2 "채찍"의 근거. 판단 없는 사실 한 줄로만 준다.
+ * ponytail: 기준은 plan.updatedAt(계획표를 열어보기만 해도 갱신됨) — 정체를 놓칠 순 있어도
+ * 없는 정체를 만들진 않는다. 항목별 체크 시각이 생기면 그걸로 바꾼다.
+ */
+function stalledPlanLines(now: Date): string[] {
+  const lines: string[] = []
+  for (const p of readGoalPlansLite()) {
+    const { done, total } = planProgress(p)
+    if (total > 0 && done === total) continue // 이미 다 이룬 목표는 정체가 아니다
+    const last = Date.parse(p.updatedAt ?? '')
+    if (Number.isNaN(last)) continue
+    const days = Math.floor((noonMs(now) - last) / 86400000)
+    if (days >= STALLED_DAYS) {
+      lines.push(`"${clip(p.title, 40)}" 목표: ${days}일째 손 안 댐 — 사실만, 대화당 한 번, 훈계 금지`)
+    }
+  }
+  return lines.slice(0, 2)
+}
+
 function aggregateHomeBoard(now: Date): {
   daily: AggregatedItem[]
   weekly: AggregatedItem[]
@@ -481,6 +535,7 @@ function describeGoalBoardBody(now: Date): string {
     lines.push(`…외 최종 목표 ${plans.length - MAX_PLANS}개`)
   }
 
+  lines.push(...pastDayLines(plans, misc, now))
   lines.push(...dayLines)
   lines.push(...formatTaskTier('이번 주 목표', board.weekly))
   lines.push(...formatTaskTier('이번 달 목표', board.monthly))

@@ -11,7 +11,6 @@ import { BIG_FIVE_ITEMS, INSIGHT_LABELS, LIFE_DOMAIN_LABELS } from '../types/sel
 import { formatApiTurnTimestamp, nowContextKo } from './chatDisplay'
 import { FUTURE_YEARS_AHEAD } from './brand'
 import { renderFutureSelfBlock, personaGaps } from './personaModel'
-import { dateKey, overdueTasks, recentReflectionsWithTask, stalledGoals } from './plannerStore'
 import { auditReplyAgainstKnownFacts, collectKnownFactCorpus, describeKnownFactsBlock, stripInventedTimes } from './goalPlanBridge'
 
 // ---------------------------------------------------------------------------
@@ -418,34 +417,9 @@ function describeGrowthContext(p: SelfProfile): string {
   return lines.map((l) => `- ${l}`).join('\n')
 }
 
-/**
- * 실행 리듬 — 플래너의 목표·완료 회고·멈춤·밀림 (홈 계획표는 describeKnownFactsBlock).
- */
-function describePlannerRhythmOnly(p: SelfProfile): string {
-  const lines: string[] = []
-  const planner = p.planner
-  const activeGoals = planner?.goals.filter((g) => g.status === 'active').slice(0, 2) ?? []
-  if (activeGoals.length) {
-    lines.push(
-      `직접 정한 목표: ${activeGoals
-        .map((g) => `"${g.title}"${g.targetDate ? ` (${g.targetDate}까지)` : ''}`)
-        .join(' / ')}`,
-    )
-  }
-  for (const r of recentReflectionsWithTask(p, 2)) {
-    lines.push(
-      `해낸 직후 남긴 기록: "${r.taskTitle}" — ${r.emotion}${r.pride ? ` ("${r.pride.slice(0, 60)}")` : ''}`,
-    )
-  }
-  const stalled = stalledGoals(p)[0]
-  if (stalled) lines.push(`"${stalled.goal.title}" 목표가 ${stalled.stalledDays}일째 멈춰 있음`)
-  const overdue = overdueTasks(p, dateKey())
-  if (overdue.length) {
-    lines.push(`기한 지난 할 일 ${overdue.length}개 (예: "${overdue[0].title.slice(0, 40)}")`)
-  }
-
-  return lines.map((l) => `- ${l}`).join('\n')
-}
+// 실행 리듬(멈춤·밀림·해낸 기록)은 구 플래너(p.planner)에서 읽었는데, 그 화면은
+// 앱 어디에서도 열리지 않아 데이터가 안 쌓였다 → 항상 빈 문자열이었다.
+// 살아있는 홈 계획표에서 읽도록 goalPlanBridge로 옮김 (docs/chat-cases.md C-2).
 
 /** 이번 user 말이 성장 4축(두려움·회피·욕망)을 건드렸는지 → 짧은 가이드 주입 */
 function describeGrowthTouch(p: SelfProfile, userMessage: string): string {
@@ -1279,10 +1253,9 @@ export function buildSystemPrompt(
   const growthSection = growthCtx ? `\n## 성장 축 (참고 — 매 턴 낭독 금지)\n${growthCtx}` : ''
 
   const knownFacts = describeKnownFactsBlock(new Date(), lite)
-  const plannerRhythm = lite ? '' : describePlannerRhythmOnly(p)
   const rhythmSection =
-    knownFacts || plannerRhythm
-      ? `\n${knownFacts}${plannerRhythm ? `\n\n### 실행 리듬 (참고 — 매 턴 언급 금지)\n${plannerRhythm}` : ''}
+    knownFacts
+      ? `\n${knownFacts}
 → **사실**: 위 "알고 있는 것"에 없는 시간·일정·이유는 말하지 말 것. 이전 대화·추측도 사실 아님.
 → **평소엔**: 이번 user 말과 연결될 때만. 해낸 기록은 **먼저 알아봐주고 같이 반가워해도 좋다**. 멈춘 목표·밀린 할 일은 **대화당 최대 한 번**. 다그침·숙제 검사 금지.
 → **몸 상태·급한 일이 먼저**: user가 아프거나 급한 일이 생겼다고 하면 계획표는 접어두고 그것부터 받는다.`

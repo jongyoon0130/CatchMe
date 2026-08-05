@@ -93,3 +93,30 @@ describe('감정 단정 금지 (1.5단계)', () => {
     expect(ex.model).not.toMatch(/기분(은|이)? ?좀? ?개운하네/)
   })
 })
+
+// 2단계 — 실행 리듬 배선. 예전엔 구 플래너(p.planner)에서 읽어서 늘 빈칸이었다.
+// 여기서 깨지면 "어제 미룬 그거"를 말할 근거가 프롬프트에서 사라진 것이다.
+describe('실행 리듬 배선 (2단계) — 지난날이 프롬프트에 실린다', () => {
+  const dayKeyOf = (offsetDays: number): string => {
+    const d = new Date()
+    d.setDate(d.getDate() + offsetDays)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  it('어제 안 한 할 일이 시스템 프롬프트에 남는다', () => {
+    localStorage.clear()
+    localStorage.setItem('goal-app-owner-id', 'owner-1')
+    localStorage.setItem(
+      'goal-misc-todos-owner-1',
+      JSON.stringify([
+        { id: 'y1', label: '이력서 고치기', done: false, tier: 'daily', periodKey: dayKeyOf(-1) },
+      ]),
+    )
+
+    const msg = '또 미뤘어'
+    const out = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+    expect(out).toContain('이력서 고치기')
+    expect(out).toContain('어제')
+    localStorage.clear()
+  })
+})
