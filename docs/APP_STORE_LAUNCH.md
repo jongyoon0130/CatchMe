@@ -87,6 +87,40 @@ bun run ios:open
 
 ---
 
+## Phase 4b — Mac (Apple Silicon) 앱 아이콘 설치 🔧
+
+iPhone/iPad 앱을 **M1/M2/M3/M4 맥북**에서 App Store·TestFlight로 설치 (Mac Catalyst 별도 앱 아님).
+
+### 코드 (✅ 적용됨)
+
+Xcode 타깃 `App` → `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES`  
+(iPad 앱을 Mac에서 실행 허용)
+
+### App Store Connect (한 번)
+
+1. **Future Me → 일반 → Mac** (또는 **가격 및 사용 가능 여부**)
+2. **「Apple Silicon Mac에서 iPad 앱 사용」** ✅ 켜기
+3. 새 빌드(TestFlight/App Store) 업로드 후 Mac에서도 배포됨
+
+### 맥에서 설치
+
+1. Mac App Store에서 **TestFlight** 설치 (Apple Silicon)
+2. iPhone과 같은 **futureme** 그룹 / 같은 Apple ID
+3. Future Me → **설치** → Dock·Launchpad에 아이콘
+
+### 제한
+
+| | Mac | iPhone |
+|---|---|---|
+| 홈·채팅·목표 | ✅ | ✅ |
+| 할 일 로컬 알림 | △ (iPad-on-Mac 정책에 따름) | ✅ |
+| AlarmKit 잠금 알람 | ❌ | ✅ (iOS 26+) |
+| **Intel 맥** | ❌ Apple Silicon만 | — |
+
+로컬 확인: Xcode → 실행 대상 **My Mac (Designed for iPad)** → ⌘R
+
+---
+
 ## Phase 5 — App Store Connect 메타데이터 (1~2시간) 🔧
 
 ### 스크린샷

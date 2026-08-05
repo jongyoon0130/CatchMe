@@ -15,13 +15,29 @@ export function dateKeyFrom(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+/** 1회성 알람 — 다음 울릴 날짜 (오늘 시각 지났으면 내일) */
+export function computeOneShotDateKey(time24: string, now = new Date()): string {
+  const [hour, minute] = time24.split(':').map(Number)
+  const at = new Date(now)
+  if (Number.isFinite(hour) && Number.isFinite(minute)) {
+    at.setHours(hour, minute, 0, 0)
+  }
+  if (at.getTime() <= now.getTime()) {
+    at.setDate(at.getDate() + 1)
+  }
+  return dateKeyFrom(at)
+}
+
 /** 오늘 이 알람이 울려야 하는 요일인지 */
 export function userAlarmActiveOnDate(alarm: UserAlarm, date: Date): boolean {
   if (!alarm.enabled) return false
   const time = normalizeTaskTime(alarm.time)
   if (!time) return false
-  const days = alarm.repeatDays.length ? alarm.repeatDays : [0, 1, 2, 3, 4, 5, 6]
-  return days.includes(date.getDay())
+  if (!alarm.repeatDays.length) {
+    const target = alarm.oneShotDateKey ?? computeOneShotDateKey(time)
+    return dateKeyFrom(date) === target
+  }
+  return alarm.repeatDays.includes(date.getDay())
 }
 
 export function collectClockAlarms(alarms: UserAlarm[], date: Date): ClockAlarmTrigger[] {

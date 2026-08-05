@@ -23,16 +23,15 @@ export function AlarmEditSheet({ alarm, onSave, onDelete, onClose }: Props) {
     if (!alarm) return
     setTime(alarm.time)
     setLabel(alarm.label)
-    setRepeatDays(alarm.repeatDays.length ? alarm.repeatDays : [0, 1, 2, 3, 4, 5, 6])
+    setRepeatDays(alarm.repeatDays)
   }, [alarm])
 
   const toggleDay = (d: number) => {
     setRepeatDays((prev) => {
-      const set = new Set(prev.length ? prev : [0, 1, 2, 3, 4, 5, 6])
+      const set = new Set(prev)
       if (set.has(d)) set.delete(d)
       else set.add(d)
-      const next = [...set].sort((a, b) => a - b)
-      return next.length ? next : [d]
+      return [...set].sort((a, b) => a - b)
     })
   }
 
@@ -86,7 +85,7 @@ export function AlarmEditSheet({ alarm, onSave, onDelete, onClose }: Props) {
             <p className="text-[11px] text-muted mb-2">반복</p>
             <div className="flex justify-between gap-1">
               {DOW_LABELS.map((name, d) => {
-                const active = (repeatDays.length ? repeatDays : [0, 1, 2, 3, 4, 5, 6]).includes(d)
+                const active = repeatDays.includes(d)
                 return (
                   <button
                     key={name}

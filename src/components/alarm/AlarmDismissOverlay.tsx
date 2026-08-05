@@ -3,8 +3,8 @@ import { formatAlarmClockTime } from '../../lib/userAlarms'
 import { isDismissPhraseComplete } from '../../lib/alarmDismissPhrase'
 import {
   dismissMatchProgress,
+  hasWrongInput,
   isAwaitingNextLine,
-  normalizeTypedInput,
   phraseMatchStates,
   type PhraseCharState,
 } from '../../lib/alarmDismissMatch'
@@ -27,8 +27,15 @@ function TypingCursor() {
 function renderCharState(state: PhraseCharState, key: string) {
   if (state.kind === 'wrong') {
     return (
-      <span key={key} className="text-status-error font-semibold">
-        {state.typed}
+      <span key={key} className="text-status-error font-semibold underline decoration-status-error/60 decoration-2 underline-offset-4">
+        {state.typed === ' ' ? '\u00A0' : state.typed}
+      </span>
+    )
+  }
+  if (state.kind === 'extra') {
+    return (
+      <span key={key} className="text-status-error font-semibold underline decoration-status-error/60 decoration-2 underline-offset-4">
+        {state.char === ' ' ? '\u00A0' : state.char}
       </span>
     )
   }
@@ -41,15 +48,8 @@ function renderCharState(state: PhraseCharState, key: string) {
       </span>
     )
   }
-  if (state.kind === 'correct') {
-    return (
-      <span key={key} className="text-ink font-medium">
-        {state.char}
-      </span>
-    )
-  }
   return (
-    <span key={key} className="text-status-error font-semibold">
+    <span key={key} className="text-ink font-medium">
       {state.char}
     </span>
   )
@@ -57,14 +57,15 @@ function renderCharState(state: PhraseCharState, key: string) {
 
 function PhraseDisplay({ phrase, typed }: { phrase: string; typed: string }) {
   const states = phraseMatchStates(phrase, typed)
+  // 커서 = 입력이 실제로 멈춘 자리: 첫 pending 앞, pending이 없으면 맨 끝
   const cursorAt = states.findIndex((s) => s.kind === 'pending')
 
   return (
     <div className={`${PHRASE_CLASS} select-none pointer-events-none`} aria-hidden>
       {states.map((state, i) => {
-        const key = `${i}-${state.kind}-${state.kind === 'wrong' ? state.typed : 'char' in state ? state.char : i}`
+        const key = `${i}-${state.kind}`
         const showCursor = cursorAt === i
-        if (state.kind !== 'wrong' && state.char === '\n') {
+        if (state.kind !== 'wrong' && state.kind !== 'extra' && state.char === '\n') {
           return (
             <span key={key}>
               <br />
@@ -79,7 +80,7 @@ function PhraseDisplay({ phrase, typed }: { phrase: string; typed: string }) {
           </span>
         )
       })}
-      {cursorAt === -1 ? null : cursorAt === states.length ? <TypingCursor /> : null}
+      {cursorAt === -1 && states.length > 0 ? <TypingCursor /> : null}
     </div>
   )
 }
@@ -94,8 +95,8 @@ function PhraseTypeMatch({
   onChange: (next: string) => void
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const composingRef = useRef(false)
   const awaitingNextLine = isAwaitingNextLine(phrase, value)
+  const wrong = hasWrongInput(phrase, value)
   const lineCount = Math.max(3, phrase.split('\n').length)
 
   useEffect(() => {
@@ -111,18 +112,13 @@ function PhraseTypeMatch({
     inputRef.current?.focus({ preventScroll: true })
   }
 
-  const handleRawInput = useCallback(
-    (raw: string) => {
-      onChange(normalizeTypedInput(phrase, raw))
-    },
-    [onChange, phrase],
-  )
-
   const hint = !value.length
-    ? '회색 글자를 그대로 따라 치세요 · Enter·스페이스 없이 이어서 입력'
-    : awaitingNextLine
-      ? '다음 줄 — Enter 누르지 말고 바로 이어서 치세요'
-      : '틀리면 빨간색 · 줄바꿈은 자동'
+    ? '회색 글자를 그대로 따라 치세요 · 줄바꿈은 자동으로 넘어가요'
+    : wrong
+      ? '빨간 글자는 지우고(⌫) 다시 치면 돼요'
+      : awaitingNextLine
+        ? '이어서 다음 줄을 치면 돼요 — Enter는 안 눌러도 돼요'
+        : '틀리면 빨간색 — 지우고 다시 치면 돼요'
 
   return (
     <div
@@ -133,6 +129,13 @@ function PhraseTypeMatch({
     >
       <PhraseDisplay phrase={phrase} typed={value} />
 
+      {/*
+        핵심: 이 textarea의 value는 사용자가 친 그대로(raw)이며, 코드가 절대
+        잘라서 되돌려 쓰지 않는다. 한글 IME는 조합 중간 상태("ㅇ"→"안")를
+        거치는데, 그때 값을 재작성하면 React가 DOM을 리셋해 조합이 파괴되고
+        아무것도 안 쳐지는 것처럼 보인다. 표시는 PhraseDisplay가 맡고,
+        여기는 투명 입력층 역할만 한다.
+      */}
       <textarea
         ref={inputRef}
         value={value}
@@ -148,32 +151,13 @@ function PhraseTypeMatch({
         className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-transparent outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
         autoFocus
         onChange={(e) => {
-          handleRawInput(e.target.value)
-        }}
-        onCompositionStart={() => {
-          composingRef.current = true
-        }}
-        onCompositionUpdate={(e) => {
-          handleRawInput(e.currentTarget.value)
-        }}
-        onCompositionEnd={(e) => {
-          composingRef.current = false
-          handleRawInput(e.currentTarget.value)
-        }}
-        onKeyDown={(e) => {
-          if (composingRef.current) return
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            if (isAwaitingNextLine(phrase, value)) {
-              handleRawInput(`${value}\n`)
-            }
-          }
+          onChange(e.target.value)
         }}
       />
 
       <p
         className={`absolute bottom-3 inset-x-4 text-[11px] pointer-events-none z-0 leading-relaxed ${
-          awaitingNextLine ? 'text-glow font-medium' : 'text-muted/70'
+          wrong ? 'text-status-error font-medium' : awaitingNextLine ? 'text-glow font-medium' : 'text-muted/70'
         }`}
       >
         {hint}
@@ -191,10 +175,13 @@ export function AlarmDismissOverlay({
 }) {
   const [typed, setTyped] = useState('')
   const [done, setDone] = useState(false)
-  const { trigger, phrase, alarmKitId } = ringing
+  const { trigger, alarmKitId } = ringing
+  // 빈 문구면 영원히 해제 불가능해진다 — 마지막 방어선
+  const phrase = ringing.phrase?.trim() ? ringing.phrase : '안녕'
 
   const handleTyped = useCallback(
     (next: string) => {
+      if (done) return
       setTyped(next)
       if (isDismissPhraseComplete(phrase, next)) {
         setDone(true)
@@ -208,7 +195,7 @@ export function AlarmDismissOverlay({
         window.setTimeout(onDismissed, 320)
       }
     },
-    [phrase, onDismissed, trigger, alarmKitId],
+    [done, phrase, onDismissed, trigger, alarmKitId],
   )
 
   const progress = dismissMatchProgress(phrase, typed)
@@ -240,8 +227,8 @@ export function AlarmDismissOverlay({
 
         <div className="rounded-2xl border border-border/60 bg-surface p-5 shadow-[0_8px_28px_rgba(20,22,28,0.06)] flex flex-col">
           <p className="text-[12px] text-muted mb-4 leading-relaxed">
-            어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요. 줄바꿈은 Enter 없이
-            이어서 치면 자동으로 넘어가요.
+            어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요. 틀린 글자는
+            지우고 다시 치면 돼요.
           </p>
 
           <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />

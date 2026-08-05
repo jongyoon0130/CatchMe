@@ -20,6 +20,8 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setAlertMode", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getDebugInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "refillChain", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncTaskReminders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getTaskReminderCount", returnType: CAPPluginReturnPromise),
     ]
 
     private let storageKey = "futureme-native-alarms-json"
@@ -288,6 +290,46 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
                 "permission": granted ? "granted" : "denied",
                 "notificationPermission": granted ? "granted" : "denied",
             ])
+        }
+    }
+
+    /// 홈 할 일 시간 → 로컬 푸시 예약 (웹 푸시 없이 iOS UNNotification)
+    @objc func syncTaskReminders(_ call: CAPPluginCall) {
+        let raw = call.getArray("reminders", [String: Any].self) ?? []
+        let rows = TaskReminderScheduler.parseRows(raw)
+
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let allowed: Bool
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                allowed = true
+            default:
+                allowed = false
+            }
+
+            guard allowed else {
+                call.resolve([
+                    "ok": false,
+                    "scheduled": 0,
+                    "skipped": rows.count,
+                    "detail": "notification_permission_required",
+                ])
+                return
+            }
+
+            TaskReminderScheduler.sync(rows: rows) { scheduled, skipped in
+                call.resolve([
+                    "ok": true,
+                    "scheduled": scheduled,
+                    "skipped": skipped,
+                ])
+            }
+        }
+    }
+
+    @objc func getTaskReminderCount(_ call: CAPPluginCall) {
+        TaskReminderScheduler.pendingTaskCount { count in
+            call.resolve(["count": count])
         }
     }
 

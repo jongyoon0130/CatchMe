@@ -24,7 +24,6 @@ import { autoSyncAlarmsToNative } from '../../lib/nativeAlarm'
 import {
   loadAlarmAlertMode,
   saveAlarmAlertMode,
-  describeAlarmAlertMode,
   ALARM_ALERT_MODE_CHANGE,
   type AlarmAlertMode,
 } from '../../lib/alarmAlertMode'
@@ -32,6 +31,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { AlarmEditSheet } from './AlarmEditSheet'
 import { DismissPhraseEditSheet } from './DismissPhraseEditSheet'
 import { AlarmSettingsSheet } from './AlarmSettingsSheet'
+import { AlarmAlertModePicker } from './AlarmAlertModePicker'
 
 /** 핸드폰 시계 앱처럼 — 알람 목록 + 토글 + 추가 */
 export function AlarmClockPanel() {
@@ -46,12 +46,6 @@ export function AlarmClockPanel() {
   const [nextPhraseSource, setNextPhraseSource] = useState<AlarmDismissPhrase['source'] | null>(null)
   const [phraseEditing, setPhraseEditing] = useState(false)
   const [alertMode, setAlertMode] = useState<AlarmAlertMode>(() => loadAlarmAlertMode())
-
-  const ALERT_MODE_OPTIONS: { id: AlarmAlertMode; label: string }[] = [
-    { id: 'vibrate', label: '진동만' },
-    { id: 'silent', label: '무음' },
-    { id: 'sound', label: '소리 + 진동' },
-  ]
 
   const refresh = useCallback(() => {
     setAlarms(loadUserAlarms())
@@ -168,31 +162,7 @@ export function AlarmClockPanel() {
         앱을 닫거나 잠금 화면에서도 울립니다.
       </p>
 
-      <div className="rounded-xl border border-border bg-surface px-3.5 py-3 mb-3">
-        <p className="text-[11px] font-semibold text-ink mb-1">알람 울림 방식</p>
-        <p className="text-[10px] text-muted mb-2.5 leading-relaxed">
-          현재 · {describeAlarmAlertMode(alertMode)}. 앱 안에서는 이 설정대로 울려요.
-          {alertMode !== 'sound'
-            ? ' 잠금 화면 알람은 iOS 제한으로 완전 무음은 어렵고, 진동 위주로 동작해요.'
-            : null}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {ALERT_MODE_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => handleAlertModeChange(opt.id)}
-              className={
-                alertMode === opt.id
-                  ? 'rounded-full bg-ink px-3 py-1.5 text-[11px] font-bold text-surface'
-                  : 'rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-medium text-muted'
-              }
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <AlarmAlertModePicker value={alertMode} onChange={handleAlertModeChange} />
 
       {nextLabel ? (
         <p className="text-[11px] text-ink/70 mb-3">

@@ -3,6 +3,7 @@ import { startAlarmScheduler } from '../lib/alarmScheduler'
 import { ensureAlarmPushReady } from '../lib/notify'
 import { bootstrapAlarmDelivery } from '../lib/alarmBootstrap'
 import { isNativeAlarmAvailable, autoSyncAlarmsToNative, consumeNativePendingDismiss } from '../lib/nativeAlarm'
+import { syncTaskRemindersFromLocal } from '../lib/taskReminderSync'
 import { markAlarmFired } from '../lib/alarmStore'
 import { watchServiceWorkerAlarmSync } from '../lib/alarmSwSync'
 import { startAlarmSoundLoop } from '../lib/alarmSound'
@@ -20,6 +21,7 @@ export function useAlarmScheduler(): void {
       void (async () => {
         await consumeNativePendingDismiss()
         await autoSyncAlarmsToNative()
+        await syncTaskRemindersFromLocal()
       })()
     }
 

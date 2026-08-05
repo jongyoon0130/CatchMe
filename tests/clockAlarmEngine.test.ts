@@ -17,6 +17,7 @@ function alarm(partial: Partial<UserAlarm> & Pick<UserAlarm, 'time'>): UserAlarm
     label: partial.label ?? '기상',
     enabled: partial.enabled ?? true,
     repeatDays: partial.repeatDays ?? [0, 1, 2, 3, 4, 5, 6],
+    oneShotDateKey: partial.oneShotDateKey,
     createdAt: 1,
     updatedAt: 1,
   }
@@ -37,6 +38,12 @@ describe('clockAlarmEngine', () => {
     const monday = new Date('2026-07-27T12:00:00') // Monday
     expect(userAlarmActiveOnDate(alarm({ time: '07:00', repeatDays: [1] }), monday)).toBe(true)
     expect(userAlarmActiveOnDate(alarm({ time: '07:00', repeatDays: [0] }), monday)).toBe(false)
+  })
+
+  it('1회성 알람은 지정 날짜에만 울린다', () => {
+    const oneShot = alarm({ time: '07:00', repeatDays: [], oneShotDateKey: '2026-07-28' })
+    expect(userAlarmActiveOnDate(oneShot, new Date('2026-07-28T12:00:00'))).toBe(true)
+    expect(userAlarmActiveOnDate(oneShot, new Date('2026-07-27T12:00:00'))).toBe(false)
   })
 
   it('지정 시각(해당 분)이면 due', () => {
