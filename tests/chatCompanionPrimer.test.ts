@@ -290,3 +290,20 @@ describe('닫아주기 · 자기비하 (예비 케이스 실측)', () => {
     expect(p('오늘 헬스장 다녀왔어')).toContain('아주 드물게')
   })
 })
+
+// P11 "니가 뭘 안다고" — 모델이 세 판 연속 변명했다. 예시엔 못 넣는다(시험 케이스라
+// 넣으면 유출이다). 규칙으로만 막는다.
+describe('시비·반박엔 변명하지 않는다', () => {
+  it('반박에 변명 말고 짧게 받아치라고 지시한다', () => {
+    const msg = '니가 뭘 안다고'
+    const out = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+    expect(out).toContain('변명하지 말 것')
+    expect(out).toContain('짧게 받아치고 끝낸다')
+  })
+
+  it('자기비하도 닫아주기 대상에 들어간다', () => {
+    const msg = '난 왜 이렇게 의지가 약하지'
+    const out = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+    expect(out).toContain('자기비하')
+  })
+})
