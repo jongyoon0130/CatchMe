@@ -13,6 +13,7 @@
     "ios:sync": "bun run sync:plugin && bunx cap sync ios",
     "lint": "oxlint",
     "test": "bun test",
+    "chat:eval": "bun run eval/run.ts",
     "preview": "vite preview"
   },
   "dependencies": {
