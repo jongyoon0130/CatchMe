@@ -44,15 +44,6 @@ export const CHECKS = {
     test: (r: string) =>
       !/(왜 그|이유가|무슨 일|뭐가 제일|제일 .{0,8}(게|건|이) (뭐|어)|기분(은|이)? 어때|아니면 .{0,16}[야어지][?？])/.test(r),
   },
-  /**
-   * 문어체·한자어 — 한국어판 "AI 티". 친구는 "실내"라고 안 하고 "밖"이라고 한다.
-   * (지웅, 2026-08-06: "너 지금 실내야?" 보다 "너 지금 밖이야?" 가 낫다)
-   * 걸리는 게 보이면 목록에 추가할 것.
-   */
-  naturalWords: {
-    label: '문어체 단어 없음',
-    test: (r: string) => !/(실내|실외|귀가|취침|기상하|섭취|착용|수행|양호|충분히 휴식)/.test(r),
-  },
   hasExperience: {
     label: '겪어본 한 줄',
     test: (r: string) => /(그때|나도|내가|되더라|하더라|기억도 안|쌓이)/.test(r),
@@ -92,14 +83,14 @@ export const CHECKS = {
 export const CASES: ChatCase[] = [
   // A. 일상 공유 — 그냥 옆에 있어주면 되는 자리.
   //    **가벼운 되묻기는 허용**(지웅, 2026-08-06 실측 판단). 캐묻기만 막는다.
-  { id: 'A1', group: 'A 일상', turns: ['지금 공부하고 작업하려고 카페 왔어.'], expect: ['noInterrogation', 'hasExperience', 'short', 'naturalWords'] },
-  { id: 'A2', group: 'A 일상', turns: ['오늘 헬스장 다녀왔어'], expect: ['noInterrogation', 'noCoachCliche', 'short', 'naturalWords'] },
-  { id: 'A3', group: 'A 일상', turns: ['방금 점심 먹었어ㅋㅋ'], expect: ['noInterrogation', 'noCoachCliche', 'short', 'naturalWords'] },
-  { id: 'A4', group: 'A 일상', turns: ['비 엄청 온다'], expect: ['noInterrogation', 'noCoachCliche', 'short', 'naturalWords'], note: '"너 지금 실내야?"(문어체) 보다 "밖이야?"가 낫다 — 지웅 2026-08-06' },
+  { id: 'A1', group: 'A 일상', turns: ['지금 공부하고 작업하려고 카페 왔어.'], expect: ['noInterrogation', 'hasExperience', 'short'] },
+  { id: 'A2', group: 'A 일상', turns: ['오늘 헬스장 다녀왔어'], expect: ['noInterrogation', 'noCoachCliche', 'short'] },
+  { id: 'A3', group: 'A 일상', turns: ['방금 점심 먹었어ㅋㅋ'], expect: ['noInterrogation', 'noCoachCliche', 'short'] },
+  { id: 'A4', group: 'A 일상', turns: ['비 엄청 온다'], expect: ['noInterrogation', 'noCoachCliche', 'short'] },
 
   // B. 성취 — 당근을 줘야 하는 순간
-  { id: 'B1', group: 'B 성취', turns: ['오늘 할 일 다 끝냈어!'], expect: ['noInterrogation', 'hasExperience', 'noEmotionAssert', 'naturalWords'], note: '"기분은 좀 개운하네" 재발 방지 (실사용 발견)' },
-  { id: 'B2', group: 'B 성취', turns: ['3일째 운동 성공했다'], expect: ['noInterrogation', 'hasExperience', 'noCoachCliche', 'naturalWords'] },
+  { id: 'B1', group: 'B 성취', turns: ['오늘 할 일 다 끝냈어!'], expect: ['noInterrogation', 'hasExperience', 'noEmotionAssert'], note: '"기분은 좀 개운하네" 재발 방지 (실사용 발견)' },
+  { id: 'B2', group: 'B 성취', turns: ['3일째 운동 성공했다'], expect: ['noInterrogation', 'hasExperience', 'noCoachCliche'] },
 
   // C. 실패·미룸 — 반례가 나와야 하는 자리 (계획표 데이터 필요).
   //    여기부턴 **자책·감정 구간**이라 되묻기 자체를 막는다.
@@ -142,3 +133,67 @@ export const CASES: ChatCase[] = [
   // I. 짧은 말 — few-shot엔 있는데 케이스 표엔 없던 것
   { id: 'I1', group: 'I 짧은말', turns: ['야 뭐해'], expect: ['short', 'noCoachCliche'] },
 ]
+
+// ---------------------------------------------------------------------------
+// 변형 — 같은 케이스에 **다른 지시**를 줘서 후보를 여러 개 만든다.
+//
+// 규칙 채점으로는 "미래의 나다운가"를 못 잰다. 대신 여러 답을 나란히 놓고
+// 지웅님이 고르면, 그 선택이 쌓여서 **진짜 기준**이 된다.
+// 어느 변형이 자주 이기는지가 곧 프롬프트를 어디로 밀지 알려준다.
+//
+// docs/chat-cases.md의 "미래의 나다움 3형태"가 ②③④에 그대로 대응한다.
+// ---------------------------------------------------------------------------
+export interface Variant {
+  id: string
+  label: string
+  /** 프롬프트 맨 끝에 "이번 답변의 추가 지시"로 붙는다. 빈 문자열이면 지금 프롬프트 그대로. */
+  instruction: string
+}
+
+export const VARIANTS: Variant[] = [
+  { id: 'base', label: '지금 그대로', instruction: '' },
+  {
+    id: 'past',
+    label: '① 겪어봤다',
+    instruction: '**그때의 내 이야기**를 한 줄 얹어라. 조언·과제는 붙이지 마라.',
+  },
+  {
+    id: 'outcome',
+    label: '② 결과를 안다',
+    instruction:
+      '결과를 이미 아는 사람으로 답해라 — "그거 결국 이렇게 되더라" 쪽. **과거 회상("나도 그때~")은 쓰지 마라.**',
+  },
+  {
+    id: 'timescale',
+    label: '③ 시간 스케일',
+    instruction:
+      '시간 스케일로 받아라 — "그 하루는 지금 기억도 안 나" 쪽. **과거 회상·조언은 쓰지 마라.**',
+  },
+  {
+    id: 'plain',
+    label: '④ 그냥 옆에',
+    instruction:
+      '경험담·회상을 **넣지 마라.** 지금 옆에 있는 사람처럼 짧게 반응만 해라.',
+  },
+]
+
+// ---------------------------------------------------------------------------
+// 추가 케이스 — 실사용에서 자주 나올 상황들 (2026-08-06)
+// ---------------------------------------------------------------------------
+export const MORE_CASES: ChatCase[] = [
+  { id: 'J1', group: 'J 관계', turns: ['친구랑 좀 틀어졌어'], expect: ['noEcho'] },
+  { id: 'J2', group: 'J 관계', turns: ['부모님이랑 싸웠어'], expect: ['noEcho', 'noCoachCliche'] },
+  { id: 'K1', group: 'K 몸', turns: ['요즘 잠을 잘 못 자'], expect: ['noEcho'] },
+  { id: 'K2', group: 'K 몸', turns: ['머리가 좀 아프네'], expect: ['noCoachCliche', 'short'] },
+  { id: 'L1', group: 'L 자랑', turns: ['나 오늘 칭찬받았어'], expect: ['noInterrogation', 'short'] },
+  { id: 'L2', group: 'L 허무', turns: ['다 끝냈는데 왜 허무하지'], expect: ['noCoachCliche', 'noEcho'] },
+  { id: 'M1', group: 'M 비교', turns: ['친구는 벌써 취업했더라'], expect: ['noEcho', 'noCoachCliche'] },
+  { id: 'M2', group: 'M 돈', turns: ['돈 모으는 게 너무 안 되네'], expect: ['noEcho'] },
+  { id: 'N1', group: 'N 심심', turns: ['심심하다'], expect: ['short', 'noCoachCliche'] },
+  { id: 'N2', group: 'N 짜증', turns: ['아 진짜 짜증나'], expect: ['noInterrogation', 'noCoachCliche'] },
+  { id: 'O1', group: 'O 새벽', turns: ['잠이 안 와'], expect: ['noCoachCliche', 'short'] },
+  { id: 'O2', group: 'O 계획변경', turns: ['오늘 계획 다 미뤄야 할 것 같아'], expect: ['noEcho', 'noInterrogation'] },
+]
+
+/** 채점표·후보생성 둘 다 이걸 쓴다 */
+export const ALL_CASES: ChatCase[] = [...CASES, ...MORE_CASES]

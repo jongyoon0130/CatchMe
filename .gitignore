@@ -36,3 +36,4 @@ ios/DerivedData
 .vercel
 .env*
 !.env.example
+eval/out/
