@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   formatTaskTimeRange,
   parseTaskTime24,
@@ -61,8 +62,10 @@ export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClo
 
   const preview = formatTaskTimeRange(start, end)
 
-  return (
-    <div className="goal-time-backdrop" onClick={onClose} role="presentation">
+  // 탭 페이저(transform) 안에서 position:fixed가 갇혀 하단 탭바가 시트 위에 그려지던 문제 —
+  // body로 포털을 띄워 z-index가 실제로 탭바 위에 오게 한다. (.goal-app 래퍼로 CSS 변수 유지)
+  const sheet = (
+    <div className="goal-app goal-time-backdrop" onClick={onClose} role="presentation">
       <div
         className="goal-time-sheet"
         onClick={(e) => e.stopPropagation()}
@@ -145,4 +148,7 @@ export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClo
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return sheet
+  return createPortal(sheet, document.body)
 }

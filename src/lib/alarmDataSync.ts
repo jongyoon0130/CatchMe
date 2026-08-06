@@ -84,17 +84,20 @@ function mergeAlarms(local: UserAlarm[], remote: UserAlarm[]): UserAlarm[] {
   return [...byId.values()].sort((a, b) => a.time.localeCompare(b.time) || a.createdAt - b.createdAt)
 }
 
+/**
+ * 문구도 알람과 같은 원칙 — 레코드별 generatedAt이 최신인 쪽이 이긴다.
+ * (번들 시각으로 우회하면 다른 기기에서 새로 쓴 다짐이 옛 사본으로 되돌아간다)
+ */
 function mergeDismissPhrases(
   local: AlarmDismissPhrase[],
   remote: AlarmDismissPhrase[],
-  preferLocal: boolean,
 ): AlarmDismissPhrase[] {
   const byKey = new Map<string, AlarmDismissPhrase>()
   for (const record of remote) byKey.set(phraseRecordKey(record.alarmId, record.dateKey), record)
   for (const record of local) {
     const key = phraseRecordKey(record.alarmId, record.dateKey)
     const existing = byKey.get(key)
-    if (!existing || preferLocal || record.generatedAt >= existing.generatedAt) {
+    if (!existing || record.generatedAt >= existing.generatedAt) {
       byKey.set(key, record)
     }
   }
@@ -106,7 +109,7 @@ export function mergeAlarmDataBundles(local: AlarmDataBundle, remote: AlarmDataB
   const updatedAt = Math.max(local.updatedAt, remote.updatedAt, Date.now())
   return {
     alarms: mergeAlarms(local.alarms, remote.alarms),
-    dismissPhrases: mergeDismissPhrases(local.dismissPhrases, remote.dismissPhrases, preferLocal),
+    dismissPhrases: mergeDismissPhrases(local.dismissPhrases, remote.dismissPhrases),
     settings: preferLocal ? local.settings : remote.settings,
     updatedAt,
   }

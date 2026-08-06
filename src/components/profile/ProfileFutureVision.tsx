@@ -56,10 +56,21 @@ export function ProfileFutureVision({ profile }: Props) {
     }
   }
 
+  // 일 한도 1회 — 마지막 생성이 오늘이면 내일까지 잠금
+  const generatedToday = (() => {
+    const at = photos.futureVisionGeneratedAt
+    if (!at) return false
+    return new Date(at).toDateString() === new Date().toDateString()
+  })()
+
   const onGenerate = async () => {
     const key = loadApiKey()?.trim()
     if (!key) {
       setError('채팅 ⚙️에서 Gemini API 키를 설정해주세요.')
+      return
+    }
+    if (generatedToday) {
+      setError('AI 사진은 하루에 1번만 만들 수 있어요. 내일 다시 시도해주세요.')
       return
     }
     if (!photos.presentDataUrl) {
@@ -151,10 +162,10 @@ export function ProfileFutureVision({ profile }: Props) {
           <button
             type="button"
             onClick={() => void onGenerate()}
-            disabled={generating || !photos.presentDataUrl}
+            disabled={generating || !photos.presentDataUrl || generatedToday}
             className="nb-pill w-full rounded-full py-2 text-center text-[11px] font-bold bg-surface disabled:opacity-60"
           >
-            {generating ? '그리는 중…' : '미래 확인하기'}
+            {generating ? '그리는 중…' : generatedToday ? '오늘은 완료 (하루 1회)' : '미래 확인하기'}
           </button>
         </div>
       </div>

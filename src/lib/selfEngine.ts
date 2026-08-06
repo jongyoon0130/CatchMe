@@ -1879,40 +1879,17 @@ export function generateLocalResponse(p: SelfProfile, userMessage: string): stri
 // ---------------------------------------------------------------------------
 // Gemini API
 // ---------------------------------------------------------------------------
-export const GEMINI_MODEL_OPTIONS = [
-  { id: 'gemini-3.1-flash-lite', label: '3.1 Flash-Lite (추천·안정)' },
-  { id: 'gemini-3-flash-preview', label: '3 Flash (품질↑·Preview)' },
-  { id: 'gemini-2.5-flash', label: '2.5 Flash (대체)' },
-  { id: 'gemini-2.5-flash-lite', label: '2.5 Flash-Lite (대체)' },
-] as const
-
+// 모델은 3 Flash 하나로 고정 — 사용자 모델 선택 기능은 제거됐다.
 export const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview'
 
-/** 구버전 localStorage·클라우드 모델 → 현재 지원 모델 */
-const LEGACY_MODEL_ALIASES: Record<string, string> = {
-  'gemini-1.5-flash': 'gemini-2.5-flash',
-  'gemini-1.5-flash-lite': 'gemini-2.5-flash-lite',
-  'gemini-1.5-flash-8b': 'gemini-2.5-flash-lite',
-  'gemini-1.5-pro': 'gemini-3.1-flash-lite',
-  'gemini-1.5-pro-latest': 'gemini-3.1-flash-lite',
+/** 저장값·구버전 값과 무관하게 항상 고정 모델을 쓴다 */
+export function resolveModel(_stored?: string | null | undefined): string {
+  return DEFAULT_GEMINI_MODEL
 }
 
-export function resolveModel(stored: string | null | undefined): string {
-  const raw = (stored ?? '').trim()
-  if (!raw) return DEFAULT_GEMINI_MODEL
-  const mapped = LEGACY_MODEL_ALIASES[raw] ?? raw
-  return GEMINI_MODEL_OPTIONS.some((m) => m.id === mapped) ? mapped : DEFAULT_GEMINI_MODEL
-}
-
-export function isUnsupportedStoredModel(stored: string | null | undefined): boolean {
-  const raw = (stored ?? '').trim()
-  if (!raw) return false
-  return raw in LEGACY_MODEL_ALIASES || !GEMINI_MODEL_OPTIONS.some((m) => m.id === raw)
-}
-
-/** API·로그에 쓸 최종 모델 (항상 resolve) */
-export function getActiveModel(stored: string | null | undefined = null): string {
-  return resolveModel(stored ?? null)
+/** API·로그에 쓸 최종 모델 */
+export function getActiveModel(_stored: string | null | undefined = null): string {
+  return DEFAULT_GEMINI_MODEL
 }
 
 /** API 실패 시 UI에 넣은 안내 말풍선 — 히스토리에 포함하면 토큰·503만 늘어남 */

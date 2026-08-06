@@ -18,15 +18,11 @@ import {
   mergeInsight,
   updateConversationSummary,
   verifyApiKey,
-  GEMINI_MODEL_OPTIONS,
   AI_ANALYZE_EVERY,
   geminiErrorUserMessage,
-  getLastGeminiUsage,
   shouldUpdateConversationSummary,
   isBackgroundApiPaused,
-  resolveModel,
   getActiveModel,
-  isUnsupportedStoredModel,
   GeminiApiError,
   resetProfilePromptBulk,
   shouldUseLitePrompt,
@@ -54,11 +50,10 @@ import { addMiscTodo, loadMiscTodos } from '../../lib/goalMiscTodos'
 import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
 import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
 import { dateKeyOf, shiftDateKey, todoDraftFromMessage, type PendingTodo } from '../../lib/chatToPlan'
-import { NotifySettings } from '../settings/NotifySettings'
 
 function readInitialApiStatus(): 'idle' | ApiCheckResult {
   const key = loadApiKey()?.trim() ?? ''
-  const mdl = resolveModel(loadModel())
+  const mdl = getActiveModel(loadModel())
   const cached = resolveCachedApiStatus(key, mdl)
   return cached === 'idle' ? 'idle' : cached
 }
@@ -149,19 +144,10 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   const [showSettings, setShowSettings] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [apiKey, setApiKey] = useState(loadApiKey() ?? '')
-  const [model, setModel] = useState(() => resolveModel(loadModel()))
-  const [modelMigrationFrom, setModelMigrationFrom] = useState<string | null>(() => {
-    try {
-      return sessionStorage.getItem('futureme-model-migrated-from')
-    } catch {
-      return null
-    }
-  })
-  const [legacyModelBanner, setLegacyModelBanner] = useState(false)
   const [apiStatus, setApiStatus] = useState<'idle' | 'testing' | ApiCheckResult>(readInitialApiStatus)
   const [apiCheckedAt, setApiCheckedAt] = useState<number | null>(() => {
     const key = loadApiKey()?.trim() ?? ''
-    const mdl = resolveModel(loadModel())
+    const mdl = getActiveModel(loadModel())
     if (resolveCachedApiStatus(key, mdl) === 'idle') return null
     return loadApiCheckCache()?.checkedAt ?? null
   })
@@ -176,7 +162,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   const lastSendAt = useRef(0)
   const last503At = useRef(0)
   const summaryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [lastUsageTick, setLastUsageTick] = useState(0)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   /** 이번 채팅 세션에서 API 실패 직후에만 표시 (나갔다 들어오면 안 뜸) */
@@ -240,10 +225,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
 
   useEffect(() => {
     let cancelled = false
-    const raw = localStorage.getItem('futureme-gemini-model')
-    const resolved = getActiveModel(loadModel())
-    setModel(resolved)
-    setLegacyModelBanner(isUnsupportedStoredModel(raw))
     loadChatAsync(profileId).then((saved) => {
       if (cancelled) return
       setMessages(stripLegacyIntro(saved))
@@ -300,7 +281,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
         role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
         content: m.content,
       }))
-      const found = await analyzeInsightsWithAI(recent, key, resolveModel(loadModel()))
+      const found = await analyzeInsightsWithAI(recent, key, getActiveModel(loadModel()))
       if (found.length) {
         let ins = selfRef.current.insights ?? []
         for (const c of found) ins = mergeInsight(ins, { ...c, source: 'ai' })
@@ -348,16 +329,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     }
   }, [])
 
-  useEffect(() => {
-    if (!showSettings) return
-    setModel(resolveModel(loadModel()))
-    try {
-      setModelMigrationFrom(sessionStorage.getItem('futureme-model-migrated-from'))
-    } catch {
-      /* ignore */
-    }
-  }, [showSettings])
-
   // 카톡처럼 입력이 최대 4줄까지 늘어나고, 그 이상은 최근 줄만 보이며 스크롤
   const autoGrow = () => {
     const el = textareaRef.current
@@ -377,11 +348,9 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   // 저장 시 실제 테스트 호출로 연결 상태 확인
   const saveAndVerify = async () => {
     const key = apiKey.trim()
-    const resolved = getActiveModel(model.trim())
+    const resolved = getActiveModel()
     saveApiKey(key)
     saveModel(resolved)
-    setModel(resolved)
-    setLegacyModelBanner(false)
     if (!key) {
       clearApiCheckCache()
       setApiStatus('idle')
@@ -393,14 +362,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     setApiStatus(result)
     saveApiCheckCache(result, key, resolved)
     setApiCheckedAt(Date.now())
-    if (result === 'ok') {
-      try {
-        sessionStorage.removeItem('futureme-model-migrated-from')
-      } catch {
-        /* ignore */
-      }
-      setModelMigrationFrom(null)
-    }
   }
 
   // 설정 열 때 API 자동 ping 하지 않음 (429 유발 방지) — '저장' 버튼으로만 확인
@@ -494,7 +455,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
       })
       reply = res.text
       chatOk = true
-      setLastUsageTick(Date.now())
     } catch (e) {
       if (e instanceof GeminiApiError && e.code === 'HTTP' && e.httpStatus === 503) {
         last503At.current = Date.now()
@@ -687,31 +647,8 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
       .slice(0, 4),
   ]
 
-  const rules = self.styleRules
-  const styleChips: string[] = []
-  if (rules) {
-    styleChips.push(rules.banmal ? '반말' : '존댓말')
-    if (rules.usesConsonants) styleChips.push('ㅋㅋ/ㅠㅠ')
-    if (rules.endings[0]) styleChips.push(rules.endings[0])
-    if (rules.fillers[0]) styleChips.push(rules.fillers[0])
-  }
-
   return (
     <div className="h-full flex flex-col max-w-lg mx-auto bg-void">
-      {(legacyModelBanner || modelMigrationFrom) && !selectMode ? (
-        <div className="px-4 py-2.5 bg-status-warn/10 border-b border-status-warn/25 text-[11px] leading-relaxed text-status-warn shrink-0">
-          {modelMigrationFrom ? (
-            <>
-              구 모델 <span className="font-medium">{modelMigrationFrom}</span> →{' '}
-              {GEMINI_MODEL_OPTIONS.find((m) => m.id === model)?.label ?? model}(으)로 바꿨어요.
-            </>
-          ) : (
-            <>구 Gemini 1.5 모델이면 채팅만 503이 납니다.</>
-          )}{' '}
-          ⚙️에서 <span className="font-medium">2.5 Flash-Lite</span> 선택 후{' '}
-          <span className="font-medium">저장</span> 눌러주세요.
-        </div>
-      ) : null}
       <header className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-surface shrink-0 min-h-[52px]">
         {selectMode ? (
           <>
@@ -910,59 +847,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
                 )}
               </div>
             )}
-          </div>
-          <div>
-            <p className="text-xs text-muted mb-2">모델</p>
-            {modelMigrationFrom ? (
-              <p className="text-[11px] text-status-warn mb-2 leading-relaxed">
-                예전 모델({modelMigrationFrom})은 불안정해서{' '}
-                {GEMINI_MODEL_OPTIONS.find((m) => m.id === model)?.label ?? model}(으)로 바꿨어요. 아래{' '}
-                <strong className="font-medium">저장</strong> 한 번 눌러줘.
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              {GEMINI_MODEL_OPTIONS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setModel(m.id)
-                    setApiStatus('idle')
-                    setApiCheckedAt(null)
-                  }}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    model === m.id
-                      ? 'bg-accent/15 text-ink border-accent/40 font-medium'
-                      : 'bg-surface border-border text-muted hover:text-ink'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            {(() => {
-              void lastUsageTick
-              const u = getLastGeminiUsage()
-              if (!u) return null
-              return (
-                <p className="text-[10px] text-muted/60 mt-2 leading-relaxed">
-                  마지막 API: 입력 {u.usage.promptTokenCount ?? '?'} · 출력 {u.usage.candidatesTokenCount ?? '?'} 토큰
-                  {u.label === 'chatReply' ? '' : ` (${u.label})`}
-                  {' · '}개발자 도구 콘솔에도 기록됨
-                </p>
-              )
-            })()}
-          </div>
-          <NotifySettings />
-          <div>
-            <p className="text-xs text-muted mb-2">지금까지 학습한 내 말투</p>
-            <div className="flex flex-wrap gap-1.5">
-              {styleChips.length ? styleChips.map((c) => (
-                <span key={c} className="text-xs px-2.5 py-1 rounded-full bg-accent/10 text-ink border border-accent/20">{c}</span>
-              )) : <span className="text-xs text-muted">아직 수집 중...</span>}
-              <span className="text-xs px-2.5 py-1 rounded-full bg-accent/10 text-ink border border-accent/20">
-                샘플 {self.styleSamples.length}개
-              </span>
-            </div>
           </div>
           <div>
             <p className="text-xs text-muted mb-2">대화에서 알게 된 것 (잠정)</p>

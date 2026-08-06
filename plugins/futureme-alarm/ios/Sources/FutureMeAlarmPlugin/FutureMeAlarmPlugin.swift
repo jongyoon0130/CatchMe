@@ -2,6 +2,7 @@ import Foundation
 import Capacitor
 import UserNotifications
 import UIKit
+import AudioToolbox
 
 @objc(FutureMeAlarmPlugin)
 public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -350,16 +351,16 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func pulseAlarmHaptic(_ call: CAPPluginCall) {
-        guard FutureMeAlarmStorage.loadAlertMode() != "silent" else {
-            call.resolve(["ok": true])
-            return
+        // JS가 진동이 필요할 때만 부른다 (모드 판단은 JS 쪽) — 여기서 모드를 다시 검사하면
+        // 모드 저장이 네이티브에 반영되기 전에 눌렀을 때 진동이 조용히 무시된다.
+        // 햅틱 제너레이터만으로는 "진동" 체감이 안 돼서 실제 진동 모터를 울린다.
+        // Capacitor 콜은 백그라운드 스레드라 UIKit 피드백은 반드시 메인에서.
+        DispatchQueue.main.async {
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            let generator = UINotificationFeedbackGenerator()
+            generator.prepare()
+            generator.notificationOccurred(.warning)
         }
-        let generator = UINotificationFeedbackGenerator()
-        generator.prepare()
-        generator.notificationOccurred(.warning)
-        let impact = UIImpactFeedbackGenerator(style: .heavy)
-        impact.prepare()
-        impact.impactOccurred()
         call.resolve(["ok": true])
     }
 

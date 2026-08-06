@@ -212,13 +212,15 @@ export function dismissMatchProgress(phrase: string, typed: string): number {
 export type PhraseCharState =
   | { kind: 'pending'; char: string }
   | { kind: 'correct'; char: string }
-  | { kind: 'wrong'; typed: string }
+  | { kind: 'wrong'; char: string; typed: string }
   | { kind: 'extra'; char: string }
 
 /**
- * 따라치기 UI — 줄바꿈은 자동 넘김, 오타는 red.
- * 반환 배열이 화면 그대로다: correct/wrong은 이미 소비된 입력, pending은 남은 목표,
- * extra는 목표를 넘어서 친 글자. 커서는 "첫 pending 앞" (없으면 맨 끝)이 정확한 위치다.
+ * 따라치기 UI — 한컴타자처럼 목표 문장의 글자 배열은 절대 밀리지 않는다.
+ * 입력 글자는 목표의 같은 자리와 1:1로 비교되고(줄바꿈은 양쪽 다 자동 넘김),
+ * wrong에도 목표 글자(char)를 담아 화면에는 항상 목표 글자만 그린다 —
+ * 틀린 자리는 색만 빨갛게 바뀌므로 폭이 다른 오타로 뒷글자가 밀리는 일이 없다.
+ * 커서는 "첫 pending 앞" (없으면 맨 끝)이 정확한 위치다.
  */
 export function phraseMatchStates(phrase: string, typed: string): PhraseCharState[] {
   phrase = nfc(phrase)
@@ -246,7 +248,7 @@ export function phraseMatchStates(phrase: string, typed: string): PhraseCharStat
       out.push({ kind: 'correct', char: expected })
       ti++
     } else {
-      out.push({ kind: 'wrong', typed: typed[ti]! })
+      out.push({ kind: 'wrong', char: expected, typed: typed[ti]! })
       ti++
     }
   }

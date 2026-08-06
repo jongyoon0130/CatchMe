@@ -1454,17 +1454,20 @@ html, body, #root {
 }
 
 /* ── 할 일 시간 설정 (GoalTaskTimeSheet) ── */
-.goal-app .goal-time-backdrop {
+/* body 포털로 뜨므로 백드롭 자신이 .goal-app 클래스를 겸한다 (compound 셀렉터 필요) */
+.goal-app .goal-time-backdrop,
+.goal-app.goal-time-backdrop {
   position: fixed;
   inset: 0;
-  /* 하단 탭바(.app-bottom-nav, z-index:30)보다 확실히 위. 안 그러면 탭바가 시트
-     바닥의 '완료' 버튼을 덮는다 */
+  /* 하단 탭바(.app-bottom-nav, z-index:30)보다 확실히 위. body 포털이라 stacking
+     context에 갇히지 않고 실제로 탭바 위에 그려진다 */
   z-index: 300;
   background: rgba(15, 18, 22, 0.45);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 0;
+  min-height: 0;
 }
 
 .goal-app .goal-time-sheet {

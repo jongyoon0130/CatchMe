@@ -8,6 +8,7 @@ import {
   loadDismissPhrase,
   normalizeDismissPhrase,
   saveDismissPhrase,
+  PINNED_DATE_KEY,
   type AlarmDismissPhrase,
 } from './alarmDismissPhrase'
 import { loadApiKey, loadModel } from './storage'
@@ -164,7 +165,9 @@ export async function generateDismissPhraseWithAI(opts: {
 
   const record: AlarmDismissPhrase = {
     alarmId: opts.alarmId,
-    dateKey: opts.dateKey,
+    // AI 버튼(force)으로 만든 문구는 알람에 고정 — 직접 쓴 문구를 대체하고 계속 유지된다.
+    // 자동 생성(force 아님)은 날짜별 기본값으로만 저장돼 고정 문구를 건드리지 않는다.
+    dateKey: opts.force ? PINNED_DATE_KEY : opts.dateKey,
     phrase,
     generatedAt: Date.now(),
     source,

@@ -12,8 +12,27 @@ export interface AlarmDismissPhrase {
 
 const STORAGE_PREFIX = 'futureme-alarm-dismiss-'
 
+/**
+ * 알람 단위 "고정 문구"의 dateKey.
+ * 직접 쓴 다짐(또는 AI 버튼으로 새로 만든 다짐)은 날짜가 아니라 알람에 붙어서,
+ * 날짜가 바뀌거나 알람을 다시 저장해도 사용자가 바꾸기 전까지 그대로 유지된다.
+ */
+export const PINNED_DATE_KEY = 'pinned'
+
 function storageKey(alarmId: string, dateKey: string): string {
   return `${STORAGE_PREFIX}${alarmId}:${dateKey}`
+}
+
+function readRecord(alarmId: string, dateKey: string): AlarmDismissPhrase | null {
+  try {
+    const raw = localStorage.getItem(storageKey(alarmId, dateKey))
+    if (!raw) return null
+    const data = JSON.parse(raw) as AlarmDismissPhrase
+    if (!data?.phrase?.trim() || !data.alarmId || !data.dateKey) return null
+    return { ...data, phrase: normalizeDismissPhrase(data.phrase) }
+  } catch {
+    return null
+  }
 }
 
 export function phraseRecordKey(alarmId: string, dateKey: string): string {
@@ -32,15 +51,10 @@ export function normalizeDismissPhrase(raw: string): string {
 }
 
 export function loadDismissPhrase(alarmId: string, dateKey: string): AlarmDismissPhrase | null {
-  try {
-    const raw = localStorage.getItem(storageKey(alarmId, dateKey))
-    if (!raw) return null
-    const data = JSON.parse(raw) as AlarmDismissPhrase
-    if (!data?.phrase?.trim() || !data.alarmId || !data.dateKey) return null
-    return { ...data, phrase: normalizeDismissPhrase(data.phrase) }
-  } catch {
-    return null
-  }
+  // 고정 문구(직접 작성·AI 버튼)가 있으면 날짜별 자동 생성 문구보다 항상 우선한다.
+  const pinned = readRecord(alarmId, PINNED_DATE_KEY)
+  if (pinned) return pinned
+  return readRecord(alarmId, dateKey)
 }
 
 export function saveDismissPhrase(record: AlarmDismissPhrase): void {
@@ -98,9 +112,10 @@ export function saveManualDismissPhrase(opts: {
 }): AlarmDismissPhrase | null {
   const phrase = normalizeDismissPhrase(opts.phrase)
   if (!phrase.trim()) return null
+  // 날짜가 아니라 알람에 고정 — 다음 날에도, 알람을 다시 저장해도 유지된다
   const record: AlarmDismissPhrase = {
     alarmId: opts.alarmId,
-    dateKey: opts.dateKey,
+    dateKey: PINNED_DATE_KEY,
     phrase,
     generatedAt: Date.now(),
     source: 'manual',

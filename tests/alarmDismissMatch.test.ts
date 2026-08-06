@@ -47,9 +47,9 @@ describe('alarmDismissMatch', () => {
     expect(normalizeTypedInput(phrase, 'abcx')).toBe('abc')
   })
 
-  it('marks wrong syllables red state', () => {
+  it('marks wrong syllables red state — 화면에는 목표 글자(char)를 그대로 그린다', () => {
     const states = phraseMatchStates('박종윤', '밥종')
-    expect(states[0]).toEqual({ kind: 'wrong', typed: '밥' })
+    expect(states[0]).toEqual({ kind: 'wrong', char: '박', typed: '밥' })
     expect(states[1]).toEqual({ kind: 'correct', char: '종' })
     expect(states[2]).toEqual({ kind: 'pending', char: '윤' })
   })
@@ -60,7 +60,7 @@ describe('alarmDismissMatch', () => {
     const phrase = '안녕'
     // 조합 중간: "ㅇ" — 자르지 않고 wrong으로 표시만
     const mid = phraseMatchStates(phrase, 'ㅇ')
-    expect(mid[0]).toEqual({ kind: 'wrong', typed: 'ㅇ' })
+    expect(mid[0]).toEqual({ kind: 'wrong', char: '안', typed: 'ㅇ' })
     expect(mid[1]).toEqual({ kind: 'pending', char: '녕' })
     // 조합 완성: "안" — correct
     const donePart = phraseMatchStates(phrase, '안')

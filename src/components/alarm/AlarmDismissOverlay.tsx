@@ -26,9 +26,11 @@ function TypingCursor() {
 
 function renderCharState(state: PhraseCharState, key: string) {
   if (state.kind === 'wrong') {
+    // 한컴타자처럼 — 화면에는 항상 목표 글자를 그대로 그리고 색만 빨갛게.
+    // 오타 글자를 끼워 넣으면 폭이 달라 뒷글자들이 밀린다.
     return (
       <span key={key} className="text-status-error font-semibold underline decoration-status-error/60 decoration-2 underline-offset-4">
-        {state.typed === ' ' ? '\u00A0' : state.typed}
+        {state.char === ' ' ? '\u00A0' : state.char}
       </span>
     )
   }
@@ -95,6 +97,7 @@ function PhraseTypeMatch({
   onChange: (next: string) => void
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const composing = useRef(false)
   const awaitingNextLine = isAwaitingNextLine(phrase, value)
   const wrong = hasWrongInput(phrase, value)
   const lineCount = Math.max(3, phrase.split('\n').length)
@@ -110,6 +113,20 @@ function PhraseTypeMatch({
 
   const focusInput = () => {
     inputRef.current?.focus({ preventScroll: true })
+  }
+
+  /**
+   * 커서는 항상 입력의 맨 끝 — 화면을 잘못 탭해 textarea 캐럿이 중간으로 가면
+   * 다음 글자가 중간에 끼어들어 "커서가 꼬이는" 문제가 생긴다.
+   * 단, 한글 조합 중에는 selection을 건드리면 조합이 깨지므로 건드리지 않는다.
+   */
+  const pinCaretToEnd = () => {
+    const el = inputRef.current
+    if (!el || composing.current) return
+    const end = el.value.length
+    if (el.selectionStart !== end || el.selectionEnd !== end) {
+      el.setSelectionRange(end, end)
+    }
   }
 
   const hint = !value.length
@@ -153,6 +170,19 @@ function PhraseTypeMatch({
           autoFocus
           onChange={(e) => {
             onChange(e.target.value)
+          }}
+          onCompositionStart={() => {
+            composing.current = true
+          }}
+          onCompositionEnd={() => {
+            composing.current = false
+            pinCaretToEnd()
+          }}
+          onSelect={pinCaretToEnd}
+          onFocus={pinCaretToEnd}
+          onPaste={(e) => {
+            // 붙여넣기로 통과하는 건 따라치기가 아니다
+            e.preventDefault()
           }}
         />
       </div>
