@@ -18,7 +18,8 @@ class MemStorage implements Storage {
 globalThis.localStorage = new MemStorage()
 
 import { describe, expect, it } from 'bun:test'
-import { BEHAVIOR_PRIMER, buildSystemPrompt, analyzeMessage } from '../src/lib/selfEngine'
+import { buildSystemPrompt, analyzeMessage } from '../src/lib/selfEngine'
+import { VOICE_EXAMPLES } from '../src/lib/voiceExamples'
 import { emptyProfile } from '../src/types/self'
 
 /** 되묻기 = 물음표로 끝남 */
@@ -28,17 +29,17 @@ function asksBack(reply: string): boolean {
 
 const DAILY_LIFE_CASES = ['카페 왔어', '오늘 할 일 다 끝냈어', '또 미뤘어']
 
-describe('BEHAVIOR_PRIMER — 일상·성취·미룸은 되묻지 않는다', () => {
+describe('VOICE_EXAMPLES — 일상·성취·미룸은 되묻지 않는다', () => {
   it('A·B·C 예시가 모두 들어 있다', () => {
     for (const hint of DAILY_LIFE_CASES) {
-      const found = BEHAVIOR_PRIMER.some((ex) => ex.user.includes(hint))
+      const found = VOICE_EXAMPLES.some((ex) => ex.user.includes(hint))
       expect(found).toBe(true)
     }
   })
 
   it('그 예시들의 답이 되묻기로 끝나지 않는다', () => {
     for (const hint of DAILY_LIFE_CASES) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
+      const ex = VOICE_EXAMPLES.find((e) => e.user.includes(hint))!
       expect(asksBack(ex.model)).toBe(false)
     }
   })
@@ -47,24 +48,27 @@ describe('BEHAVIOR_PRIMER — 일상·성취·미룸은 되묻지 않는다', ()
     // 지웅님 실측(2026-08-06): 자기서사('나도 그때')보다 **'~더라'**를 훨씬 많이 쓴다 (2 vs 9)
     const experienceMarks = /(그때|나도|더라|쌓여|기억도 안)/
     for (const hint of ['카페 왔어', '오늘 할 일 다 끝냈어']) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
+      const ex = VOICE_EXAMPLES.find((e) => e.user.includes(hint))!
       expect(ex.model).toMatch(experienceMarks)
     }
   })
 })
 
-describe('BEHAVIOR_PRIMER — lite 모드(앞 2개) 보호', () => {
-  it('앞 2개가 전부 되묻기면 안 된다', () => {
-    const liteTwo = BEHAVIOR_PRIMER.slice(0, 2)
-    expect(liteTwo.every((ex) => asksBack(ex.model))).toBe(false)
+describe('VOICE_EXAMPLES — lite 모드 보호', () => {
+  it('lite 프롬프트에도 예시가 실리고, 일상과 고민이 둘 다 들어간다', () => {
+    const msg = '비 엄청 온다'
+    const lite = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg, true)
+    expect(lite).toContain('우산은 챙겼어?')       // 일상
+    expect(lite).toContain('아무것도 못했어')       // 자책
+    expect((lite.match(/예\d+\) 속마음/g) ?? []).length).toBeGreaterThanOrEqual(3)
   })
 
   it('첫 예시는 일상 공유(되묻지 않기)다', () => {
-    expect(asksBack(BEHAVIOR_PRIMER[0]!.model)).toBe(false)
+    expect(asksBack(VOICE_EXAMPLES[0]!.model)).toBe(false)
   })
 
   it('고민 예시도 남아 있다 — 되묻기가 맞는 자리까지 없애지는 않는다', () => {
-    const someoneAsksBack = BEHAVIOR_PRIMER.some((ex) => asksBack(ex.model))
+    const someoneAsksBack = VOICE_EXAMPLES.some((ex) => asksBack(ex.model))
     expect(someoneAsksBack).toBe(true)
   })
 })
@@ -89,7 +93,7 @@ describe('감정 단정 금지 (1.5단계)', () => {
   })
 
   it('성취 예시가 감정을 단정하지 않고 내 경험으로 말한다', () => {
-    const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes('다 끝냈어'))!
+    const ex = VOICE_EXAMPLES.find((e) => e.user.includes('다 끝냈어'))!
     expect(ex.model).toMatch(/(나도|더라)/) // 단정 대신 내 경험 — '~더라'가 지웅님 방식
     expect(ex.model).not.toMatch(/기분(은|이)? ?좀? ?개운하네/)
   })
@@ -130,7 +134,7 @@ describe('C·D — 자책 반례와 위로 방향', () => {
 
   it('자책·힘듦 예시가 모두 들어 있다', () => {
     for (const hint of HARD_CASES) {
-      expect(BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))).toBeDefined()
+      expect(VOICE_EXAMPLES.find((e) => e.user.includes(hint))).toBeDefined()
     }
   })
 
@@ -139,13 +143,13 @@ describe('C·D — 자책 반례와 위로 방향', () => {
   it('자책·힘듦에서 할 일을 캐묻지 않는다 (질문 자체는 괜찮다)', () => {
     const digsForTasks = /(어떤 (작업|일|것)부터|언제까지|몇 개|계획이 뭐|뭐부터 할)/
     for (const hint of HARD_CASES) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
+      const ex = VOICE_EXAMPLES.find((e) => e.user.includes(hint))!
       expect(ex.model).not.toMatch(digsForTasks)
     }
   })
 
   it('면접식 되묻기("특히 찌르는 순간")가 예시에서 사라졌다', () => {
-    expect(BEHAVIOR_PRIMER.some((e) => e.model.includes('찌르는 순간'))).toBe(false)
+    expect(VOICE_EXAMPLES.some((e) => e.model.includes('찌르는 순간'))).toBe(false)
   })
 
   const promptFor = (tone: 'comfort' | 'tough', msg = '하... 힘들다') => {
