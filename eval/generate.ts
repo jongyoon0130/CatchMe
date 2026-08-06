@@ -71,6 +71,20 @@ async function candidate(c: ChatCase, v: Variant, context: ApiDialogueMessage[])
   return out.text.trim()
 }
 
+/** Gemini가 가끔 일시적으로 실패한다(150번 중 1~2번). 케이스가 통째로 빠지지 않게 재시도. */
+async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  let last: unknown
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      last = err
+      await Bun.sleep(900 * (i + 1))
+    }
+  }
+  throw last
+}
+
 const shuffle = <T,>(a: T[]): T[] => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map(([, v]) => v)
 
 type Row = { id: string; group: string; turns: string[]; options: { variant: string; label: string; text: string }[] }
@@ -79,8 +93,8 @@ const rows: Row[] = []
 for (const [i, c] of cases.entries()) {
   process.stdout.write(`\r생성 중 ${i + 1}/${cases.length}  ${c.id}      `)
   try {
-    const context = await leadUp(c)
-    const texts = await Promise.all(VARIANTS.map((v) => candidate(c, v, context)))
+    const context = await withRetry(() => leadUp(c))
+    const texts = await Promise.all(VARIANTS.map((v) => withRetry(() => candidate(c, v, context))))
     const options = VARIANTS.map((v, k) => ({ variant: v.id, label: v.label, text: texts[k]! }))
     rows.push({ id: c.id, group: c.group, turns: c.turns, options: shuffle(options) })
   } catch (err) {
