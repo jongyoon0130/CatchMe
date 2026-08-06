@@ -5,13 +5,7 @@ import { importGoalPlansSnapshot } from '../../lib/goalPlanSnapshot'
 import { GoalPlanSheet } from './GoalPlanSheet'
 
 /** Future Me 채팅과 분리된 독립 목표 앱 셸 */
-export function GoalApp({
-  embedded = false,
-  onTellFuture,
-}: {
-  embedded?: boolean
-  onTellFuture?: (prompt: string) => void
-}) {
+export function GoalApp({ embedded = false }: { embedded?: boolean }) {
   const profile = useMemo(() => getGoalAppProfile(), [])
   const [ready, setReady] = useState(false)
 
@@ -42,7 +36,7 @@ export function GoalApp({
 
   if (!ready) return null
 
-  if (embedded) return <GoalPlanSheet profile={profile} embedded onTellFuture={onTellFuture} />
+  if (embedded) return <GoalPlanSheet profile={profile} embedded />
 
   // 단독 실행(goals.html) — 메인 앱으로 돌아갈 길이 없으면 막다른 페이지가 되므로
   // 상단에 얇은 복귀 배너를 둔다. (홈 탭에 임베드될 때는 하단 네비가 그 역할)

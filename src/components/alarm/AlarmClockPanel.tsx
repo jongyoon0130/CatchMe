@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   addUserAlarm,
   deleteUserAlarm,
+  deleteUserAlarms,
   describeRepeatDays,
   formatAlarmClockTime,
   loadUserAlarms,
@@ -10,6 +11,7 @@ import {
   USER_ALARMS_CHANGE,
   type UserAlarm,
 } from '../../lib/userAlarms'
+import { pullAlarmDataOnForeground } from '../../lib/alarmDataSync'
 import { getNextAlarmPreview } from '../../lib/alarmScheduler'
 import type { ClockAlarmTrigger } from '../../lib/clockAlarmEngine'
 import {
@@ -46,6 +48,11 @@ export function AlarmClockPanel() {
   const [nextPhraseSource, setNextPhraseSource] = useState<AlarmDismissPhrase['source'] | null>(null)
   const [phraseEditing, setPhraseEditing] = useState(false)
   const [alertMode, setAlertMode] = useState<AlarmAlertMode>(() => loadAlarmAlertMode())
+  // 길게 눌러 여러 개 골라 지우기
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressed = useRef(false)
 
   const refresh = useCallback(() => {
     setAlarms(loadUserAlarms())
@@ -109,11 +116,56 @@ export function AlarmClockPanel() {
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         void bootstrapAlarmDelivery({ askPermission: false, forceRenew: false })
+        // 같은 계정 다른 기기의 알람 추가·삭제를 끌어온다
+        void pullAlarmDataOnForeground()
       }
     }
     document.addEventListener('visibilitychange', onVisible)
+    void pullAlarmDataOnForeground()
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
+
+  const clearPress = useCallback(() => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+  }, [])
+
+  const startPress = useCallback(
+    (id: string) => {
+      clearPress()
+      longPressed.current = false
+      pressTimer.current = setTimeout(() => {
+        pressTimer.current = null
+        longPressed.current = true
+        setSelectMode(true)
+        setSelectedIds(new Set([id]))
+      }, 480)
+    },
+    [clearPress],
+  )
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }, [])
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleDeleteSelected = () => {
+    if (!selectedIds.size) return
+    deleteUserAlarms([...selectedIds])
+    exitSelectMode()
+    refresh()
+  }
 
   const handleAlertModeChange = (mode: AlarmAlertMode) => {
     if (mode === alertMode) return
@@ -135,26 +187,46 @@ export function AlarmClockPanel() {
     <div>
       <div className="flex items-end justify-between mb-4">
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em] text-ink">알람</h1>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="relative rounded-full border border-border bg-surface px-3 py-2 text-[13px] font-semibold text-ink/85"
-            aria-label="알람 설정"
-          >
-            설정
-            {needsSetup ? (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-status-warn" aria-hidden />
-            ) : null}
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="nb-btn nb-btn--accent rounded-full px-4 py-2 text-[13px] active:scale-100"
-          >
-            + 추가
-          </button>
-        </div>
+        {selectMode ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exitSelectMode}
+              className="rounded-full border border-border bg-surface px-3 py-2 text-[13px] font-semibold text-muted"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={!selectedIds.size}
+              className="rounded-full bg-status-error px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
+            >
+              삭제{selectedIds.size ? ` (${selectedIds.size})` : ''}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="relative rounded-full border border-border bg-surface px-3 py-2 text-[13px] font-semibold text-ink/85"
+              aria-label="알람 설정"
+            >
+              설정
+              {needsSetup ? (
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-status-warn" aria-hidden />
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing('new')}
+              className="nb-btn nb-btn--accent rounded-full px-4 py-2 text-[13px] active:scale-100"
+            >
+              + 추가
+            </button>
+          </div>
+        )}
       </div>
 
       <p className="text-[11px] text-muted/75 mb-3 leading-relaxed">
@@ -206,54 +278,95 @@ export function AlarmClockPanel() {
           </button>
         </div>
       ) : (
-        <ul className="space-y-2.5">
-          {alarms.map((alarm) => (
-            <li key={alarm.id}>
-              <button
-                type="button"
-                onClick={() => setEditing(alarm)}
-                className={`nb-card nb-card-interactive w-full rounded-2xl px-4 py-3.5 text-left transition-transform ${
-                  alarm.enabled ? '' : 'nb-card--soft opacity-75'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-[34px] font-light tracking-[-0.04em] leading-none tabular-nums ${
-                        alarm.enabled ? 'text-ink' : 'text-muted'
-                      }`}
-                    >
-                      {formatAlarmClockTime(alarm.time).replace(/^오전 |^오후 /, '')}
-                    </p>
-                    <p className="text-[11px] text-muted mt-1">
-                      {formatAlarmClockTime(alarm.time).startsWith('오전') ? '오전' : '오후'} · {alarm.label}
-                    </p>
-                    <p className="text-[11px] text-muted/70 mt-0.5">{describeRepeatDays(alarm.repeatDays)}</p>
-                  </div>
+        <>
+          {selectMode ? (
+            <p className="text-[11px] text-muted mb-2">지울 알람을 골라주세요</p>
+          ) : (
+            <p className="text-[11px] text-muted/60 mb-2">길게 누르면 여러 개를 한 번에 지울 수 있어요</p>
+          )}
+          <ul className="space-y-2.5">
+            {alarms.map((alarm) => {
+              const checked = selectedIds.has(alarm.id)
+              return (
+                <li key={alarm.id}>
                   <button
                     type="button"
-                    role="switch"
-                    aria-checked={alarm.enabled}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleUserAlarm(alarm.id, !alarm.enabled)
-                      refresh()
+                    onClick={() => {
+                      // 길게 눌러 선택 모드에 진입한 그 터치의 click은 무시
+                      if (longPressed.current) {
+                        longPressed.current = false
+                        return
+                      }
+                      if (selectMode) toggleSelected(alarm.id)
+                      else setEditing(alarm)
                     }}
-                    className={`relative shrink-0 h-8 w-[52px] rounded-full transition-colors ${
-                      alarm.enabled ? 'bg-status-ok' : 'bg-border/80'
-                    }`}
+                    onTouchStart={() => startPress(alarm.id)}
+                    onTouchEnd={clearPress}
+                    onTouchMove={clearPress}
+                    onTouchCancel={clearPress}
+                    onMouseDown={() => startPress(alarm.id)}
+                    onMouseUp={clearPress}
+                    onMouseLeave={clearPress}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className={`nb-card nb-card-interactive w-full rounded-2xl px-4 py-3.5 text-left transition-transform select-none [-webkit-touch-callout:none] ${
+                      alarm.enabled ? '' : 'nb-card--soft opacity-75'
+                    } ${selectMode && checked ? 'ring-2 ring-status-error/70' : ''}`}
                   >
-                    <span
-                      className={`absolute top-0.5 h-7 w-7 rounded-full bg-white shadow transition-transform ${
-                        alarm.enabled ? 'left-[22px]' : 'left-0.5'
-                      }`}
-                    />
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-[34px] font-light tracking-[-0.04em] leading-none tabular-nums ${
+                            alarm.enabled ? 'text-ink' : 'text-muted'
+                          }`}
+                        >
+                          {formatAlarmClockTime(alarm.time).replace(/^오전 |^오후 /, '')}
+                        </p>
+                        <p className="text-[11px] text-muted mt-1">
+                          {formatAlarmClockTime(alarm.time).startsWith('오전') ? '오전' : '오후'} · {alarm.label}
+                        </p>
+                        <p className="text-[11px] text-muted/70 mt-0.5">{describeRepeatDays(alarm.repeatDays)}</p>
+                      </div>
+                      {selectMode ? (
+                        <span
+                          aria-hidden
+                          className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 text-[13px] font-bold transition-colors ${
+                            checked
+                              ? 'border-status-error bg-status-error text-white'
+                              : 'border-border bg-surface text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={alarm.enabled}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleUserAlarm(alarm.id, !alarm.enabled)
+                            refresh()
+                          }}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className={`relative shrink-0 h-8 w-[52px] rounded-full transition-colors ${
+                            alarm.enabled ? 'bg-status-ok' : 'bg-border/80'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-7 w-7 rounded-full bg-white shadow transition-transform ${
+                              alarm.enabled ? 'left-[22px]' : 'left-0.5'
+                            }`}
+                          />
+                        </button>
+                      )}
+                    </div>
                   </button>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
+                </li>
+              )
+            })}
+          </ul>
+        </>
       )}
 
       {settingsOpen ? (

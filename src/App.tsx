@@ -49,7 +49,6 @@ export default function App() {
   const [summaries, setSummaries] = useState<ProfileSummary[]>([])
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
   const [profile, setProfile] = useState<SelfProfile | null>(null)
-  const [pendingChatPrompt, setPendingChatPrompt] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
   const refreshList = useCallback(() => {
@@ -258,18 +257,7 @@ export default function App() {
               primaryId={getPrimaryProfileId()}
             />
           }
-          home={
-            <HomeScreen
-              onTellFuture={(prompt) => {
-                // 하루 마감 → 미래의 나에게 이어 말하기: 첫 프로필의 채팅을 프리필로 연다
-                const primaryId = getPrimaryProfileId()
-                setActiveTab('chat')
-                if (!primaryId) return
-                setPendingChatPrompt(prompt)
-                openProfile(primaryId)
-              }}
-            />
-          }
+          home={<HomeScreen />}
           alarm={<AlarmScreen />}
           profile={
             <ProfileScreen
@@ -304,8 +292,6 @@ export default function App() {
               onProfileDeleted={handleProfileDeleted}
               onProfileUpdate={handleProfileUpdate}
               onOpenPlanner={handleOpenPlanner}
-              initialPrompt={pendingChatPrompt}
-              onInitialPromptUsed={() => setPendingChatPrompt(null)}
             />
           </div>
         )}

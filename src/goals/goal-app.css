@@ -1556,52 +1556,37 @@ html, body, #root {
   border-color: var(--goal-ink);
 }
 
-.goal-app .goal-time-section {
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 8px;
-  align-items: start;
-  margin-bottom: 12px;
-}
-
-.goal-app .goal-time-section-label {
-  padding-top: 10px;
-  font-size: 12px;
-  color: var(--goal-muted);
-}
-
-.goal-app .goal-time-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.goal-app .goal-time-chip {
-  aspect-ratio: 1;
-  border-radius: 999px;
+/* 시·분 휠 (알람 편집과 동일한 AlarmWheelColumn) */
+.goal-app .goal-time-wheels {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--goal-line);
+  border-radius: 16px;
   background: var(--goal-surface-2, #f4f6f8);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+  overflow: hidden;
+  margin-bottom: 4px;
 }
 
-.goal-app .goal-time-chip.on {
-  background: var(--goal-ink);
-  color: #fff;
-  border-color: var(--goal-ink);
+.goal-app .goal-time-wheels-colon {
+  flex-shrink: 0;
+  font-size: 24px;
+  font-weight: 300;
+  color: var(--goal-muted);
+  user-select: none;
+  padding-bottom: 4px;
 }
 
 .goal-app .goal-time-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  /* 시트 바닥에 딱 붙어 항상 보이게 — 스크롤이 아무리 길어도 '완료'가 화면에 남는다.
-     바닥 padding에 하단 탭바 높이(약 64px)를 더해, 탭바가 백드롭 위로 새어 나와도
-     '완료' 버튼이 그 위에 뜨게 한다 (z-index만으로 안 되는 stacking 상황 대비) */
+  /* 시트 바닥에 딱 붙어 항상 보이게 — 스크롤이 아무리 길어도 '완료'가 화면에 남는다 */
   position: sticky;
   bottom: 0;
   margin-top: 8px;
-  padding: 10px 0 calc(64px + env(safe-area-inset-bottom));
+  padding: 10px 0 calc(14px + env(safe-area-inset-bottom));
   background: var(--goal-surface, #fff);
   /* 위 칩들이 액션바 뒤로 스크롤될 때 경계가 보이게 */
   box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, 0.18);
@@ -1624,7 +1609,8 @@ html, body, #root {
 .goal-app .goal-time-done {
   border: none;
   background: var(--goal-accent);
-  color: #fff;
+  /* 액센트가 밝은 톤이라 흰 글씨는 안 보인다 — 검정 고정 */
+  color: #141414;
 }
 
 .goal-app .goal-chk-remove {
@@ -2518,7 +2504,7 @@ html, body, #root {
 }
 
 .goal-fab-with-nav {
-  bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px) + 12px) !important;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 12px) !important;
 }
 
 /* ── 앱 하단 네비 (goal-app 톤) ── */
@@ -2598,144 +2584,6 @@ html, body, #root {
   font-weight: 500;
 }
 
-/* ── 하루 마감 (GoalDayClose) ── */
-.goal-dayclose {
-  background: var(--goal-surface, #fff);
-  border: 2px solid var(--goal-ink, #141414);
-  border-radius: 18px;
-  padding: 14px 16px;
-  margin: 14px 0;
-  box-shadow: 3px 3px 0 var(--goal-ink, #141414);
-}
-
-.goal-dayclose.evening {
-  border-color: var(--goal-ink, #141414);
-  background: var(--goal-accent-soft, #e9fbf0);
-  box-shadow: 3px 3px 0 var(--goal-ink, #141414);
-}
-
-.goal-dayclose-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.goal-dayclose-tag {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--goal-accent-deep, #4bc878);
-}
-
-.goal-dayclose-sub {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--goal-muted, #6b7583);
-}
-
-.goal-dayclose-btn {
-  border: 2px solid var(--goal-ink, #141414);
-  cursor: pointer;
-  border-radius: 999px;
-  padding: 9px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: inherit;
-  color: var(--goal-ink, #141414);
-  background: var(--goal-accent, #62d98a);
-  flex-shrink: 0;
-  box-shadow: 2px 2px 0 var(--goal-ink, #141414);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.goal-dayclose-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--goal-ink, #141414);
-}
-
-.goal-dayclose-moods {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0;
-}
-
-.goal-dayclose-mood {
-  border: 2px solid var(--goal-ink, #141414);
-  background: var(--goal-surface, #fff);
-  cursor: pointer;
-  border-radius: 999px;
-  padding: 7px 13px;
-  font-size: 12.5px;
-  font-family: inherit;
-  color: var(--goal-muted, #6b7583);
-  box-shadow: 2px 2px 0 var(--goal-ink, #141414);
-}
-
-.goal-dayclose-mood.on {
-  border-color: var(--goal-ink, #141414);
-  background: var(--goal-accent-soft, #e9fbf0);
-  color: var(--goal-accent-deep, #4bc878);
-  font-weight: 700;
-}
-
-.goal-dayclose-input {
-  width: 100%;
-  box-sizing: border-box;
-  border: 2px solid var(--goal-ink, #141414);
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--goal-ink, #3a4048);
-  background: var(--goal-bg, #f7f8fa);
-  box-shadow: 2px 2px 0 var(--goal-ink, #141414);
-  resize: none;
-  outline: none;
-}
-
-.goal-dayclose-input:focus {
-  border-color: var(--goal-accent, #62d98a);
-}
-
-.goal-dayclose-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.goal-dayclose-cancel {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--goal-muted-light, #919aa6);
-  padding: 9px 10px;
-}
-
-.goal-dayclose-msg {
-  margin: 8px 0 0;
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: var(--goal-ink, #3a4048);
-}
-
-.goal-dayclose-note {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--goal-muted, #6b7583);
-}
-
-.goal-dayclose-from {
-  margin: 6px 0 0;
-  font-size: 11.5px;
-  text-align: right;
-  color: var(--goal-muted-light, #919aa6);
-}
-
 /* ── 타임캡슐 편지 (goal-letter) ── */
 .goal-letter {
   background: var(--goal-warn-soft, #fff8e8);
@@ -2763,39 +2611,6 @@ html, body, #root {
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--goal-muted, #6b7583);
-}
-
-.goal-dayclose-talk {
-  display: block;
-  margin-top: 10px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--goal-accent-deep, #4bc878);
-}
-
-.goal-dayclose-manage {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.goal-dayclose-manage button {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 4px 6px;
-  font-size: 11.5px;
-  font-family: inherit;
-  color: var(--goal-muted-light, #919aa6);
-}
-
-.goal-dayclose-manage button:hover {
-  color: var(--goal-ink, #3a4048);
 }
 
 /* 탭 페이저: 홈이 활성이 아닐 때, 홈의 fixed FAB가 다른 탭에 비쳐 보이지 않게 */

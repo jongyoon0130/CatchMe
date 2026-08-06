@@ -14,11 +14,9 @@ interface Props {
   profile: SelfProfile
   onClose?: () => void
   embedded?: boolean
-  /** 하루 마감 → 미래의 나에게 이어 말하기 (채팅 프리필) */
-  onTellFuture?: (prompt: string) => void
 }
 
-export function GoalPlanSheet({ profile, onClose, embedded = false, onTellFuture }: Props) {
+export function GoalPlanSheet({ profile, onClose, embedded = false }: Props) {
   const [mode, setMode] = useState<Mode>('home')
   const [plans, setPlans] = useState<GoalPlan[]>(() => loadGoalPlans(profile.id, profile))
   const [activePlanId, setActivePlanId] = useState<string | null>(null)
@@ -123,7 +121,7 @@ export function GoalPlanSheet({ profile, onClose, embedded = false, onTellFuture
 
   return (
     <GoalShell embedded={embedded}>
-      <GoalDrilldownHome plans={plans} profile={profile} onPlansChange={setPlans} onBack={onClose} onTellFuture={onTellFuture} />
+      <GoalDrilldownHome plans={plans} profile={profile} onPlansChange={setPlans} onBack={onClose} />
       <button
         type="button"
         className={`goal-fab${embedded ? ' goal-fab-with-nav' : ''}`}

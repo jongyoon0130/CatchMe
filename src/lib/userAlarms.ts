@@ -33,6 +33,12 @@ export interface UserAlarm {
   resolve?: string
   createdAt: number
   updatedAt: number
+  /**
+   * 삭제 툼스톤 — 지운 알람을 목록에서 빼는 대신 이 시각을 남긴다.
+   * 클라우드 병합 때 "원격에 아직 살아 있는 옛 사본"이 삭제를 되돌리지 못하게 하는 장치.
+   * (지웠다가 재설치·재로그인하면 알람이 되살아나던 버그의 원인 제거)
+   */
+  deletedAt?: number
 }
 
 /** 24h HH:mm — 항상 2자리 시·분 */
@@ -69,14 +75,20 @@ export function formatAlarmClockTime(time24: string): string {
   return `${period} ${h12}:${String(m).padStart(2, '0')}`
 }
 
-export function loadUserAlarms(): UserAlarm[] {
+/** 삭제 툼스톤을 이 기간 보관 — 모든 기기에 삭제가 퍼질 시간을 벌고 나서 청소 */
+const TOMBSTONE_KEEP_MS = 60 * 24 * 60 * 60 * 1000
+
+/** 툼스톤 포함 원본 — 클라우드 동기화(병합)용 */
+export function loadUserAlarmsWithDeleted(): UserAlarm[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const list = JSON.parse(raw) as UserAlarm[]
     if (!Array.isArray(list)) return []
+    const cutoff = Date.now() - TOMBSTONE_KEEP_MS
     return list
       .filter((a) => a?.id && a?.time)
+      .filter((a) => !a.deletedAt || a.deletedAt > cutoff)
       .map((a) => ({
         ...a,
         enabled: a.enabled !== false,
@@ -86,6 +98,10 @@ export function loadUserAlarms(): UserAlarm[] {
   } catch {
     return []
   }
+}
+
+export function loadUserAlarms(): UserAlarm[] {
+  return loadUserAlarmsWithDeleted().filter((a) => !a.deletedAt)
 }
 
 function saveAll(alarms: UserAlarm[]): void {
@@ -119,14 +135,15 @@ export function addUserAlarm(
     },
     { refreshOneShot: true, now: new Date(now) },
   )
-  const next = [...loadUserAlarms(), alarm]
+  // 툼스톤 포함 원본에 더한다 — 필터된 목록으로 저장하면 삭제 기록이 사라진다
+  const next = [...loadUserAlarmsWithDeleted(), alarm]
   saveAll(next)
   return alarm
 }
 
 export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' | 'createdAt'>>): UserAlarm | null {
-  const list = loadUserAlarms()
-  const idx = list.findIndex((a) => a.id === id)
+  const list = loadUserAlarmsWithDeleted()
+  const idx = list.findIndex((a) => a.id === id && !a.deletedAt)
   if (idx < 0) return null
   const merged = {
     ...list[idx]!,
@@ -145,7 +162,24 @@ export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' 
 }
 
 export function deleteUserAlarm(id: string): void {
-  saveAll(loadUserAlarms().filter((a) => a.id !== id))
+  const now = Date.now()
+  saveAll(
+    loadUserAlarmsWithDeleted().map((a) =>
+      a.id === id ? { ...a, enabled: false, deletedAt: now, updatedAt: now } : a,
+    ),
+  )
+}
+
+/** 여러 알람 한 번에 삭제 (길게 눌러 다중 선택) */
+export function deleteUserAlarms(ids: string[]): void {
+  if (!ids.length) return
+  const now = Date.now()
+  const idSet = new Set(ids)
+  saveAll(
+    loadUserAlarmsWithDeleted().map((a) =>
+      idSet.has(a.id) ? { ...a, enabled: false, deletedAt: now, updatedAt: now } : a,
+    ),
+  )
 }
 
 export function toggleUserAlarm(id: string, enabled: boolean): void {

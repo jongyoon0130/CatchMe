@@ -1,6 +1,12 @@
 import { useEffect } from 'react'
 
-/** 모달·시트 열릴 때 뒤 배경 스크롤 잠금 (iOS PWA) */
+/**
+ * 모달·시트 열릴 때 뒤 배경 스크롤 잠금 (iOS PWA).
+ *
+ * 주의: body를 position:fixed로 만들고 닫을 때 scrollTo로 되돌리는 방식은
+ * 시트가 닫히는 순간 화면이 살짝 튀는(위/아래로 밀리는) 원인이었다.
+ * 이 앱은 스크롤이 전부 내부 컨테이너에서 일어나므로 overflow 잠금만으로 충분하다.
+ */
 export function useBodyScrollLock(active = true): void {
   useEffect(() => {
     if (!active || typeof document === 'undefined') return
@@ -10,27 +16,15 @@ export function useBodyScrollLock(active = true): void {
     const prevHtmlOverflow = html.style.overflow
     const prevBodyOverflow = body.style.overflow
     const prevBodyTouchAction = body.style.touchAction
-    const scrollY = window.scrollY
 
     html.style.overflow = 'hidden'
     body.style.overflow = 'hidden'
     body.style.touchAction = 'none'
-    body.style.position = 'fixed'
-    body.style.top = `-${scrollY}px`
-    body.style.left = '0'
-    body.style.right = '0'
-    body.style.width = '100%'
 
     return () => {
       html.style.overflow = prevHtmlOverflow
       body.style.overflow = prevBodyOverflow
       body.style.touchAction = prevBodyTouchAction
-      body.style.position = ''
-      body.style.top = ''
-      body.style.left = ''
-      body.style.right = ''
-      body.style.width = ''
-      window.scrollTo(0, scrollY)
     }
   }, [active])
 }

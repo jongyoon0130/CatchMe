@@ -14,7 +14,6 @@ import {
   periodKeyForTier,
   type MiscTodoItem,
 } from './goalMiscTodos'
-import { dayCloseStreak, dayKey, loadDayCloses } from './dayClose'
 import { formatTaskTimeRange } from './goalTaskTime'
 
 const OWNER_KEY = 'goal-app-owner-id'
@@ -180,21 +179,6 @@ function historyLines(now: Date): string[] {
 
   const recentDone = recentMiscDoneCount(7, now)
   if (recentDone > 0) lines.push(`최근 7일 실제 완료: ${recentDone}개 — 격려는 이 숫자처럼 증거로 할 것`)
-
-  const owner = readOwnerId()
-  if (owner) {
-    const closes = loadDayCloses(owner)
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yRec = closes.find((r) => r.date === dayKey(yesterday))
-    if (yRec) {
-      lines.push(
-        `어제 하루 마감 기록: ${yRec.mood} (${yRec.done}/${yRec.total})${yRec.note ? ` — "${clip(yRec.note, 60)}"` : ''}`,
-      )
-    }
-    const streak = dayCloseStreak(closes, now)
-    if (streak >= 2) lines.push(`하루 마감 ${streak}일 연속 — 완료 수보다 이 "돌아오는 리듬"을 알아봐줄 것`)
-  }
 
   lines.push(...stalledPlanLines(now))
 

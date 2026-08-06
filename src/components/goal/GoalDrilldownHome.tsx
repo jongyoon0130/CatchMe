@@ -22,7 +22,6 @@ import {
 } from '../../lib/goalRoutines'
 import type { SelfProfile } from '../../types/self'
 import type { GoalPlan } from '../../types/goalPlan'
-import { GoalDayClose } from './GoalDayClose'
 import { daysUntilDeadline, planProgress } from '../../lib/goalPlanBridge'
 import {
   aggregateForDate,
@@ -114,8 +113,6 @@ interface Props {
   onOpenPlan?: (planId: string) => void
   onBack?: () => void
   initialPlanId?: string | null
-  /** 하루 마감 → 미래의 나에게 이어 말하기 (채팅 프리필) */
-  onTellFuture?: (prompt: string) => void
 }
 
 export function GoalDrilldownHome({
@@ -125,7 +122,6 @@ export function GoalDrilldownHome({
   onOpenPlan,
   onBack,
   initialPlanId = null,
-  onTellFuture,
 }: Props) {
   const [stack, setStack] = useState<Screen[]>(initialPlanId ? ['root'] : ['home'])
   const [planId, setPlanId] = useState<string | null>(initialPlanId)
@@ -536,15 +532,6 @@ export function GoalDrilldownHome({
         {!plans.length ? (
           <p className="goal-empty">+ 로 최종 목표를 만들면 기간별 계획도 함께 관리할 수 있어요</p>
         ) : null}
-        <GoalDayClose
-          ownerId={profile.id}
-          selectedDate={selectedDate}
-          done={dailyCount.done}
-          total={dailyCount.total}
-          plans={plans}
-          goalItems={aggregated.daily.map((it) => ({ title: it.planTitle, done: it.done }))}
-          onTellFuture={onTellFuture}
-        />
         {timeCapsules.map((p) => {
           const prog = planProgress(p)
           const achieved = prog.total > 0 && prog.done === prog.total
