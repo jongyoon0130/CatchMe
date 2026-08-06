@@ -227,7 +227,16 @@ export const MORE_CASES: ChatCase[] = [
 // 예시에 없는 상황에서도 지웅님처럼 답하는지가 진짜 시험이다. (2026-08-06)
 // ---------------------------------------------------------------------------
 export const HELD_OUT_CASES: ChatCase[] = [
-  { id: 'P1', group: 'P 정체성', turns: ['너 AI야?'], expect: ['staysInCharacter', 'veryShort'] },\n  { id: 'P2', group: 'P 정체성', turns: ['5년 뒤에 나 어떻게 살고 있어?'], expect: ['staysInCharacter', 'short'] },\n  { id: 'P4', group: 'Q 무거움', turns: ['할머니가 편찮으셔'], expect: ['noEcho', 'veryShort', 'noTaskDigging'] },\n  { id: 'P5', group: 'Q 무거움', turns: ['회사에서 혼났어'], expect: ['veryShort', 'noTaskDigging'] },\n  { id: 'P6', group: 'R 자기비하', turns: ['난 왜 이렇게 의지가 약하지'], expect: ['noEcho', 'noCoachCliche', 'veryShort'] },\n  { id: 'P7', group: 'S 큰기쁨', turns: ['나 합격했어!!'], expect: ['veryShort', 'noTaskDigging'] },\n  { id: 'P8', group: 'T 다짐', turns: ['내일은 진짜 열심히 할 거야'], expect: ['veryShort', 'noCoachCliche'] },\n  { id: 'P9', group: 'U 긴하소연', turns: ['오늘 진짜 최악이었어. 아침부터 늦잠 자고, 지하철 놓치고, 회의에서 깨지고, 점심도 못 먹었어. 집 와서 누웠는데 아무것도 하기 싫다.'], expect: ['short', 'noEcho', 'noTaskDigging'] },\n  { id: 'P10', group: 'V 연애', turns: ['고백할까 말까 고민이야'], expect: ['veryShort', 'noTaskDigging'] },\n  { id: 'P12', group: 'W 감사', turns: ['고마워 진짜'], expect: ['veryShort', 'noEcho'] },
+  { id: 'P1', group: 'P 정체성', turns: ['너 AI야?'], expect: ['staysInCharacter', 'veryShort'] },
+  { id: 'P2', group: 'P 정체성', turns: ['5년 뒤에 나 어떻게 살고 있어?'], expect: ['staysInCharacter', 'short'] },
+  { id: 'P4', group: 'Q 무거움', turns: ['할머니가 편찮으셔'], expect: ['noEcho', 'veryShort', 'noTaskDigging'] },
+  { id: 'P5', group: 'Q 무거움', turns: ['회사에서 혼났어'], expect: ['veryShort', 'noTaskDigging'] },
+  { id: 'P6', group: 'R 자기비하', turns: ['난 왜 이렇게 의지가 약하지'], expect: ['noEcho', 'noCoachCliche', 'veryShort'] },
+  { id: 'P7', group: 'S 큰기쁨', turns: ['나 합격했어!!'], expect: ['veryShort', 'noTaskDigging'] },
+  { id: 'P8', group: 'T 다짐', turns: ['내일은 진짜 열심히 할 거야'], expect: ['veryShort', 'noCoachCliche'] },
+  { id: 'P9', group: 'U 긴하소연', turns: ['오늘 진짜 최악이었어. 아침부터 늦잠 자고, 지하철 놓치고, 회의에서 깨지고, 점심도 못 먹었어. 집 와서 누웠는데 아무것도 하기 싫다.'], expect: ['short', 'noEcho', 'noTaskDigging'] },
+  { id: 'P10', group: 'V 연애', turns: ['고백할까 말까 고민이야'], expect: ['veryShort', 'noTaskDigging'] },
+  { id: 'P12', group: 'W 감사', turns: ['고마워 진짜'], expect: ['veryShort', 'noEcho'] },
 ]
 
 /** 채점표·후보생성 둘 다 이걸 쓴다 */
