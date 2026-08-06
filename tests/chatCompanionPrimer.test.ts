@@ -184,3 +184,31 @@ describe('C·D — 자책 반례와 위로 방향', () => {
     localStorage.clear()
   })
 })
+
+// 채점표 2회차(2026-08-06, 16/18)에서 남은 2개 — 실측으로 원인이 확정된 것들.
+describe('자책 되묻기 · 문어체 (채점표에서 잡힌 것)', () => {
+  const promptFor = (msg: string) => {
+    localStorage.clear()
+    localStorage.setItem('goal-app-owner-id', 'o1')
+    const d = new Date()
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    localStorage.setItem(
+      'goal-misc-todos-o1',
+      JSON.stringify([{ id: 'm1', label: '운동', done: false, tier: 'daily', periodKey: key }]),
+    )
+    return buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('자책은 comfort로 분류되지 않는다 — 그래서 위로 섹션에 기댈 수 없다', () => {
+    // "또 미뤘어"는 needs:[listen]이라 위로 섹션이 안 붙는다. 계획표 규칙 쪽에서 막아야 한다.
+    expect(analyzeMessage('또 미뤘어...').needs).not.toContain('comfort')
+  })
+
+  it('자책엔 되묻지 말라는 규칙이 실린다', () => {
+    expect(promptFor('또 미뤘어...')).toContain('자책엔 되묻지 말 것')
+  })
+
+  it('문어체 금지 규칙이 실린다 — "실내"가 아니라 "밖"', () => {
+    expect(promptFor('비 엄청 온다')).toContain('문어체·한자어')
+  })
+})
