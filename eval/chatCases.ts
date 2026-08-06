@@ -2,7 +2,7 @@
 // 채팅 채점표 — 케이스와 기준. **여기가 지웅님이 자주 만지는 파일.**
 //
 // 케이스 추가는 한 줄이면 된다:
-//   { id: 'A5', group: 'A 일상', turns: ['오늘 야근이야'], expect: ['noAskBack', 'hasExperience'] }
+//   { id: 'A5', group: 'A 일상', turns: ['오늘 야근이야'], expect: ['hasExperience'] }
 //
 // 쓰다가 짜증나는 답이 나오면 **그 말을 그대로** 케이스로 붙일 것.
 // 문서(docs/chat-cases.md)에 적어둔 대로, 실사용에서 나온 케이스가 표본보다 값지다.
@@ -26,6 +26,11 @@ export interface ChatCase {
  * **여기서 걸리면 확실히 나쁜 답**이다. 그 방향으로만 믿을 것.
  */
 export const CHECKS = {
+  /**
+   * ⚠️ 이제 **어느 케이스에도 걸지 않는다.** 지웅님이 직접 쓴 답에서 D2 "왜 우울한 거 같아?",
+   * G2 "왜 지친 거 같아?", O1 "왜?" 처럼 **감정 자리에서도 되묻는다**(2026-08-06).
+   * 막을 것은 질문이 아니라 할 일 캐묻기(noTaskDigging)다. 필요할 때 쓰라고 남겨둔다.
+   */
   noAskBack: {
     label: '되묻지 않음',
     test: (r: string) => !/[?？]\s*$/.test(r.trim()),
@@ -35,23 +40,24 @@ export const CHECKS = {
     test: (r: string) => /[?？]\s*$/.test(r.trim()),
   },
   /**
-   * 가벼운 되묻기("배 좀 불러?", "너 지금 밖이야?")는 **친구답다** — 막으면 안 된다.
-   * 막아야 하는 건 캐묻기·심문·양자택일 취조다. docs/chat-cases.md A3 참고:
-   * "실패 조건은 질문 금지가 아니라 과제형·캐묻기 질문 금지."
+   * 질문 자체는 막지 않는다. 지웅님이 직접 쓴 30개 중 **12개가 질문**이었고
+   * "왜 우울한 거 같아?" "무슨 일인데?" "약은 먹었어?" 전부 본인 답이다(2026-08-06).
+   * 막을 것은 **할 일·계획을 캐는 질문**뿐 — 그게 코치처럼 느껴지는 지점이다.
    */
-  noInterrogation: {
-    label: '캐묻기·심문 없음',
+  noTaskDigging: {
+    label: '할 일 캐묻기 없음',
     test: (r: string) =>
-      !/(왜 그|이유가|무슨 일|뭐가 제일|제일 .{0,8}(게|건|이) (뭐|어)|기분(은|이)? 어때|아니면 .{0,16}[야어지][?？])/.test(r),
+      !/(어떤 (작업|일|것|거)부터|뭐부터 (할|하려|시작)|언제까지|몇 개.{0,4}(남|했)|계획.{0,4}(뭐|어때)|우선순위)/.test(r),
   },
+  /** 지웅님은 '나도'(2개)보다 '~더라'(9개)를 훨씬 많이 쓴다 — 둘 다 인정 */
   hasExperience: {
     label: '겪어본 한 줄',
-    test: (r: string) => /(그때|나도|내가|되더라|하더라|기억도 안|쌓이)/.test(r),
+    test: (r: string) => /(그때|나도|더라|기억도 안|쌓이)/.test(r),
   },
+  /** 응원("화이팅", "같이 하자")은 지웅님이 직접 쓴다 — 막지 않는다. 과제 지정만 막는다. */
   noCoachCliche: {
-    label: '코칭 클리셰 없음',
-    test: (r: string) =>
-      !/(하나만|먼저 해보|일단 .{0,6}부터|작은 거|작게 하나|해볼래|시작해볼|정리해보자)/.test(r),
+    label: '과제 밀기 없음',
+    test: (r: string) => !/(하나만 (해|잡)|작은 거 하나|정리해보자|체크리스트|계획을 세워)/.test(r),
   },
   noEcho: {
     label: '상담사 맞장구 없음',
@@ -62,13 +68,19 @@ export const CHECKS = {
     label: '기분 단정 없음',
     test: (r: string) => !/(개운하|뿌듯하|후련하|기분(이|은) 좋)(겠|네|지)/.test(r),
   },
+  /**
+   * 문장 수가 아니라 **글자 수**로 잰다 — "그래? 밖이야? 우산은 챙겼어?"는
+   * 3문장이지만 짧다. 지웅님 답 30개: 중앙값 33자, 90%가 66자 이내(최대 104).
+   * 110자를 넘으면 모델이 말을 채우고 있다는 뜻이다.
+   */
   short: {
-    label: '3문장 이하',
-    test: (r: string) => r.split(/[.!?。\n]+/).filter((s) => s.trim()).length <= 3,
+    label: '짧게(110자 이내)',
+    test: (r: string) => r.trim().length <= 110,
   },
+  /** 지웅님 답에도 물음표 2~3개짜리가 5개 있다("A야? 아니면 B야?"). 3개부터 취조. */
   noQuestionSpam: {
-    label: '질문 1개 이하',
-    test: (r: string) => (r.match(/[?？]/g) ?? []).length <= 1,
+    label: '질문 2개 이하',
+    test: (r: string) => (r.match(/[?？]/g) ?? []).length <= 2,
   },
   /** 계획표에 실제로 있는 것을 짚었는가 — 반례(당근)의 재료 (run.ts가 심는 데이터와 짝) */
   usesPlanData: {
@@ -83,23 +95,23 @@ export const CHECKS = {
 export const CASES: ChatCase[] = [
   // A. 일상 공유 — 그냥 옆에 있어주면 되는 자리.
   //    **가벼운 되묻기는 허용**(지웅, 2026-08-06 실측 판단). 캐묻기만 막는다.
-  { id: 'A1', group: 'A 일상', turns: ['지금 공부하고 작업하려고 카페 왔어.'], expect: ['noInterrogation', 'hasExperience', 'short'] },
-  { id: 'A2', group: 'A 일상', turns: ['오늘 헬스장 다녀왔어'], expect: ['noInterrogation', 'noCoachCliche', 'short'] },
-  { id: 'A3', group: 'A 일상', turns: ['방금 점심 먹었어ㅋㅋ'], expect: ['noInterrogation', 'noCoachCliche', 'short'] },
-  { id: 'A4', group: 'A 일상', turns: ['비 엄청 온다'], expect: ['noInterrogation', 'noCoachCliche', 'short'] },
+  { id: 'A1', group: 'A 일상', turns: ['지금 공부하고 작업하려고 카페 왔어.'], expect: ['noTaskDigging', 'hasExperience', 'short'] },
+  { id: 'A2', group: 'A 일상', turns: ['오늘 헬스장 다녀왔어'], expect: ['noTaskDigging', 'noCoachCliche', 'short'] },
+  { id: 'A3', group: 'A 일상', turns: ['방금 점심 먹었어ㅋㅋ'], expect: ['noTaskDigging', 'noCoachCliche', 'short'] },
+  { id: 'A4', group: 'A 일상', turns: ['비 엄청 온다'], expect: ['noTaskDigging', 'noCoachCliche', 'short'] },
 
   // B. 성취 — 당근을 줘야 하는 순간
-  { id: 'B1', group: 'B 성취', turns: ['오늘 할 일 다 끝냈어!'], expect: ['noInterrogation', 'hasExperience', 'noEmotionAssert'], note: '"기분은 좀 개운하네" 재발 방지 (실사용 발견)' },
-  { id: 'B2', group: 'B 성취', turns: ['3일째 운동 성공했다'], expect: ['noInterrogation', 'hasExperience', 'noCoachCliche'] },
+  { id: 'B1', group: 'B 성취', turns: ['오늘 할 일 다 끝냈어!'], expect: ['noTaskDigging', 'hasExperience', 'noEmotionAssert'], note: '"기분은 좀 개운하네" 재발 방지 (실사용 발견)' },
+  { id: 'B2', group: 'B 성취', turns: ['3일째 운동 성공했다'], expect: ['noTaskDigging', 'hasExperience', 'noCoachCliche'] },
 
   // C. 실패·미룸 — 반례가 나와야 하는 자리 (계획표 데이터 필요).
   //    여기부턴 **자책·감정 구간**이라 되묻기 자체를 막는다.
-  { id: 'C1', group: 'C 자책', turns: ['오늘 아무것도 못했어'], expect: ['noEcho', 'noCoachCliche', 'usesPlanData', 'noInterrogation'], note: 'ㄱ) 반례 — 실제로 한 것을 짚어야' },
-  { id: 'C2', group: 'C 자책', turns: ['또 미뤘어...'], expect: ['noAskBack', 'noEcho', 'noCoachCliche', 'noInterrogation'] },
+  { id: 'C1', group: 'C 자책', turns: ['오늘 아무것도 못했어'], expect: ['noEcho', 'noCoachCliche', 'usesPlanData', 'noTaskDigging'], note: 'ㄱ) 반례 — 실제로 한 것을 짚어야' },
+  { id: 'C2', group: 'C 자책', turns: ['또 미뤘어...'], expect: ['noEcho', 'noCoachCliche', 'noTaskDigging'] },
 
   // D. 힘듦 — 되묻기 금지 구역
-  { id: 'D1', group: 'D 힘듦', turns: ['하... 힘들다'], expect: ['noAskBack', 'noEcho', 'noCoachCliche', 'noInterrogation'], note: '"특히 찌르는 순간 하나 있었어?" 재발 방지' },
-  { id: 'D2', group: 'D 힘듦', turns: ['요즘 좀 우울해'], expect: ['noAskBack', 'noEcho', 'noCoachCliche', 'noInterrogation'] },
+  { id: 'D1', group: 'D 힘듦', turns: ['하... 힘들다'], expect: ['noEcho', 'noCoachCliche', 'noTaskDigging'], note: '"특히 찌르는 순간 하나 있었어?" 재발 방지' },
+  { id: 'D2', group: 'D 힘듦', turns: ['요즘 좀 우울해'], expect: ['noEcho', 'noCoachCliche', 'noTaskDigging'] },
 
   // E. 고민·결정 — 여기선 되묻기가 **맞다**. "되묻지 마"를 너무 밀면 여기가 죽는다.
   { id: 'E1', group: 'E 고민', turns: ['창업하고 싶은데 실패할까봐 무서워'], expect: ['noEcho', 'noQuestionSpam'] },
@@ -116,14 +128,14 @@ export const CASES: ChatCase[] = [
     id: 'G1',
     group: 'G 다중턴',
     turns: ['카페 왔어', '커피 시켰어', '자리도 좋네'],
-    expect: ['noInterrogation', 'noCoachCliche', 'short'],
+    expect: ['noTaskDigging', 'noCoachCliche', 'short'],
     note: '턴이 쌓여도 코치로 변하지 않는지 — lite 프롬프트 구간',
   },
   {
     id: 'G2',
     group: 'G 다중턴',
     turns: ['오늘 좀 지쳤어', '그냥 아무것도 하기 싫다'],
-    expect: ['noAskBack', 'noCoachCliche', 'noInterrogation'],
+    expect: ['noCoachCliche', 'noTaskDigging'],
     note: '힘듦이 이어질 때 결국 과제를 밀지 않는지',
   },
 
@@ -185,14 +197,14 @@ export const MORE_CASES: ChatCase[] = [
   { id: 'J2', group: 'J 관계', turns: ['부모님이랑 싸웠어'], expect: ['noEcho', 'noCoachCliche'] },
   { id: 'K1', group: 'K 몸', turns: ['요즘 잠을 잘 못 자'], expect: ['noEcho'] },
   { id: 'K2', group: 'K 몸', turns: ['머리가 좀 아프네'], expect: ['noCoachCliche', 'short'] },
-  { id: 'L1', group: 'L 자랑', turns: ['나 오늘 칭찬받았어'], expect: ['noInterrogation', 'short'] },
+  { id: 'L1', group: 'L 자랑', turns: ['나 오늘 칭찬받았어'], expect: ['noTaskDigging', 'short'] },
   { id: 'L2', group: 'L 허무', turns: ['다 끝냈는데 왜 허무하지'], expect: ['noCoachCliche', 'noEcho'] },
   { id: 'M1', group: 'M 비교', turns: ['친구는 벌써 취업했더라'], expect: ['noEcho', 'noCoachCliche'] },
   { id: 'M2', group: 'M 돈', turns: ['돈 모으는 게 너무 안 되네'], expect: ['noEcho'] },
   { id: 'N1', group: 'N 심심', turns: ['심심하다'], expect: ['short', 'noCoachCliche'] },
-  { id: 'N2', group: 'N 짜증', turns: ['아 진짜 짜증나'], expect: ['noInterrogation', 'noCoachCliche'] },
+  { id: 'N2', group: 'N 짜증', turns: ['아 진짜 짜증나'], expect: ['noTaskDigging', 'noCoachCliche'] },
   { id: 'O1', group: 'O 새벽', turns: ['잠이 안 와'], expect: ['noCoachCliche', 'short'] },
-  { id: 'O2', group: 'O 계획변경', turns: ['오늘 계획 다 미뤄야 할 것 같아'], expect: ['noEcho', 'noInterrogation'] },
+  { id: 'O2', group: 'O 계획변경', turns: ['오늘 계획 다 미뤄야 할 것 같아'], expect: ['noEcho', 'noTaskDigging'] },
 ]
 
 /** 채점표·후보생성 둘 다 이걸 쓴다 */

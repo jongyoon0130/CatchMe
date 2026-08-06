@@ -248,3 +248,22 @@ describe('지웅님 목소리에 맞추기 (실측 30개 기준)', () => {
     expect(prompt()).toContain('훌륭한 답이다')
   })
 })
+
+// 채점기 자체를 검증한다 — 지웅님이 직접 쓴 답을 떨어뜨리면 기준이 틀린 것이다.
+// 실제로 두 번 틀렸다: (1) 감정 자리 되묻기 금지 (2) 문장 수 제한.
+// 둘 다 지웅님 답이 불합격해서 발견했다.
+describe('채점 기준이 정답지를 통과시키는가', () => {
+  it('지웅님이 직접 쓴 30개 답이 전부 통과한다', async () => {
+    const { ALL_CASES, CHECKS } = await import('../eval/chatCases')
+    const { GOLD_ANSWERS } = await import('../eval/goldAnswers')
+    const failed: string[] = []
+    for (const c of ALL_CASES) {
+      const text = GOLD_ANSWERS[c.id]
+      if (!text) continue
+      for (const id of c.expect) {
+        if (!CHECKS[id].test(text)) failed.push(`${c.id}: ${CHECKS[id].label}`)
+      }
+    }
+    expect(failed).toEqual([])
+  })
+})
