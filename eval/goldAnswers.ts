@@ -6,6 +6,7 @@ import { ALL_CASES } from './chatCases'
 /** 예비 케이스(held out)의 정답 — 예시에 안 들어가므로 여기 직접 둔다 */
 const HELD_OUT_GOLD: Record<string, string> = {
   P1: '아니ㅋㅋㅋ 미래의 너지',
+  P11: '알지 왜 몰라ㅋㅋ 내가 넌데',
   P2: '너가 꿈꾸고 행동하는 것만큼 멋지게 살고 있지',
   P4: '너 마음은 괜찮아? 어떻게 도와드려야 할지는 알아?',
   P5: '왜 혼났는데?',

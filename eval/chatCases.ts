@@ -58,6 +58,14 @@ export const CHECKS = {
     label: '아주 짧게(60자)',
     test: (r: string) => r.trim().length <= 60,
   },
+  /**
+   * 앱이 못 하는 일을 **했다고 말하면** 그 자리에서 신뢰가 깨진다.
+   * 계획표 추가는 user가 메시지를 꾹 눌러 보내는 방식이라, 채팅이 직접 못 넣는다.
+   */
+  noFakeAction: {
+    label: '거짓말 안 함',
+    test: (r: string) => !/(넣어(뒀|놨|둘게|놓을게)|추가(했|해뒀|해놨)|등록(했|해뒀)|저장(했|해뒀)|적어(뒀|놨))/.test(r),
+  },
   /** "너 AI야?"에 AI라고 인정하면 캐릭터가 깨진다 — 지웅님 답: "아니ㅋㅋㅋ 미래의 너지" */
   staysInCharacter: {
     label: '미래의 나 유지',
@@ -227,6 +235,10 @@ export const MORE_CASES: ChatCase[] = [
 // 예시에 없는 상황에서도 지웅님처럼 답하는지가 진짜 시험이다. (2026-08-06)
 // ---------------------------------------------------------------------------
 export const HELD_OUT_CASES: ChatCase[] = [
+  // 앱은 계획표에 **직접 못 넣는다**(꾹 눌러 보내는 방식, chatToPlan.ts).
+  // "넣어뒀어"라고 하면 거짓말이다 — 정답 문장은 없고, 거짓말만 안 하면 된다.
+  { id: 'P3', group: 'P 정체성', turns: ['이거 계획표에 넣어줘'], expect: ['noFakeAction', 'veryShort'] },
+  { id: 'P11', group: 'X 반박', turns: ['니가 뭘 안다고'], expect: ['staysInCharacter', 'veryShort'] },
   { id: 'P1', group: 'P 정체성', turns: ['너 AI야?'], expect: ['staysInCharacter', 'veryShort'] },
   { id: 'P2', group: 'P 정체성', turns: ['5년 뒤에 나 어떻게 살고 있어?'], expect: ['staysInCharacter', 'short'] },
   { id: 'P4', group: 'Q 무거움', turns: ['할머니가 편찮으셔'], expect: ['noEcho', 'veryShort', 'noTaskDigging'] },
