@@ -271,3 +271,22 @@ describe('채점 기준이 정답지를 통과시키는가', () => {
     expect(failed).toEqual([])
   })
 })
+
+// 예비 케이스 12개 실측(2026-08-06)에서 나온 차이. 지웅님은 닫고, 모델은 열었다.
+describe('닫아주기 · 자기비하 (예비 케이스 실측)', () => {
+  const p = (msg: string) =>
+    buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+
+  it('매 턴 질문으로 끝내지 말라고 지시한다', () => {
+    expect(p('고마워 진짜')).toContain('매 턴 질문으로 끝내지 말 것')
+    expect(p('고마워 진짜')).toContain('닫아주는 게 나을 때가 있다')
+  })
+
+  it('위로·축하·감사엔 한 문장이면 된다고 알려준다', () => {
+    expect(p('나 합격했어!!')).toContain('한 문장이면 충분하다')
+  })
+
+  it('"나도 그때~"는 아주 드물게 쓰라고 못박는다', () => {
+    expect(p('오늘 헬스장 다녀왔어')).toContain('아주 드물게')
+  })
+})
