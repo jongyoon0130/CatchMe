@@ -201,5 +201,7 @@ function tally() {
 paint();
 </script>`
 
-await Bun.write('eval/out/pick.html', html)
-console.log('→ eval/out/pick.html\n  open eval/out/pick.html')
+// DRY(화면 확인용)는 **다른 파일로** — 진짜 후보가 든 pick.html을 덮어쓰면 안 된다
+const outPath = process.env.DRY ? 'eval/out/pick-sample.html' : 'eval/out/pick.html'
+await Bun.write(outPath, html)
+console.log(`→ ${outPath}\n  open ${outPath}`)
