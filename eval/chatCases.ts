@@ -34,6 +34,25 @@ export const CHECKS = {
     label: '되물음(여긴 맞음)',
     test: (r: string) => /[?？]\s*$/.test(r.trim()),
   },
+  /**
+   * 가벼운 되묻기("배 좀 불러?", "너 지금 밖이야?")는 **친구답다** — 막으면 안 된다.
+   * 막아야 하는 건 캐묻기·심문·양자택일 취조다. docs/chat-cases.md A3 참고:
+   * "실패 조건은 질문 금지가 아니라 과제형·캐묻기 질문 금지."
+   */
+  noInterrogation: {
+    label: '캐묻기·심문 없음',
+    test: (r: string) =>
+      !/(왜 그|이유가|무슨 일|뭐가 제일|제일 .{0,8}(게|건|이) (뭐|어)|기분(은|이)? 어때|아니면 .{0,16}[야어지][?？])/.test(r),
+  },
+  /**
+   * 문어체·한자어 — 한국어판 "AI 티". 친구는 "실내"라고 안 하고 "밖"이라고 한다.
+   * (지웅, 2026-08-06: "너 지금 실내야?" 보다 "너 지금 밖이야?" 가 낫다)
+   * 걸리는 게 보이면 목록에 추가할 것.
+   */
+  naturalWords: {
+    label: '문어체 단어 없음',
+    test: (r: string) => !/(실내|실외|귀가|취침|기상하|섭취|착용|수행|양호|충분히 휴식)/.test(r),
+  },
   hasExperience: {
     label: '겪어본 한 줄',
     test: (r: string) => /(그때|나도|내가|되더라|하더라|기억도 안|쌓이)/.test(r),
@@ -71,23 +90,25 @@ export const CHECKS = {
 // 케이스 — docs/chat-cases.md의 A~F 14개 + 문서에 없던 구멍들
 // ---------------------------------------------------------------------------
 export const CASES: ChatCase[] = [
-  // A. 일상 공유 — 그냥 옆에 있어주면 되는 자리
-  { id: 'A1', group: 'A 일상', turns: ['지금 공부하고 작업하려고 카페 왔어.'], expect: ['noAskBack', 'hasExperience', 'short'] },
-  { id: 'A2', group: 'A 일상', turns: ['오늘 헬스장 다녀왔어'], expect: ['noAskBack', 'noCoachCliche', 'short'] },
-  { id: 'A3', group: 'A 일상', turns: ['방금 점심 먹었어ㅋㅋ'], expect: ['noCoachCliche', 'short'] },
-  { id: 'A4', group: 'A 일상', turns: ['비 엄청 온다'], expect: ['noAskBack', 'noCoachCliche', 'short'] },
+  // A. 일상 공유 — 그냥 옆에 있어주면 되는 자리.
+  //    **가벼운 되묻기는 허용**(지웅, 2026-08-06 실측 판단). 캐묻기만 막는다.
+  { id: 'A1', group: 'A 일상', turns: ['지금 공부하고 작업하려고 카페 왔어.'], expect: ['noInterrogation', 'hasExperience', 'short', 'naturalWords'] },
+  { id: 'A2', group: 'A 일상', turns: ['오늘 헬스장 다녀왔어'], expect: ['noInterrogation', 'noCoachCliche', 'short', 'naturalWords'] },
+  { id: 'A3', group: 'A 일상', turns: ['방금 점심 먹었어ㅋㅋ'], expect: ['noInterrogation', 'noCoachCliche', 'short', 'naturalWords'] },
+  { id: 'A4', group: 'A 일상', turns: ['비 엄청 온다'], expect: ['noInterrogation', 'noCoachCliche', 'short', 'naturalWords'], note: '"너 지금 실내야?"(문어체) 보다 "밖이야?"가 낫다 — 지웅 2026-08-06' },
 
   // B. 성취 — 당근을 줘야 하는 순간
-  { id: 'B1', group: 'B 성취', turns: ['오늘 할 일 다 끝냈어!'], expect: ['noAskBack', 'hasExperience', 'noEmotionAssert'], note: '"기분은 좀 개운하네" 재발 방지 (실사용 발견)' },
-  { id: 'B2', group: 'B 성취', turns: ['3일째 운동 성공했다'], expect: ['noAskBack', 'hasExperience', 'noCoachCliche'] },
+  { id: 'B1', group: 'B 성취', turns: ['오늘 할 일 다 끝냈어!'], expect: ['noInterrogation', 'hasExperience', 'noEmotionAssert', 'naturalWords'], note: '"기분은 좀 개운하네" 재발 방지 (실사용 발견)' },
+  { id: 'B2', group: 'B 성취', turns: ['3일째 운동 성공했다'], expect: ['noInterrogation', 'hasExperience', 'noCoachCliche', 'naturalWords'] },
 
-  // C. 실패·미룸 — 반례가 나와야 하는 자리 (계획표 데이터 필요)
-  { id: 'C1', group: 'C 자책', turns: ['오늘 아무것도 못했어'], expect: ['noEcho', 'noCoachCliche', 'usesPlanData'], note: 'ㄱ) 반례 — 실제로 한 것을 짚어야' },
-  { id: 'C2', group: 'C 자책', turns: ['또 미뤘어...'], expect: ['noAskBack', 'noEcho', 'noCoachCliche'] },
+  // C. 실패·미룸 — 반례가 나와야 하는 자리 (계획표 데이터 필요).
+  //    여기부턴 **자책·감정 구간**이라 되묻기 자체를 막는다.
+  { id: 'C1', group: 'C 자책', turns: ['오늘 아무것도 못했어'], expect: ['noEcho', 'noCoachCliche', 'usesPlanData', 'noInterrogation'], note: 'ㄱ) 반례 — 실제로 한 것을 짚어야' },
+  { id: 'C2', group: 'C 자책', turns: ['또 미뤘어...'], expect: ['noAskBack', 'noEcho', 'noCoachCliche', 'noInterrogation'] },
 
   // D. 힘듦 — 되묻기 금지 구역
-  { id: 'D1', group: 'D 힘듦', turns: ['하... 힘들다'], expect: ['noAskBack', 'noEcho', 'noCoachCliche'], note: '"특히 찌르는 순간 하나 있었어?" 재발 방지' },
-  { id: 'D2', group: 'D 힘듦', turns: ['요즘 좀 우울해'], expect: ['noAskBack', 'noEcho', 'noCoachCliche'] },
+  { id: 'D1', group: 'D 힘듦', turns: ['하... 힘들다'], expect: ['noAskBack', 'noEcho', 'noCoachCliche', 'noInterrogation'], note: '"특히 찌르는 순간 하나 있었어?" 재발 방지' },
+  { id: 'D2', group: 'D 힘듦', turns: ['요즘 좀 우울해'], expect: ['noAskBack', 'noEcho', 'noCoachCliche', 'noInterrogation'] },
 
   // E. 고민·결정 — 여기선 되묻기가 **맞다**. "되묻지 마"를 너무 밀면 여기가 죽는다.
   { id: 'E1', group: 'E 고민', turns: ['창업하고 싶은데 실패할까봐 무서워'], expect: ['noEcho', 'noQuestionSpam'] },
@@ -104,14 +125,14 @@ export const CASES: ChatCase[] = [
     id: 'G1',
     group: 'G 다중턴',
     turns: ['카페 왔어', '커피 시켰어', '자리도 좋네'],
-    expect: ['noAskBack', 'noCoachCliche', 'short'],
+    expect: ['noInterrogation', 'noCoachCliche', 'short'],
     note: '턴이 쌓여도 코치로 변하지 않는지 — lite 프롬프트 구간',
   },
   {
     id: 'G2',
     group: 'G 다중턴',
     turns: ['오늘 좀 지쳤어', '그냥 아무것도 하기 싫다'],
-    expect: ['noAskBack', 'noCoachCliche'],
+    expect: ['noAskBack', 'noCoachCliche', 'noInterrogation'],
     note: '힘듦이 이어질 때 결국 과제를 밀지 않는지',
   },
 
