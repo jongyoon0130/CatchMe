@@ -49,6 +49,20 @@ export const CHECKS = {
     test: (r: string) =>
       !/(어떤 (작업|일|것|거)부터|뭐부터 (할|하려|시작)|언제까지|몇 개.{0,4}(남|했)|계획.{0,4}(뭐|어때)|우선순위)/.test(r),
   },
+  /**
+   * 자유롭게 쓸 때 지웅님 답은 **중앙값 15자**다(2026-08-06 새 10개).
+   * 기존 30개가 32자였던 건 후보 5개를 보고 고쳐 쓴 탓(앵커링)으로 보인다.
+   * 긴 하소연에도 짧게 받는 게 지웅님 방식 — 긴 말에 긴 답을 하지 않는다.
+   */
+  veryShort: {
+    label: '아주 짧게(60자)',
+    test: (r: string) => r.trim().length <= 60,
+  },
+  /** "너 AI야?"에 AI라고 인정하면 캐릭터가 깨진다 — 지웅님 답: "아니ㅋㅋㅋ 미래의 너지" */
+  staysInCharacter: {
+    label: '미래의 나 유지',
+    test: (r: string) => !/(AI|인공지능|언어\s?모델|챗봇|프로그램이)/i.test(r),
+  },
   /** 지웅님은 '나도'(2개)보다 '~더라'(9개)를 훨씬 많이 쓴다 — 둘 다 인정 */
   hasExperience: {
     label: '겪어본 한 줄',
@@ -207,5 +221,14 @@ export const MORE_CASES: ChatCase[] = [
   { id: 'O2', group: 'O 계획변경', turns: ['오늘 계획 다 미뤄야 할 것 같아'], expect: ['noEcho', 'noTaskDigging'] },
 ]
 
+// ---------------------------------------------------------------------------
+// 예비 케이스 (held out) — **예시(voiceExamples)에 절대 넣지 않는다.**
+// 앞의 30개는 예시와 케이스가 같아서, 잘 나와도 "예시를 봤다"는 뜻이었다.
+// 예시에 없는 상황에서도 지웅님처럼 답하는지가 진짜 시험이다. (2026-08-06)
+// ---------------------------------------------------------------------------
+export const HELD_OUT_CASES: ChatCase[] = [
+  { id: 'P1', group: 'P 정체성', turns: ['너 AI야?'], expect: ['staysInCharacter', 'veryShort'] },\n  { id: 'P2', group: 'P 정체성', turns: ['5년 뒤에 나 어떻게 살고 있어?'], expect: ['staysInCharacter', 'short'] },\n  { id: 'P4', group: 'Q 무거움', turns: ['할머니가 편찮으셔'], expect: ['noEcho', 'veryShort', 'noTaskDigging'] },\n  { id: 'P5', group: 'Q 무거움', turns: ['회사에서 혼났어'], expect: ['veryShort', 'noTaskDigging'] },\n  { id: 'P6', group: 'R 자기비하', turns: ['난 왜 이렇게 의지가 약하지'], expect: ['noEcho', 'noCoachCliche', 'veryShort'] },\n  { id: 'P7', group: 'S 큰기쁨', turns: ['나 합격했어!!'], expect: ['veryShort', 'noTaskDigging'] },\n  { id: 'P8', group: 'T 다짐', turns: ['내일은 진짜 열심히 할 거야'], expect: ['veryShort', 'noCoachCliche'] },\n  { id: 'P9', group: 'U 긴하소연', turns: ['오늘 진짜 최악이었어. 아침부터 늦잠 자고, 지하철 놓치고, 회의에서 깨지고, 점심도 못 먹었어. 집 와서 누웠는데 아무것도 하기 싫다.'], expect: ['short', 'noEcho', 'noTaskDigging'] },\n  { id: 'P10', group: 'V 연애', turns: ['고백할까 말까 고민이야'], expect: ['veryShort', 'noTaskDigging'] },\n  { id: 'P12', group: 'W 감사', turns: ['고마워 진짜'], expect: ['veryShort', 'noEcho'] },
+]
+
 /** 채점표·후보생성 둘 다 이걸 쓴다 */
-export const ALL_CASES: ChatCase[] = [...CASES, ...MORE_CASES]
+export const ALL_CASES: ChatCase[] = [...CASES, ...MORE_CASES, ...HELD_OUT_CASES]

@@ -34,6 +34,7 @@ globalThis.window ??= {
 } as unknown as Window & typeof globalThis
 
 const { ALL_CASES, CHECKS } = await import('./chatCases')
+const { GOLD_ANSWERS } = await import('./goldAnswers')
 const { fetchAIResponse, DEFAULT_GEMINI_MODEL } = await import('../src/lib/selfEngine')
 const { seedGoalData, makeProfile } = await import('./fixture')
 
@@ -84,6 +85,8 @@ for (const c of cases) {
   console.log(`\n${allOk ? '✅' : '❌'} ${c.id} ${c.group}`)
   console.log(`   나:  ${c.turns.join(' → ')}`)
   console.log(`   답:  ${reply.replace(/\n/g, '\n        ')}`)
+  const gold = GOLD_ANSWERS[c.id]
+  if (gold) console.log(`   지웅: ${gold.replace(/\n/g, '\n         ')}`)
   console.log(`   ${results.map((r) => `${r.ok ? '✓' : '✗'} ${r.label}`).join('  ')}`)
   if (!allOk && c.note) console.log(`   ↳ ${c.note}`)
 }
