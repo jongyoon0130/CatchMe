@@ -6,8 +6,22 @@ import type {
   BigFive,
   Insight,
   InsightKind,
+  AdviceTone,
 } from '../types/self'
-import { BIG_FIVE_ITEMS, INSIGHT_LABELS, LIFE_DOMAIN_LABELS } from '../types/self'
+import { ADVICE_TONE_LABELS, BIG_FIVE_ITEMS, INSIGHT_LABELS, LIFE_DOMAIN_LABELS } from '../types/self'
+
+/**
+ * 힘들 때 원하는 말은 사람마다 다르다 — 그래서 온보딩에서 **직접 고르게** 해뒀다
+ * (ChatOnboarding 'advice' 단계). 고른 값(future.adviceTone)이 지금까지 저장만 되고
+ * 프롬프트에 안 실려서, '따끔'을 고른 사람이나 '위로'를 고른 사람이나 답이 같았다.
+ * docs/chat-cases.md D — 여기서 고정 답을 정하지 않고 이 값이 색을 정하게 한다.
+ */
+const ADVICE_TONE_GUIDE: Record<AdviceTone, string> = {
+  comfort: '받아주고 멈춰주기. "오늘은 여기까지만 하자" 쪽. 과제·다그침 금지',
+  tough: '무르게 넘어가주지 않기. 판단 없는 사실 한 줄까지는 괜찮다 (훈계·심문은 여전히 금지)',
+  cheer: '같이 힘내기. 지금까지 해온 걸 알아봐주고 편들어주기',
+  real: '담백한 현실. 미화하지 말고, 지나간다는 것까지만',
+}
 import { formatApiTurnTimestamp, nowContextKo } from './chatDisplay'
 import { FUTURE_YEARS_AHEAD } from './brand'
 import { renderFutureSelfBlock, personaGaps } from './personaModel'
@@ -102,13 +116,27 @@ function describePersonUnderstanding(p: SelfProfile): string {
     )
   }
 
-  if (p.comfortTarget.trim()) {
-    lines.push(
-      `위로받을 때 편한 말의 방향: "${p.comfortTarget.trim()}". 위로가 필요해 보일 때 이 톤을 참고. "힘내" 같은 뻔한 응원은 피할 것.`,
-    )
-  }
-
   return lines.map((l) => `- ${l}`).join('\n')
+}
+
+/**
+ * 위로 방향 — **위로가 필요한 턴에만** 싣는다.
+ *
+ * 예전엔 comfortTarget이 describePersonUnderstanding 안에 있었는데, 그 함수는 deep 턴
+ * (인생·가치·1순위 같은 말이 나올 때)에만 돌았다. "하... 힘들다"는 deep이 아니라서
+ * **정작 위로가 필요할 때 이 정보가 프롬프트에 없었다.** 조건을 needs:comfort로 바꾼다.
+ */
+function describeComfortDirection(p: SelfProfile): string {
+  const lines: string[] = []
+  if (p.comfortTarget.trim()) {
+    lines.push(`- user가 듣고 싶다고 한 말: "${p.comfortTarget.trim().slice(0, 120)}" — 낭독하지 말고 방향만 참고. "힘내" 같은 뻔한 응원은 피할 것.`)
+  }
+  const tone = p.future?.adviceTone
+  if (tone) {
+    lines.push(`- user가 **직접 고른** 위로 방향: **${ADVICE_TONE_LABELS[tone]}** — ${ADVICE_TONE_GUIDE[tone]}`)
+  }
+  if (!lines.length) return ''
+  return `\n## 지금은 위로가 필요한 자리\n${lines.join('\n')}\n→ **되묻지 말 것.** "어떤 순간이 힘들었어?" 같은 면접식 질문 금지. 해결책·과제도 금지.\n→ 대신 **겪어본 사람의 한 줄**로 옆에 있어준다.`
 }
 
 // 온보딩 정보 — 채팅용 압축 서술 (말투·기질만; 1순위·성공정의는 deep 턴에만)
@@ -597,13 +625,22 @@ export const BEHAVIOR_PRIMER: { user: string; model: string }[] = [
     user: '또 미뤘어...',
     model: '나도 그거 진짜 오래 미뤘어ㅋㅋ 근데 결국 하게 되더라',
   },
+  // C) 자책 — 최고의 위로는 공감이 아니라 **반례**(계획표 기록). docs/chat-cases.md C-ㄱ.
+  //    단 면죄부("내일 해도 돼")는 가벼운 날에만 — 매번 넘어가주면 그게 나태가 된다(C-2).
   {
-    user: '스트레스 받아',
-    model: '스트레스가 한 가지야, 아니면 여러 개가 한꺼번에야. 지금 제일 거슬리는 장면 하나만 골라보면?',
+    user: '오늘 아무것도 못했어',
+    model: '아무것도는 아니지ㅋㅋ 아침에 하나 체크해뒀던데. 나머지는 내일 해도 돼',
   },
+  // D) 힘듦 — **되묻지 않는다.** 면접식 질문 금지("특히 찌르는 순간 하나 있었어?"가 그거였다).
+  //    위로의 색(받아주기/담백/편들기/현실)은 온보딩에서 user가 직접 고른
+  //    future.adviceTone·comfortTarget이 정한다 — 사람마다 원하는 위로가 다르기 때문.
   {
     user: '하... 힘들다',
-    model: '힘든 건 맞지. 오늘 중에 특히 찌르는 순간 하나 있었어?',
+    model: '힘들 만했지. 나도 그 시기엔 그냥 접고 잤어',
+  },
+  {
+    user: '요즘 좀 우울해',
+    model: '그런 시기 있어ㅠ 나도 한참 그랬어. 지금 당장 뭐 안 바꿔도 괜찮아',
   },
   {
     user: '좋아하는 사람 있는데, 가만히 있으면 후회할 것 같아.',
@@ -1239,8 +1276,7 @@ export function buildSystemPrompt(
   const reg = analysis.primaryRegister
   const situation = buildAnalysisGuide(analysis)
   const deep = !lite && userMessage ? needsDeepContext(userMessage, reg) : false
-  const concretizing =
-    analysis.vague || analysis.inConcretizationFlow || analysis.needs.includes('concretize')
+  const concretizing = shouldConcretize(analysis)
 
   const modeOverlay =
     MODE_OVERLAY[mode] +
@@ -1258,8 +1294,12 @@ export function buildSystemPrompt(
       ? `\n${knownFacts}
 → **사실**: 위 "알고 있는 것"에 없는 시간·일정·이유는 말하지 말 것. 이전 대화·추측도 사실 아님.
 → **평소엔**: 이번 user 말과 연결될 때만. 해낸 기록은 **먼저 알아봐주고 같이 반가워해도 좋다**. 멈춘 목표·밀린 할 일은 **대화당 최대 한 번**. 다그침·숙제 검사 금지.
+→ **자책엔 반례로**: "아무것도 못했어" 같은 말엔 위 기록에서 **실제로 한 것**을 짚어준다. 없으면 짚지 말 것 — **지어내면 그 자리에서 신뢰가 깨진다.**
+→ **면죄부는 가벼운 날만**: "내일 해도 돼"류로 넘어가주는 건 **하루 처진 날**까지다. 위에 **며칠째 밀린 것이나 "손 안 댐"이 보이면** 면죄부를 붙이지 말고 **반례 + 판단 없는 사실 한 줄**로 끝낸다. 매번 넘어가주면 그게 나태가 된다.
 → **몸 상태·급한 일이 먼저**: user가 아프거나 급한 일이 생겼다고 하면 계획표는 접어두고 그것부터 받는다.`
       : ''
+
+  const comfortSection = analysis.needs.includes('comfort') ? describeComfortDirection(p) : ''
 
   const personaGap = lite ? undefined : personaGaps(p, 1)[0]
   const gapSection = personaGap
@@ -1337,7 +1377,7 @@ ${analysis.secondaryRegister ? `- 섞인 흐름: ${analysis.secondaryRegister}` 
 - 필요한 답: ${analysis.needs.join(', ')}
 - 감정 강도: ${analysis.intensity}
 - 확신도: ${analysis.confidence.toFixed(2)}
-${analysis.vague || analysis.inConcretizationFlow ? '- **구체화 단계** — 흐린 말·상황. 좁히기 우선, 조언·결론은 다음 턴으로.' : ''}
+${concretizing ? '- **구체화 단계** — 흐린 말·상황. 좁히기 우선, 조언·결론은 다음 턴으로.' : ''}
 ${analysis.requiresExternalData ? '- 외부 정보가 필요한 질문일 수 있음. 최신 숫자·시세는 지어내지 말 것.' : ''}
 
 ## 이번 턴 가이드
@@ -1360,7 +1400,7 @@ ${describeBehaviorExamples(lite)}
 
 ## 나 (지금 — ${p.age}세)
 ${profileLine}
-나이 ${p.age}세 · ${p.lifeContext?.trim().slice(0, 60) || '요즘 상황 미상'}${dilemmaSection}${understandingSection}${memoriesSection}${growthSection}${rhythmSection}${gapSection}${convoSection}${insightSection}
+나이 ${p.age}세 · ${p.lifeContext?.trim().slice(0, 60) || '요즘 상황 미상'}${dilemmaSection}${understandingSection}${memoriesSection}${growthSection}${rhythmSection}${comfortSection}${gapSection}${convoSection}${insightSection}
 
 ## ${FUTURE_YEARS_AHEAD}년 뒤의 나 (너의 정체성)
 ${futureBlock}
@@ -1702,6 +1742,19 @@ export function detectRegister(text: string): Register {
   return analyzeMessage(text).primaryRegister
 }
 
+/**
+ * 흐린 말을 좁힐 자리인가 — **위로가 필요한 자리에선 좁히지 않는다.**
+ *
+ * "하... 힘들다"는 실제로 흐린 말이라 vague:true가 맞다. 문제는 그 다음이었다:
+ * 흐리면 무조건 "장면·trigger 하나만 좁혀라"가 켜져서, 힘들다는 사람에게 면접이 됐다
+ * ("오늘 중에 특히 찌르는 순간 하나 있었어?"). docs/chat-cases.md D의 실패 조건 그 자체.
+ * needs:comfort는 D(힘듦)에만 붙고 E(고민)엔 안 붙어서, 되묻기가 맞는 자리는 그대로 남는다.
+ */
+function shouldConcretize(a: MessageAnalysis): boolean {
+  if (a.needs.includes('comfort')) return false
+  return a.vague || a.inConcretizationFlow || a.needs.includes('concretize')
+}
+
 function buildAnalysisGuide(a: MessageAnalysis): string {
   const lines: string[] = [REGISTER_GUIDE[a.primaryRegister]]
 
@@ -1726,9 +1779,11 @@ function buildAnalysisGuide(a: MessageAnalysis): string {
   }
 
   if (a.needs.includes('comfort')) {
-    lines.push('위로가 필요하다. 해결책보다 먼저 한 문장만 편들어준다.')
+    lines.push(
+      '위로가 필요하다. **되묻지 말고** 먼저 편들어준다. 해결책·과제도, "어떤 순간이 힘들었어?" 같은 **좁히기 질문도 이번 턴 금지.**',
+    )
   }
-  if (a.vague || a.inConcretizationFlow || a.needs.includes('concretize')) {
+  if (shouldConcretize(a)) {
     lines.push(
       'user 말·상황이 아직 흐리다. **판단·결론·행동 과제는 이번 턴 금지.** 위로 0~1문장 + 방금 말에서 갈라지는 **가지·장면·trigger 하나**만 좁혀 대화를 이어간다. 면접 질문·체크리스트 금지.',
     )

@@ -1,3 +1,19 @@
+import { computeOneShotDateKey } from './clockAlarmEngine'
+
+function applyRepeatMeta(
+  alarm: Omit<UserAlarm, 'oneShotDateKey'> & { oneShotDateKey?: string },
+  opts?: { refreshOneShot?: boolean; now?: Date },
+): UserAlarm {
+  if (alarm.repeatDays.length > 0) {
+    return { ...alarm, oneShotDateKey: undefined }
+  }
+  const oneShotDateKey =
+    !opts?.refreshOneShot && alarm.oneShotDateKey
+      ? alarm.oneShotDateKey
+      : computeOneShotDateKey(alarm.time, opts?.now ?? new Date())
+  return { ...alarm, repeatDays: [], oneShotDateKey }
+}
+
 /** 사용자가 직접 만드는 알람 — 핸드폰 시계 앱처럼 */
 export interface UserAlarm {
   id: string
@@ -5,8 +21,10 @@ export interface UserAlarm {
   time: string
   label: string
   enabled: boolean
-  /** 0=일 … 6=토. 비어 있으면 매일 */
+  /** 0=일 … 6=토. 비어 있으면 1회성 알람 */
   repeatDays: number[]
+  /** 1회성 알람 — 이 날짜(YYYY-MM-DD)에만 울림 */
+  oneShotDateKey?: string
   /**
    * 밤에 적어두는 "내일 아침의 다짐". 아침에 알람을 끄려면 이 문장을 따라 써야 한다
    * (해제 문구가 된다 — alarmDismissPhrase.loadDismissPhrase). 밤의 의지를 아침까지 잇는 장치.
@@ -33,7 +51,8 @@ const STORAGE_KEY = 'futureme-user-alarms'
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
 export function describeRepeatDays(days: number[]): string {
-  if (!days.length || days.length === 7) return '매일'
+  if (!days.length) return '1회'
+  if (days.length === 7) return '매일'
   const sorted = [...days].sort((a, b) => a - b)
   if (sorted.length === 5 && sorted.join(',') === '1,2,3,4,5') return '평일'
   if (sorted.length === 2 && sorted.join(',') === '0,6') return '주말'
@@ -87,16 +106,19 @@ export function addUserAlarm(
   partial?: Partial<Pick<UserAlarm, 'time' | 'label' | 'repeatDays' | 'resolve'>>,
 ): UserAlarm {
   const now = Date.now()
-  const alarm: UserAlarm = {
-    id: crypto.randomUUID(),
-    time: normalizeAlarmTime(partial?.time ?? defaultNewAlarmTime()),
-    label: partial?.label?.trim() || '알람',
-    enabled: true,
-    repeatDays: partial?.repeatDays ?? [0, 1, 2, 3, 4, 5, 6],
-    resolve: partial?.resolve?.trim() || undefined,
-    createdAt: now,
-    updatedAt: now,
-  }
+  const alarm = applyRepeatMeta(
+    {
+      id: crypto.randomUUID(),
+      time: normalizeAlarmTime(partial?.time ?? defaultNewAlarmTime()),
+      label: partial?.label?.trim() || '알람',
+      enabled: true,
+      repeatDays: partial?.repeatDays ?? [0, 1, 2, 3, 4, 5, 6],
+      resolve: partial?.resolve?.trim() || undefined,
+      createdAt: now,
+      updatedAt: now,
+    },
+    { refreshOneShot: true, now: new Date(now) },
+  )
   const next = [...loadUserAlarms(), alarm]
   saveAll(next)
   return alarm
@@ -106,7 +128,7 @@ export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' 
   const list = loadUserAlarms()
   const idx = list.findIndex((a) => a.id === id)
   if (idx < 0) return null
-  const next: UserAlarm = {
+  const merged = {
     ...list[idx]!,
     ...patch,
     time: patch.time !== undefined ? normalizeAlarmTime(patch.time) : list[idx]!.time,
@@ -114,6 +136,9 @@ export function updateUserAlarm(id: string, patch: Partial<Omit<UserAlarm, 'id' 
     resolve: patch.resolve !== undefined ? patch.resolve.trim() || undefined : list[idx]!.resolve,
     updatedAt: Date.now(),
   }
+  const next = applyRepeatMeta(merged, {
+    refreshOneShot: patch.time !== undefined || patch.repeatDays !== undefined,
+  })
   list[idx] = next
   saveAll(list)
   return next

@@ -4,6 +4,7 @@ import { readNotifyEnv, type NotifyEnv } from './notify'
 import { isIosNative } from './platform'
 import { getNativeAlarmStatus, type NativeAlarmStatus } from './nativeAlarm'
 import { loadUserAlarms } from './userAlarms'
+import { loadTaskReminderStatus } from './taskReminderSync'
 
 export type AlarmSettingStatus = 'ok' | 'warn' | 'error' | 'unknown'
 
@@ -43,7 +44,11 @@ function permissionLabel(p: string | undefined): string {
   }
 }
 
-function nativeItems(native: NativeAlarmStatus, enabledCount: number): AlarmSettingItem[] {
+function nativeItems(
+  native: NativeAlarmStatus,
+  enabledCount: number,
+  taskReminders: { permission: string; scheduledCount: number },
+): AlarmSettingItem[] {
   const items: AlarmSettingItem[] = [
     {
       id: 'alarmkit',
@@ -53,9 +58,27 @@ function nativeItems(native: NativeAlarmStatus, enabledCount: number): AlarmSett
     },
     {
       id: 'notify',
-      label: '알림 (푸시)',
+      label: '알림 권한',
       status: permissionStatus(native.notificationPermission),
       detail: permissionLabel(native.notificationPermission),
+    },
+    {
+      id: 'task-reminders',
+      label: '할 일 시간 알림',
+      status:
+        taskReminders.permission === 'granted' && taskReminders.scheduledCount > 0
+          ? 'ok'
+          : taskReminders.permission === 'granted'
+            ? 'unknown'
+            : taskReminders.permission === 'denied'
+              ? 'error'
+              : 'warn',
+      detail:
+        taskReminders.permission !== 'granted'
+          ? '홈에서 시간 저장 시 권한 요청 — 허용하면 자동 예약'
+          : taskReminders.scheduledCount > 0
+            ? `${taskReminders.scheduledCount}개 예약됨 (홈에서 시간 저장 시 갱신)`
+            : '시간 있는 일간 할 일 저장하면 자동 예약',
     },
     {
       id: 'scheduled',
@@ -102,22 +125,22 @@ async function webItems(): Promise<AlarmSettingItem[]> {
   if (loggedIn) {
     items.push({
       id: 'push-local',
-      label: '푸시 연결 (기기)',
+      label: '할 일 알림 (기기)',
       status: lock.pushSubscriptionLocal ? 'ok' : 'warn',
-      detail: lock.pushSubscriptionLocal ? '연결됨' : '연결 필요',
+      detail: lock.pushSubscriptionLocal ? '연결됨' : '채팅 설정에서 알림 켜기',
     })
     items.push({
       id: 'push-server',
-      label: '푸시 연결 (서버)',
+      label: '할 일 알림 (서버)',
       status: lock.pushSubscriptionOnServer ? 'ok' : 'warn',
-      detail: lock.pushSubscriptionOnServer ? '연결됨' : '연결 필요',
+      detail: lock.pushSubscriptionOnServer ? '연결됨' : 'Google 로그인 + 알림 켜기',
     })
   } else {
     items.push({
       id: 'login',
       label: 'Google 로그인',
       status: 'warn',
-      detail: '잠금 화면 알람 백업에 필요해요',
+      detail: '웹 할 일 알림에 필요해요',
     })
   }
 
@@ -140,7 +163,8 @@ export async function loadAlarmSettingsSnapshot(): Promise<AlarmSettingsSnapshot
 
   if (nativeIos) {
     const native = await getNativeAlarmStatus()
-    const items = nativeItems(native, enabledCount)
+    const taskReminders = await loadTaskReminderStatus()
+    const items = nativeItems(native, enabledCount, taskReminders)
     const needsAttention = items.some((item) => item.status === 'warn' || item.status === 'error')
     return { items, needsAttention, isNativeIos: true, env, native }
   }

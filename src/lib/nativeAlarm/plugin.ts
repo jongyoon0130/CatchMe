@@ -137,6 +137,34 @@ export async function stopNativeActiveAlarm(opts: {
   }
 }
 
+export async function syncNativeTaskReminders(
+  reminders: Array<{
+    fire_date: string
+    fire_time: string
+    kind: 'start' | 'end'
+    item_id: string
+    label: string
+  }>,
+): Promise<{ ok: boolean; scheduled?: number; detail?: string }> {
+  if (!isNativeAlarmAvailable()) return { ok: false, detail: 'not_native' }
+  try {
+    const result = await FutureMeAlarm.syncTaskReminders({ reminders })
+    return { ok: result.ok, scheduled: result.scheduled, detail: result.detail }
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : undefined }
+  }
+}
+
+export async function getNativeTaskReminderCount(): Promise<number> {
+  if (!isNativeAlarmAvailable()) return 0
+  try {
+    const { count } = await FutureMeAlarm.getTaskReminderCount()
+    return count
+  } catch {
+    return 0
+  }
+}
+
 export type NativeAlarmListener = (event: NativeAlarmFiredEvent) => void
 
 export function attachNativeAlarmFiredListener(onFire: NativeAlarmListener): () => void {

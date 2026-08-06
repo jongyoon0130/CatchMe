@@ -106,6 +106,17 @@ export interface FutureMeAlarmPlugin {
   pulseAlarmHaptic(): Promise<{ ok: boolean }>
   setAlertMode(options: { mode: AlarmAlertMode }): Promise<{ ok: boolean; mode?: AlarmAlertMode }>
   getDebugInfo(): Promise<NativeAlarmDebugInfo>
+  /** 홈 할 일 시간 → iOS 로컬 알림 예약 */
+  syncTaskReminders(options: {
+    reminders: Array<{
+      fire_date: string
+      fire_time: string
+      kind: 'start' | 'end'
+      item_id: string
+      label: string
+    }>
+  }): Promise<{ ok: boolean; scheduled?: number; skipped?: number; detail?: string }>
+  getTaskReminderCount(): Promise<{ count: number }>
   addListener(
     eventName: 'alarmFired',
     listenerFunc: (event: NativeAlarmFiredEvent) => void,

@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
-import { useAuth } from '../../contexts/AuthContext'
 import { bootstrapAlarmDelivery } from '../../lib/alarmBootstrap'
-import { registerLockScreenAlarm } from '../../lib/alarmPushClient'
 import {
   loadAlarmSettingsSnapshot,
   type AlarmSettingItem,
@@ -12,6 +10,7 @@ import {
 } from '../../lib/alarmSettingsStatus'
 import { enableAlarmNotifications } from '../../lib/notify'
 import { autoSyncAlarmsToNative, isNativeAlarmAvailable, requestNativeNotificationPermission } from '../../lib/nativeAlarm'
+import { scheduleTaskReminderSync } from '../../lib/taskReminderSync'
 
 interface Props {
   onClose: () => void
@@ -38,9 +37,8 @@ function openDeviceSettings() {
 export function AlarmSettingsSheet({ onClose, onChanged }: Props) {
   useBodyScrollLock(true)
 
-  const { user } = useAuth()
   const [snapshot, setSnapshot] = useState<AlarmSettingsSnapshot | null>(null)
-  const [busy, setBusy] = useState<'perm' | 'push' | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const refresh = useCallback(async () => {
     setSnapshot(await loadAlarmSettingsSnapshot())
@@ -57,7 +55,7 @@ export function AlarmSettingsSheet({ onClose, onChanged }: Props) {
   }, [refresh])
 
   const handleRequestPermissions = async () => {
-    setBusy('perm')
+    setBusy(true)
     try {
       await enableAlarmNotifications()
       if (isNativeAlarmAvailable()) {
@@ -65,24 +63,11 @@ export function AlarmSettingsSheet({ onClose, onChanged }: Props) {
       }
       await bootstrapAlarmDelivery({ askPermission: false, forceRenew: true })
       await autoSyncAlarmsToNative(true)
+      scheduleTaskReminderSync()
       await refresh()
       onChanged?.()
     } finally {
-      setBusy(null)
-    }
-  }
-
-  const handleConnectPush = async () => {
-    setBusy('push')
-    try {
-      const result = await registerLockScreenAlarm()
-      await refresh()
-      onChanged?.()
-      if (!result.ok) {
-        window.alert(result.detail ?? '연결에 실패했어요.')
-      }
-    } finally {
-      setBusy(null)
+      setBusy(false)
     }
   }
 
@@ -93,7 +78,6 @@ export function AlarmSettingsSheet({ onClose, onChanged }: Props) {
       (item.id === 'alarmkit' || item.id === 'notify') &&
       (item.status === 'warn' || item.status === 'error'),
   )
-  const needsPush = !nativeIos && user && items.some((item) => item.id.startsWith('push-') && item.status !== 'ok')
 
   const sheet = (
     <div
@@ -124,8 +108,8 @@ export function AlarmSettingsSheet({ onClose, onChanged }: Props) {
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y px-5 py-4 pb-8">
           <p className="text-[11px] text-muted leading-relaxed mb-4">
             {nativeIos
-              ? '잠금 화면 알람·알림 권한을 여기서 관리해요. 거부한 경우 iPhone 설정에서 바꿀 수 있어요.'
-              : '웹에서 쓸 때는 알림 권한과 푸시 연결이 필요해요.'}
+              ? '잠금 화면 알람 권한을 관리해요. 홈 할 일 시간 알림은 시간을 저장하면 자동으로 예약돼요.'
+              : '알람 탭 알람과 알림 권한을 관리해요. 웹에서는 홈 할 일 시간 저장 + 알림 허용이 필요해요.'}
           </p>
 
           <ul className="space-y-2 mb-5">
@@ -137,22 +121,11 @@ export function AlarmSettingsSheet({ onClose, onChanged }: Props) {
           {needsPerm ? (
             <button
               type="button"
-              disabled={busy !== null}
+              disabled={busy}
               onClick={() => void handleRequestPermissions()}
               className="w-full rounded-xl bg-ink py-3 text-sm font-bold text-surface disabled:opacity-50 mb-2"
             >
-              {busy === 'perm' ? '요청 중…' : nativeIos ? '알람·알림 권한 허용' : '알림 허용하기'}
-            </button>
-          ) : null}
-
-          {needsPush ? (
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => void handleConnectPush()}
-              className="w-full rounded-xl border border-border bg-surface py-3 text-sm font-bold text-ink disabled:opacity-50 mb-2"
-            >
-              {busy === 'push' ? '연결 중…' : '푸시 연결하기'}
+              {busy ? '요청 중…' : nativeIos ? '알람·알림 권한 허용' : '알림 허용하기'}
             </button>
           ) : null}
 

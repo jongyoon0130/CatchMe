@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSAlarmKitUsageDescription</key>
 	<string>설정한 아침 다짐 알람을 울리기 위해 AlarmKit 알람 접근이 필요합니다.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>CFBundleURLTypes</key>

@@ -13,7 +13,6 @@ import { APP_NAME } from './lib/brand'
 import { FutureMeLogo } from './components/brand/FutureMeLogo'
 import { useAuth } from './contexts/AuthContext'
 import { useAlarmScheduler } from './hooks/useAlarmScheduler'
-import { AlarmDismissProvider } from './components/alarm/AlarmDismissProvider'
 import { subscribeCloudPushStatus, isCloudPushFailing } from './lib/syncStatus'
 import {
   ensureMigrated,
@@ -227,7 +226,6 @@ export default function App() {
   }
 
   return (
-    <AlarmDismissProvider>
     <div className="goal-app h-full bg-void">
       {configured && session && syncing && (
         <div
@@ -313,6 +311,5 @@ export default function App() {
         )}
       </div>
     </div>
-    </AlarmDismissProvider>
   )
 }

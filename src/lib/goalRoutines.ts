@@ -50,6 +50,7 @@ export function saveRoutines(profileId: string, routines: MiscRoutine[]): void {
   localStorage.setItem(storageKey(profileId), JSON.stringify(routines))
   if (!isApplyingRemoteGoalData()) {
     void import('./goalDataSync').then(({ scheduleGoalDataSync }) => scheduleGoalDataSync())
+    void import('./taskReminderSync').then(({ scheduleTaskReminderSync }) => scheduleTaskReminderSync())
   }
 }
 

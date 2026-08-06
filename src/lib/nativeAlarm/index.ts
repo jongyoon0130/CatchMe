@@ -22,6 +22,8 @@ export {
   setNativeAlarmAlertMode,
   simulateNativeAlarmFire,
   stopNativeActiveAlarm,
+  syncNativeTaskReminders,
+  getNativeTaskReminderCount,
 } from './plugin'
 export {
   autoSyncAlarmsToNative,

@@ -115,6 +115,14 @@ export class FutureMeAlarmWeb extends WebPlugin implements FutureMeAlarmPlugin {
   async setAlertMode(options: { mode: AlarmAlertMode }): Promise<{ ok: boolean; mode?: AlarmAlertMode }> {
     return { ok: true, mode: options.mode }
   }
+
+  async syncTaskReminders(): Promise<{ ok: boolean; scheduled?: number; skipped?: number }> {
+    return { ok: true, scheduled: 0, skipped: 0 }
+  }
+
+  async getTaskReminderCount(): Promise<{ count: number }> {
+    return { count: 0 }
+  }
 }
 
 function todayDateKey(): string {

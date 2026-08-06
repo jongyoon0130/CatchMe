@@ -59,18 +59,19 @@ export function AlarmWheelColumn<T extends string | number>({
   }
 
   return (
-    <div className="relative flex-1 min-w-0" style={{ height: WHEEL_HEIGHT }} aria-label={ariaLabel}>
+    <div className="relative flex-1 min-w-0 overflow-hidden" style={{ height: WHEEL_HEIGHT }} aria-label={ariaLabel}>
       <div
         className="pointer-events-none absolute inset-x-1 top-1/2 z-10 -translate-y-1/2 h-11 rounded-xl bg-surface-2/90 border border-border/60 shadow-sm"
         aria-hidden
       />
       <div
         ref={ref}
-        className="h-full overflow-y-auto overscroll-y-contain snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="h-full overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-x-none snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{
           paddingTop: ITEM_H * PAD_ROWS,
           paddingBottom: ITEM_H * PAD_ROWS,
           WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y',
         }}
         onScroll={onScroll}
         onTouchEnd={() => {
@@ -85,7 +86,7 @@ export function AlarmWheelColumn<T extends string | number>({
               key={String(opt)}
               type="button"
               className={`flex h-11 w-full snap-center items-center justify-center text-[22px] font-light tabular-nums transition-colors ${
-                active ? 'text-ink font-medium scale-105' : 'text-muted/55'
+                active ? 'text-ink font-medium' : 'text-muted/55'
               }`}
               onClick={() => {
                 onChange(opt)

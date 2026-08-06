@@ -11,7 +11,7 @@ import { loadGoalPlansForSync } from './goalPlanStore'
 import { writeGoalPlanSnapshot } from './goalPlanSnapshot'
 import { loadMiscTodos, type MiscTodoItem } from './goalMiscTodos'
 import { loadRoutines, type MiscRoutine } from './goalRoutines'
-import { syncRemindersToCloud } from './reminderSync'
+import { syncTaskReminders } from './taskReminderSync'
 import { isApplyingRemoteGoalData, setApplyingRemoteGoalData } from './goalDataSyncState'
 
 const REVISION_KEY = 'futureme-goal-data-revision'
@@ -425,7 +425,7 @@ export async function pushLocalGoalData(): Promise<void> {
   })
   // 방금 올린 내용을 "클라우드에 있다고 아는 내용"으로 기록 → 실시간으로 되돌아와도 에코로 걸러진다.
   knownCloudContent = serializeGoalData(bundle)
-  await syncRemindersToCloud(bundle.plans, bundle.miscTodos)
+  await syncTaskReminders(bundle.plans, bundle.miscTodos)
 }
 
 /**
@@ -489,7 +489,7 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
     }
     const remote = remoteRowToBundle(remoteRow)
     applyLocalGoalDataBundle(remote)
-    await syncRemindersToCloud(remote.plans, remote.miscTodos)
+    await syncTaskReminders(remote.plans, remote.miscTodos)
     return 'downloaded'
   }
 
@@ -505,7 +505,7 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
         routines: merged.routines,
         updatedAt: merged.updatedAt,
       })
-      await syncRemindersToCloud(merged.plans, merged.miscTodos)
+      await syncTaskReminders(merged.plans, merged.miscTodos)
       return 'merged'
     }
     if (local.updatedAt > remote.updatedAt) {
@@ -521,7 +521,7 @@ export async function syncGoalDataOnLogin(userId: string): Promise<'uploaded' | 
       routines: merged.routines,
       updatedAt: merged.updatedAt,
     })
-    await syncRemindersToCloud(merged.plans, merged.miscTodos)
+    await syncTaskReminders(merged.plans, merged.miscTodos)
     return 'merged'
   }
 

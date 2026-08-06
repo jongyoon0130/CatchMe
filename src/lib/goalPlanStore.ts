@@ -114,6 +114,7 @@ function saveAll(profileId: string, plans: GoalPlan[]): void {
   writeGoalPlanSnapshot(profileId, pruned.filter(isActivePlan))
   if (!isApplyingRemoteGoalData()) {
     void import('./goalDataSync').then(({ scheduleGoalDataSync }) => scheduleGoalDataSync())
+    void import('./taskReminderSync').then(({ scheduleTaskReminderSync }) => scheduleTaskReminderSync())
   }
 }
 
