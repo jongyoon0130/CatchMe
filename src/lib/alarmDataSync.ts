@@ -7,7 +7,7 @@ import {
   type RemoteAlarmDataRow,
 } from './cloudSync'
 import { loadAlarmSettings, type AlarmSettings } from './alarmStore'
-import { loadUserAlarms, type UserAlarm } from './userAlarms'
+import { loadUserAlarmsWithDeleted, type UserAlarm } from './userAlarms'
 
 const REVISION_KEY = 'futureme-alarm-data-revision'
 export const ALARM_DATA_SYNC_EVENT = 'futureme-alarm-data-synced'
@@ -40,7 +40,8 @@ export function markAlarmDataRevision(ts = Date.now()): number {
 
 export function loadLocalAlarmDataBundle(): AlarmDataBundle {
   return {
-    alarms: loadUserAlarms(),
+    // 툼스톤(삭제 기록) 포함 — 삭제도 다른 기기로 퍼져야 한다
+    alarms: loadUserAlarmsWithDeleted(),
     dismissPhrases: loadAllDismissPhrases(),
     settings: loadAlarmSettings(),
     updatedAt: getAlarmDataRevision(),
@@ -60,14 +61,23 @@ export function applyLocalAlarmDataBundle(bundle: AlarmDataBundle): void {
   window.dispatchEvent(new CustomEvent('futureme-user-alarms-change'))
   window.dispatchEvent(new CustomEvent('futureme-alarm-settings-change'))
   window.dispatchEvent(new CustomEvent(ALARM_DATA_SYNC_EVENT))
+  // 다른 기기에서 지운 알람이 이 기기의 네이티브 예약에 남아 울리지 않게 바로 재동기화
+  void import('./nativeAlarm').then(({ autoSyncAlarmsToNative }) => {
+    void autoSyncAlarmsToNative(true)
+  })
 }
 
-function mergeAlarms(local: UserAlarm[], remote: UserAlarm[], preferLocal: boolean): UserAlarm[] {
+/**
+ * 알람은 번들 시각(preferLocal)이 아니라 **알람별 updatedAt**으로 병합한다.
+ * 삭제는 툼스톤(deletedAt + 새 updatedAt)이므로, 원격에 살아 있는 옛 사본이
+ * 더 최신인 삭제 기록을 되돌리지 못한다.
+ */
+function mergeAlarms(local: UserAlarm[], remote: UserAlarm[]): UserAlarm[] {
   const byId = new Map<string, UserAlarm>()
   for (const alarm of remote) byId.set(alarm.id, alarm)
   for (const alarm of local) {
     const existing = byId.get(alarm.id)
-    if (!existing || preferLocal || alarm.updatedAt >= existing.updatedAt) {
+    if (!existing || (alarm.updatedAt ?? 0) >= (existing.updatedAt ?? 0)) {
       byId.set(alarm.id, alarm)
     }
   }
@@ -95,7 +105,7 @@ export function mergeAlarmDataBundles(local: AlarmDataBundle, remote: AlarmDataB
   const preferLocal = local.updatedAt >= remote.updatedAt
   const updatedAt = Math.max(local.updatedAt, remote.updatedAt, Date.now())
   return {
-    alarms: mergeAlarms(local.alarms, remote.alarms, preferLocal),
+    alarms: mergeAlarms(local.alarms, remote.alarms),
     dismissPhrases: mergeDismissPhrases(local.dismissPhrases, remote.dismissPhrases, preferLocal),
     settings: preferLocal ? local.settings : remote.settings,
     updatedAt,
@@ -136,6 +146,22 @@ export function scheduleAlarmDataSync(): void {
     pushTimer = null
     void pushLocalAlarmData().catch(() => {})
   }, 800)
+}
+
+let foregroundPullAt = 0
+
+/**
+ * 앱을 다시 볼 때 다른 기기의 알람 변경(추가·삭제)을 끌어온다.
+ * 같은 계정이면 어느 기기서 봐도 알람 목록이 같아지게 하는 장치 (30초 스로틀).
+ */
+export async function pullAlarmDataOnForeground(): Promise<void> {
+  if (Date.now() - foregroundPullAt < 30_000) return
+  foregroundPullAt = Date.now()
+  const { isCloudSyncAvailableAsync, getActiveSyncUser } = await import('./cloudSync')
+  if (!(await isCloudSyncAvailableAsync())) return
+  const userId = getActiveSyncUser()
+  if (!userId) return
+  await syncAlarmDataOnLogin(userId).catch(() => {})
 }
 
 export async function syncAlarmDataOnLogin(userId: string): Promise<'uploaded' | 'downloaded' | 'merged' | 'empty'> {

@@ -48,6 +48,19 @@ export function AlarmTimePicker({ time, onChange }: Props) {
     onChange(toAlarmTime24(p, h, m))
   }
 
+  /**
+   * 아이폰 시계 앱처럼 — 시 휠이 11↔12 경계를 넘으면 오전/오후가 저절로 바뀐다.
+   * (오전 11시에서 12로 올리면 오후 12시, 오후 12시에서 11로 내리면 오전 11시)
+   */
+  const handleWheelHour = (h: number) => {
+    const crossed = (hour12 === 12) !== (h === 12)
+    const nextPeriod = crossed ? (period === 'am' ? 'pm' : 'am') : period
+    if (crossed) setPeriod(nextPeriod)
+    setHour12(h)
+    setHourDraft(String(h))
+    apply(nextPeriod, h, minute)
+  }
+
   const commitHourDraft = () => {
     const h = clampHour12(hourDraft)
     setHour12(h)
@@ -129,11 +142,7 @@ export function AlarmTimePicker({ time, onChange }: Props) {
           ariaLabel="시"
           options={ALARM_HOUR12_OPTIONS}
           value={hour12}
-          onChange={(h) => {
-            setHour12(h)
-            setHourDraft(String(h))
-            apply(period, h, minute)
-          }}
+          onChange={handleWheelHour}
           format={(h) => String(h)}
         />
         <span className="text-2xl font-light text-muted/60 pb-1 shrink-0 select-none">:</span>

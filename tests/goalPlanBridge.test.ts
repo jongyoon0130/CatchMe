@@ -181,7 +181,7 @@ describe('describeGoalBoardForPrompt — 프롬프트 요약', () => {
 })
 
 describe('역사 라인 — 시간이 만드는 해자', () => {
-  it('이룬 목표·최근 7일 완료·마감 기록을 프롬프트에 싣는다', () => {
+  it('이룬 목표·최근 7일 완료를 프롬프트에 싣는다', () => {
     const owner = seedOwner()
     const achievedPlan = {
       id: 'plan-a',
@@ -215,19 +215,11 @@ describe('역사 라인 — 시간이 만드는 해자', () => {
         { id: 'm3', label: '옛날 일', done: true, tier: 'daily', periodKey: '2026-07-01' }, // 7일 밖
       ]),
     )
-    localStorage.setItem(
-      `goal-day-close-${owner}`,
-      JSON.stringify([
-        { date: '2026-07-15', mood: '뿌듯해', note: '드디어 시작', done: 2, total: 2, message: 'm', closedAt: 1 },
-        { date: '2026-07-14', mood: '덤덤해', done: 1, total: 2, message: 'm', closedAt: 1 },
-      ]),
-    )
-
     const out = describeGoalBoardForPrompt(NOW)
     expect(out).toContain('이미 함께 이뤄낸 목표: "한 달 운동 습관"')
     expect(out).toContain('최근 7일 실제 완료: 2개')
-    expect(out).toContain('어제 하루 마감 기록: 뿌듯해 (2/2) — "드디어 시작"')
-    expect(out).toContain('하루 마감 2일 연속')
+    // 하루 마감 기능은 제거됨 — 마감 기록 라인이 실리지 않는다
+    expect(out).not.toContain('하루 마감')
   })
 })
 

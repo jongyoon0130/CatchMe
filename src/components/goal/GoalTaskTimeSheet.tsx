@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import {
   formatTaskTimeRange,
   parseTaskTime24,
-  TASK_HOUR12_OPTIONS,
-  TASK_MINUTE_OPTIONS,
   toTaskTime24,
   type TaskTimeField,
 } from '../../lib/goalTaskTime'
+import { ALARM_HOUR12_OPTIONS, ALARM_MINUTE_OPTIONS } from '../../lib/alarmTime'
+import { AlarmWheelColumn, WHEEL_HEIGHT } from '../alarm/AlarmWheelColumn'
 
 interface Props {
   taskLabel: string
@@ -16,6 +16,7 @@ interface Props {
   onClose: () => void
 }
 
+/** 할 일 시간 설정 — 알람 편집과 같은 1분 단위 휠 피커 */
 export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClose }: Props) {
   const [field, setField] = useState<TaskTimeField>('start')
   const [start, setStart] = useState<string | undefined>(() => timeStart)
@@ -38,6 +39,15 @@ export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClo
     const value = toTaskTime24(p, h, m)
     if (field === 'start') setStart(value)
     else setEnd(value)
+  }
+
+  /** 아이폰 시계 앱처럼 — 시 휠이 11↔12 경계를 넘으면 오전/오후가 저절로 바뀐다 */
+  const handleWheelHour = (h: number) => {
+    const crossed = (hour12 === 12) !== (h === 12)
+    const nextPeriod = crossed ? (period === 'am' ? 'pm' : 'am') : period
+    if (crossed) setPeriod(nextPeriod)
+    setHour12(h)
+    applyPicker(nextPeriod, h, minute)
   }
 
   const clearField = () => {
@@ -69,14 +79,14 @@ export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClo
             className={field === 'start' ? 'on' : ''}
             onClick={() => setField('start')}
           >
-            시작 {start ? start : '—'}
+            시작
           </button>
           <button
             type="button"
             className={field === 'end' ? 'on' : ''}
             onClick={() => setField('end')}
           >
-            끝 {end ? end : '—'}
+            끝
           </button>
         </div>
 
@@ -103,42 +113,25 @@ export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClo
           </button>
         </div>
 
-        <div className="goal-time-section">
-          <span className="goal-time-section-label">시</span>
-          <div className="goal-time-grid">
-            {TASK_HOUR12_OPTIONS.map((h) => (
-              <button
-                key={h}
-                type="button"
-                className={`goal-time-chip ${hour12 === h ? 'on' : ''}`}
-                onClick={() => {
-                  setHour12(h)
-                  applyPicker(period, h, minute)
-                }}
-              >
-                {h}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="goal-time-section">
-          <span className="goal-time-section-label">분</span>
-          <div className="goal-time-grid">
-            {TASK_MINUTE_OPTIONS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={`goal-time-chip ${minute === m ? 'on' : ''}`}
-                onClick={() => {
-                  setMinute(m)
-                  applyPicker(period, hour12, m)
-                }}
-              >
-                {String(m).padStart(2, '0')}
-              </button>
-            ))}
-          </div>
+        <div className="goal-time-wheels" style={{ minHeight: WHEEL_HEIGHT + 8 }}>
+          <AlarmWheelColumn
+            ariaLabel="시"
+            options={ALARM_HOUR12_OPTIONS}
+            value={hour12}
+            onChange={handleWheelHour}
+            format={(h) => String(h)}
+          />
+          <span className="goal-time-wheels-colon">:</span>
+          <AlarmWheelColumn
+            ariaLabel="분"
+            options={ALARM_MINUTE_OPTIONS}
+            value={minute}
+            onChange={(m) => {
+              setMinute(m)
+              applyPicker(period, hour12, m)
+            }}
+            format={(m) => String(m).padStart(2, '0')}
+          />
         </div>
 
         <div className="goal-time-actions">
@@ -146,7 +139,7 @@ export function GoalTaskTimeSheet({ taskLabel, timeStart, timeEnd, onSave, onClo
             {field === 'start' ? '시작 시간 비우기' : '끝 시간 비우기'}
           </button>
           <button type="button" className="goal-time-done" onClick={handleDone}>
-            완료
+            시간 설정 완료
           </button>
         </div>
       </div>

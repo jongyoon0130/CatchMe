@@ -13,7 +13,8 @@ interface Props {
   profile: ReactNode
 }
 
-const BOTTOM_NAV_HEIGHT = '5.25rem'
+/* 도크가 바닥에 더 붙으면서 예약 공간도 줄임 (aurora .app-bottom-nav-inner 참고) */
+const BOTTOM_NAV_HEIGHT = '4.5rem'
 
 export function AppShell({ activeTab, onTabChange, showNav, chat, home, alarm, profile }: Props) {
   return (

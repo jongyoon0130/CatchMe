@@ -121,42 +121,45 @@ function PhraseTypeMatch({
         : '틀리면 빨간색 — 지우고 다시 치면 돼요'
 
   return (
-    <div
-      className="relative rounded-2xl border border-border/70 bg-surface-2/60 px-4 py-4 min-h-[11rem] cursor-text touch-manipulation"
-      onClick={focusInput}
-      role="group"
-      aria-label="다짐 따라 입력"
-    >
-      <PhraseDisplay phrase={phrase} typed={value} />
+    <div>
+      <div
+        className="relative rounded-2xl border border-border/70 bg-surface-2/60 px-4 py-4 min-h-[9rem] cursor-text touch-manipulation"
+        onClick={focusInput}
+        role="group"
+        aria-label="다짐 따라 입력"
+      >
+        <PhraseDisplay phrase={phrase} typed={value} />
 
-      {/*
-        핵심: 이 textarea의 value는 사용자가 친 그대로(raw)이며, 코드가 절대
-        잘라서 되돌려 쓰지 않는다. 한글 IME는 조합 중간 상태("ㅇ"→"안")를
-        거치는데, 그때 값을 재작성하면 React가 DOM을 리셋해 조합이 파괴되고
-        아무것도 안 쳐지는 것처럼 보인다. 표시는 PhraseDisplay가 맡고,
-        여기는 투명 입력층 역할만 한다.
-      */}
-      <textarea
-        ref={inputRef}
-        value={value}
-        lang="ko"
-        inputMode="text"
-        spellCheck={false}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        enterKeyHint="next"
-        aria-label="다짐 문장 따라 입력"
-        rows={lineCount}
-        className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-transparent outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
-        autoFocus
-        onChange={(e) => {
-          onChange(e.target.value)
-        }}
-      />
+        {/*
+          핵심: 이 textarea의 value는 사용자가 친 그대로(raw)이며, 코드가 절대
+          잘라서 되돌려 쓰지 않는다. 한글 IME는 조합 중간 상태("ㅇ"→"안")를
+          거치는데, 그때 값을 재작성하면 React가 DOM을 리셋해 조합이 파괴되고
+          아무것도 안 쳐지는 것처럼 보인다. 표시는 PhraseDisplay가 맡고,
+          여기는 투명 입력층 역할만 한다.
+        */}
+        <textarea
+          ref={inputRef}
+          value={value}
+          lang="ko"
+          inputMode="text"
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          enterKeyHint="next"
+          aria-label="다짐 문장 따라 입력"
+          rows={lineCount}
+          className={`absolute inset-0 w-full h-full resize-none bg-transparent text-transparent caret-transparent outline-none ${PHRASE_CLASS} z-10 px-4 py-4 [-webkit-text-fill-color:transparent]`}
+          autoFocus
+          onChange={(e) => {
+            onChange(e.target.value)
+          }}
+        />
+      </div>
 
+      {/* 안내는 입력 상자 밖 — 따라치는 글과 절대 겹치지 않는다 */}
       <p
-        className={`absolute bottom-3 inset-x-4 text-[11px] pointer-events-none z-0 leading-relaxed ${
+        className={`mt-2 px-1 text-[11px] leading-relaxed ${
           wrong ? 'text-status-error font-medium' : awaitingNextLine ? 'text-glow font-medium' : 'text-muted/70'
         }`}
       >

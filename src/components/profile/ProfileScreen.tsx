@@ -10,8 +10,6 @@ import {
 } from '../../lib/personaModel'
 import { loadProfileById, saveProfileRecord } from '../../lib/storage'
 import { getPrimaryProfileId } from '../../lib/primaryProfile'
-import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
-import { dayCloseStreak, loadDayCloses } from '../../lib/dayClose'
 import { achievedPlans, activeGoalsLite, readGoalPlansLite, totalDoneCount } from '../../lib/goalPlanBridge'
 import { ProfileIdentitySection } from './ProfileIdentitySection'
 import { ProfileFutureVision } from './ProfileFutureVision'
@@ -50,8 +48,6 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
     setProfile(primaryId ? loadProfileById(primaryId) : null)
   }
 
-  const ownerId = getGoalAppOwnerId()
-  const streak = dayCloseStreak(loadDayCloses(ownerId))
   const doneTotal = totalDoneCount()
   const achieved = achievedPlans(readGoalPlansLite())
   const active = activeGoalsLite()
@@ -133,9 +129,8 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
         {/* 3. 여정 — 시간이 만드는 해자 */}
         <section>
           <h3 className="text-[11px] font-bold text-muted/70 uppercase tracking-[0.1em] px-0.5 mb-2.5">여정</h3>
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
             {[
-              { label: '마감 연속', value: streak, unit: '일' },
               { label: '해낸 일', value: doneTotal, unit: '개' },
               { label: '이룬 목표', value: achieved.length, unit: '개' },
             ].map((s) => (

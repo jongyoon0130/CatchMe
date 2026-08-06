@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AlarmAlertMode } from '../../lib/alarmAlertMode'
+import { previewAlarmAlertMode } from '../../lib/alarmSound'
 import { AlertModePhoneIcon } from './AlarmAlertModeIcons'
 
 const OPTIONS: { id: AlarmAlertMode; label: string }[] = [
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function AlarmAlertModePicker({ value, onChange }: Props) {
-  const [flashLabel, setFlashLabel] = useState<string | null>(null)
+  const [flashMode, setFlashMode] = useState<AlarmAlertMode | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -23,38 +24,41 @@ export function AlarmAlertModePicker({ value, onChange }: Props) {
     }
   }, [])
 
-  const handleSelect = (mode: AlarmAlertMode, label: string) => {
+  const handleSelect = (mode: AlarmAlertMode) => {
     onChange(mode)
-    setFlashLabel(label)
+    // 고른 순간에만 해당 모드 그대로 피드백 — 소리면 한 번 울리고, 진동이면 짧게 떨림
+    previewAlarmAlertMode(mode)
+    setFlashMode(mode)
     if (flashTimer.current) clearTimeout(flashTimer.current)
-    flashTimer.current = setTimeout(() => setFlashLabel(null), 1100)
+    flashTimer.current = setTimeout(() => setFlashMode(null), 1100)
   }
 
   return (
-    <div className="relative rounded-xl border border-border bg-surface px-2 py-3 mb-3">
-      <div
-        className={`pointer-events-none absolute inset-x-0 top-2 flex justify-center transition-opacity duration-200 ${
-          flashLabel ? 'opacity-100' : 'opacity-0'
-        }`}
-        aria-live="polite"
-      >
-        <span className="rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-semibold text-surface">
-          {flashLabel ?? ''}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-3 w-full pt-1">
+    <div className="rounded-xl border border-border bg-surface px-2 pt-1.5 pb-2.5 mb-3">
+      <div className="grid grid-cols-3 w-full">
         {OPTIONS.map((opt) => {
           const active = value === opt.id
+          const flashed = flashMode === opt.id
           return (
             <button
               key={opt.id}
               type="button"
               aria-label={opt.label}
               aria-pressed={active}
-              onClick={() => handleSelect(opt.id, opt.label)}
-              className="flex min-h-[52px] items-center justify-center py-2 transition-transform active:scale-95"
+              onClick={() => handleSelect(opt.id)}
+              className="flex flex-col items-center justify-end gap-1 pb-1 transition-transform active:scale-95"
             >
+              {/* 라벨은 각자 자기 아이콘 바로 위에 뜬다 */}
+              <span
+                className={`h-[22px] flex items-end transition-opacity duration-200 ${
+                  flashed ? 'opacity-100' : 'opacity-0'
+                }`}
+                aria-hidden={!flashed}
+              >
+                <span className="rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-semibold text-surface">
+                  {opt.label}
+                </span>
+              </span>
               <AlertModePhoneIcon mode={opt.id} active={active} size={36} />
             </button>
           )

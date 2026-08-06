@@ -22,7 +22,8 @@ export function parseTaskTime24(value: string): { period: 'am' | 'pm'; hour12: n
   const minute = Number(m[2])
   const period: 'am' | 'pm' = hour24 >= 12 ? 'pm' : 'am'
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
-  return { period, hour12, minute: Math.round(minute / 5) * 5 }
+  // 1분 단위 그대로 — 알람 피커와 동일 (예전엔 5분 반올림했었다)
+  return { period, hour12, minute }
 }
 
 export function toTaskTime24(period: 'am' | 'pm', hour12: number, minute: number): string {
@@ -47,5 +48,3 @@ export function compareTaskTime(a?: string, b?: string): number {
   return ta.localeCompare(tb)
 }
 
-export const TASK_MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55] as const
-export const TASK_HOUR12_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const

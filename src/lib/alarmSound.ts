@@ -1,4 +1,4 @@
-import { loadAlarmAlertMode } from './alarmAlertMode'
+import { loadAlarmAlertMode, type AlarmAlertMode } from './alarmAlertMode'
 import { isNativeAlarmAvailable, pulseNativeAlarmHaptic } from './nativeAlarm/plugin'
 
 let loopTimer: ReturnType<typeof setInterval> | null = null
@@ -44,6 +44,22 @@ function pulseVibrate(): void {
   }
   if (isNativeAlarmAvailable()) {
     void pulseNativeAlarmHaptic()
+  }
+}
+
+/** 모드를 고른 순간의 1회 피드백 — 소리는 한 번 울리고, 진동은 짧게 한 번, 무음은 없음 */
+export function previewAlarmAlertMode(mode: AlarmAlertMode): void {
+  if (mode === 'sound') {
+    playAlarmSound()
+    return
+  }
+  if (mode === 'vibrate') {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(200)
+    }
+    if (isNativeAlarmAvailable()) {
+      void pulseNativeAlarmHaptic()
+    }
   }
 }
 

@@ -130,8 +130,7 @@ body::after {
 .goal-app .goal-date-add,
 .goal-app .goal-week-card,
 .goal-app .goal-tier-add,
-.goal-app .goal-tier-repeat,
-.goal-dayclose {
+.goal-app .goal-tier-repeat {
   border: 2px solid var(--au-ink) !important;
   box-shadow: var(--au-sh-sm) !important;
   background: var(--au-surface);
@@ -140,22 +139,6 @@ body::after {
 .goal-app .goal-chk-row.done {
   background: var(--spray-accent);
   border-color: var(--au-ink) !important;
-}
-
-.goal-app .goal-dayclose-btn {
-  border: 2px solid var(--au-ink) !important;
-  box-shadow: 2px 2px 0 var(--au-ink) !important;
-  background: var(--spray-accent) !important;
-  color: var(--au-ink) !important;
-}
-
-.goal-app .goal-dayclose-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--au-ink) !important;
-}
-
-.goal-app .goal-dayclose.evening {
-  background: var(--spray-accent) !important;
 }
 
 .goal-app .goal-branch-icon {
