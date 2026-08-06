@@ -44,9 +44,9 @@ describe('BEHAVIOR_PRIMER — 일상·성취·미룸은 되묻지 않는다', ()
   })
 
   it('겪어본 사람의 한 줄이 있다 (그냥 카톡 친구가 되지 않게)', () => {
-    // '나도/내가 그때~', '~하게 되더라', '쌓여서' 류의 경험·시간 관점
-    const experienceMarks = /(그때|나도|되더라|쌓여|기억도 안)/
-    for (const hint of DAILY_LIFE_CASES) {
+    // 지웅님 실측(2026-08-06): 자기서사('나도 그때')보다 **'~더라'**를 훨씬 많이 쓴다 (2 vs 9)
+    const experienceMarks = /(그때|나도|더라|쌓여|기억도 안)/
+    for (const hint of ['카페 왔어', '오늘 할 일 다 끝냈어']) {
       const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
       expect(ex.model).toMatch(experienceMarks)
     }
@@ -83,13 +83,14 @@ describe('감정 단정 금지 (1.5단계)', () => {
     expect(prompt()).toContain('기분은 좀 개운하네')
   })
 
-  it('겪어본 사람의 한 줄이 필수로 지시된다 (카톡 친구화 방지)', () => {
-    expect(prompt()).toContain('반드시 하나 넣는다')
+  it('겪어본 사람의 한 줄이 지시된다 (카톡 친구화 방지)', () => {
+    // '반드시 매 턴'은 뺐다 — 그 강제가 18개 중 15개를 "나도 그때~"로 만들었다(2026-08-06 실측)
+    expect(prompt()).toContain('겪어본 사람만 할 수 있는 **한 줄**을 얹는다')
   })
 
   it('성취 예시가 감정을 단정하지 않고 내 경험으로 말한다', () => {
     const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes('다 끝냈어'))!
-    expect(ex.model).toContain('나도')
+    expect(ex.model).toMatch(/(나도|더라)/) // 단정 대신 내 경험 — '~더라'가 지웅님 방식
     expect(ex.model).not.toMatch(/기분(은|이)? ?좀? ?개운하네/)
   })
 })
@@ -127,11 +128,19 @@ describe('실행 리듬 배선 (2단계) — 지난날이 프롬프트에 실린
 describe('C·D — 자책 반례와 위로 방향', () => {
   const HARD_CASES = ['오늘 아무것도 못했어', '하... 힘들다', '요즘 좀 우울해']
 
-  it('자책·힘듦 예시가 모두 들어 있고, 되묻기로 끝나지 않는다', () => {
+  it('자책·힘듦 예시가 모두 들어 있다', () => {
     for (const hint of HARD_CASES) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))
-      expect(ex).toBeDefined()
-      expect(asksBack(ex!.model)).toBe(false)
+      expect(BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))).toBeDefined()
+    }
+  })
+
+  // 지웅님 실측(2026-08-06): 직접 쓴 30개 중 12개가 질문이었고, "왜 우울한 거 같아?"도
+  // 본인이 쓴 답이다. 막아야 할 건 질문 자체가 아니라 **할 일·계획을 캐는 질문**이다.
+  it('자책·힘듦에서 할 일을 캐묻지 않는다 (질문 자체는 괜찮다)', () => {
+    const digsForTasks = /(어떤 (작업|일|것)부터|언제까지|몇 개|계획이 뭐|뭐부터 할)/
+    for (const hint of HARD_CASES) {
+      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
+      expect(ex.model).not.toMatch(digsForTasks)
     }
   })
 
@@ -204,7 +213,38 @@ describe('자책 되묻기 · 문어체 (채점표에서 잡힌 것)', () => {
     expect(analyzeMessage('또 미뤘어...').needs).not.toContain('comfort')
   })
 
-  it('자책엔 되묻지 말라는 규칙이 실린다', () => {
-    expect(promptFor('또 미뤘어...')).toContain('자책엔 되묻지 말 것')
+  it('자책엔 원인을 캐묻지 말라는 규칙이 실린다', () => {
+    expect(promptFor('또 미뤘어...')).toContain('자책엔 캐묻지 말 것')
+  })
+})
+
+// 지웅님이 직접 쓴 답 30개(2026-08-06)에서 나온 기준.
+// 평균 1.9문장·36자, '나도' 2개 vs '~더라' 9개, 30개 중 12개가 질문.
+describe('지웅님 목소리에 맞추기 (실측 30개 기준)', () => {
+  const prompt = () => {
+    const msg = '오늘 헬스장 다녀왔어'
+    return buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('길이 기본값이 1~2문장이다', () => {
+    expect(prompt()).toContain('보통 1~2문장')
+  })
+
+  it('경험은 자기서사가 아니라 "~하더라"로 얹으라고 지시한다', () => {
+    expect(prompt()).toContain('~하더라')
+    expect(prompt()).toContain('매 턴 넣지 말 것')
+  })
+
+  it('걱정해서 묻는 질문은 허용, 할 일 캐묻기만 금지', () => {
+    expect(prompt()).toContain('걱정해서 묻는 건 친구답다')
+    expect(prompt()).toContain('할 일·계획을 캐는 질문')
+  })
+
+  it('응원은 과제 밀기가 아니라고 명시한다', () => {
+    expect(prompt()).toContain('응원은 과제가 아니다')
+  })
+
+  it('짧은 한 줄도 답이 된다고 알려준다', () => {
+    expect(prompt()).toContain('훌륭한 답이다')
   })
 })
