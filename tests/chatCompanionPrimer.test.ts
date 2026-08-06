@@ -18,7 +18,8 @@ class MemStorage implements Storage {
 globalThis.localStorage = new MemStorage()
 
 import { describe, expect, it } from 'bun:test'
-import { BEHAVIOR_PRIMER, buildSystemPrompt, analyzeMessage } from '../src/lib/selfEngine'
+import { buildSystemPrompt, analyzeMessage } from '../src/lib/selfEngine'
+import { VOICE_EXAMPLES } from '../src/lib/voiceExamples'
 import { emptyProfile } from '../src/types/self'
 
 /** 되묻기 = 물음표로 끝남 */
@@ -28,43 +29,46 @@ function asksBack(reply: string): boolean {
 
 const DAILY_LIFE_CASES = ['카페 왔어', '오늘 할 일 다 끝냈어', '또 미뤘어']
 
-describe('BEHAVIOR_PRIMER — 일상·성취·미룸은 되묻지 않는다', () => {
+describe('VOICE_EXAMPLES — 일상·성취·미룸은 되묻지 않는다', () => {
   it('A·B·C 예시가 모두 들어 있다', () => {
     for (const hint of DAILY_LIFE_CASES) {
-      const found = BEHAVIOR_PRIMER.some((ex) => ex.user.includes(hint))
+      const found = VOICE_EXAMPLES.some((ex) => ex.user.includes(hint))
       expect(found).toBe(true)
     }
   })
 
   it('그 예시들의 답이 되묻기로 끝나지 않는다', () => {
     for (const hint of DAILY_LIFE_CASES) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
+      const ex = VOICE_EXAMPLES.find((e) => e.user.includes(hint))!
       expect(asksBack(ex.model)).toBe(false)
     }
   })
 
   it('겪어본 사람의 한 줄이 있다 (그냥 카톡 친구가 되지 않게)', () => {
-    // '나도/내가 그때~', '~하게 되더라', '쌓여서' 류의 경험·시간 관점
-    const experienceMarks = /(그때|나도|되더라|쌓여|기억도 안)/
-    for (const hint of DAILY_LIFE_CASES) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))!
+    // 지웅님 실측(2026-08-06): 자기서사('나도 그때')보다 **'~더라'**를 훨씬 많이 쓴다 (2 vs 9)
+    const experienceMarks = /(그때|나도|더라|쌓여|기억도 안)/
+    for (const hint of ['카페 왔어', '오늘 할 일 다 끝냈어']) {
+      const ex = VOICE_EXAMPLES.find((e) => e.user.includes(hint))!
       expect(ex.model).toMatch(experienceMarks)
     }
   })
 })
 
-describe('BEHAVIOR_PRIMER — lite 모드(앞 2개) 보호', () => {
-  it('앞 2개가 전부 되묻기면 안 된다', () => {
-    const liteTwo = BEHAVIOR_PRIMER.slice(0, 2)
-    expect(liteTwo.every((ex) => asksBack(ex.model))).toBe(false)
+describe('VOICE_EXAMPLES — lite 모드 보호', () => {
+  it('lite 프롬프트에도 예시가 실리고, 일상과 고민이 둘 다 들어간다', () => {
+    const msg = '비 엄청 온다'
+    const lite = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg, true)
+    expect(lite).toContain('우산은 챙겼어?')       // 일상
+    expect(lite).toContain('아무것도 못했어')       // 자책
+    expect((lite.match(/예\d+\) 속마음/g) ?? []).length).toBeGreaterThanOrEqual(3)
   })
 
   it('첫 예시는 일상 공유(되묻지 않기)다', () => {
-    expect(asksBack(BEHAVIOR_PRIMER[0]!.model)).toBe(false)
+    expect(asksBack(VOICE_EXAMPLES[0]!.model)).toBe(false)
   })
 
   it('고민 예시도 남아 있다 — 되묻기가 맞는 자리까지 없애지는 않는다', () => {
-    const someoneAsksBack = BEHAVIOR_PRIMER.some((ex) => asksBack(ex.model))
+    const someoneAsksBack = VOICE_EXAMPLES.some((ex) => asksBack(ex.model))
     expect(someoneAsksBack).toBe(true)
   })
 })
@@ -83,13 +87,14 @@ describe('감정 단정 금지 (1.5단계)', () => {
     expect(prompt()).toContain('기분은 좀 개운하네')
   })
 
-  it('겪어본 사람의 한 줄이 필수로 지시된다 (카톡 친구화 방지)', () => {
-    expect(prompt()).toContain('반드시 하나 넣는다')
+  it('겪어본 사람의 한 줄이 지시된다 (카톡 친구화 방지)', () => {
+    // '반드시 매 턴'은 뺐다 — 그 강제가 18개 중 15개를 "나도 그때~"로 만들었다(2026-08-06 실측)
+    expect(prompt()).toContain('겪어본 사람만 할 수 있는 **한 줄**을 얹는다')
   })
 
   it('성취 예시가 감정을 단정하지 않고 내 경험으로 말한다', () => {
-    const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes('다 끝냈어'))!
-    expect(ex.model).toContain('나도')
+    const ex = VOICE_EXAMPLES.find((e) => e.user.includes('다 끝냈어'))!
+    expect(ex.model).toMatch(/(나도|더라)/) // 단정 대신 내 경험 — '~더라'가 지웅님 방식
     expect(ex.model).not.toMatch(/기분(은|이)? ?좀? ?개운하네/)
   })
 })
@@ -127,16 +132,24 @@ describe('실행 리듬 배선 (2단계) — 지난날이 프롬프트에 실린
 describe('C·D — 자책 반례와 위로 방향', () => {
   const HARD_CASES = ['오늘 아무것도 못했어', '하... 힘들다', '요즘 좀 우울해']
 
-  it('자책·힘듦 예시가 모두 들어 있고, 되묻기로 끝나지 않는다', () => {
+  it('자책·힘듦 예시가 모두 들어 있다', () => {
     for (const hint of HARD_CASES) {
-      const ex = BEHAVIOR_PRIMER.find((e) => e.user.includes(hint))
-      expect(ex).toBeDefined()
-      expect(asksBack(ex!.model)).toBe(false)
+      expect(VOICE_EXAMPLES.find((e) => e.user.includes(hint))).toBeDefined()
+    }
+  })
+
+  // 지웅님 실측(2026-08-06): 직접 쓴 30개 중 12개가 질문이었고, "왜 우울한 거 같아?"도
+  // 본인이 쓴 답이다. 막아야 할 건 질문 자체가 아니라 **할 일·계획을 캐는 질문**이다.
+  it('자책·힘듦에서 할 일을 캐묻지 않는다 (질문 자체는 괜찮다)', () => {
+    const digsForTasks = /(어떤 (작업|일|것)부터|언제까지|몇 개|계획이 뭐|뭐부터 할)/
+    for (const hint of HARD_CASES) {
+      const ex = VOICE_EXAMPLES.find((e) => e.user.includes(hint))!
+      expect(ex.model).not.toMatch(digsForTasks)
     }
   })
 
   it('면접식 되묻기("특히 찌르는 순간")가 예시에서 사라졌다', () => {
-    expect(BEHAVIOR_PRIMER.some((e) => e.model.includes('찌르는 순간'))).toBe(false)
+    expect(VOICE_EXAMPLES.some((e) => e.model.includes('찌르는 순간'))).toBe(false)
   })
 
   const promptFor = (tone: 'comfort' | 'tough', msg = '하... 힘들다') => {
@@ -182,5 +195,115 @@ describe('C·D — 자책 반례와 위로 방향', () => {
     expect(out).toContain('자책엔 반례로')
     expect(out).toContain('면죄부는 가벼운 날만')
     localStorage.clear()
+  })
+})
+
+// 채점표 2회차(2026-08-06, 16/18)에서 남은 2개 — 실측으로 원인이 확정된 것들.
+describe('자책 되묻기 · 문어체 (채점표에서 잡힌 것)', () => {
+  const promptFor = (msg: string) => {
+    localStorage.clear()
+    localStorage.setItem('goal-app-owner-id', 'o1')
+    const d = new Date()
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    localStorage.setItem(
+      'goal-misc-todos-o1',
+      JSON.stringify([{ id: 'm1', label: '운동', done: false, tier: 'daily', periodKey: key }]),
+    )
+    return buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('자책은 comfort로 분류되지 않는다 — 그래서 위로 섹션에 기댈 수 없다', () => {
+    // "또 미뤘어"는 needs:[listen]이라 위로 섹션이 안 붙는다. 계획표 규칙 쪽에서 막아야 한다.
+    expect(analyzeMessage('또 미뤘어...').needs).not.toContain('comfort')
+  })
+
+  it('자책엔 원인을 캐묻지 말라는 규칙이 실린다', () => {
+    expect(promptFor('또 미뤘어...')).toContain('자책엔 캐묻지 말 것')
+  })
+})
+
+// 지웅님이 직접 쓴 답 30개(2026-08-06)에서 나온 기준.
+// 평균 1.9문장·36자, '나도' 2개 vs '~더라' 9개, 30개 중 12개가 질문.
+describe('지웅님 목소리에 맞추기 (실측 30개 기준)', () => {
+  const prompt = () => {
+    const msg = '오늘 헬스장 다녀왔어'
+    return buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('길이 기본값이 1~2문장이다', () => {
+    expect(prompt()).toContain('보통 1~2문장')
+  })
+
+  it('경험은 자기서사가 아니라 "~하더라"로 얹으라고 지시한다', () => {
+    expect(prompt()).toContain('~하더라')
+    expect(prompt()).toContain('매 턴 넣지 말 것')
+  })
+
+  it('걱정해서 묻는 질문은 허용, 할 일 캐묻기만 금지', () => {
+    expect(prompt()).toContain('걱정해서 묻는 건 친구답다')
+    expect(prompt()).toContain('할 일·계획을 캐는 질문')
+  })
+
+  it('응원은 과제 밀기가 아니라고 명시한다', () => {
+    expect(prompt()).toContain('응원은 과제가 아니다')
+  })
+
+  it('짧은 한 줄도 답이 된다고 알려준다', () => {
+    expect(prompt()).toContain('훌륭한 답이다')
+  })
+})
+
+// 채점기 자체를 검증한다 — 지웅님이 직접 쓴 답을 떨어뜨리면 기준이 틀린 것이다.
+// 실제로 두 번 틀렸다: (1) 감정 자리 되묻기 금지 (2) 문장 수 제한.
+// 둘 다 지웅님 답이 불합격해서 발견했다.
+describe('채점 기준이 정답지를 통과시키는가', () => {
+  it('지웅님이 직접 쓴 30개 답이 전부 통과한다', async () => {
+    const { ALL_CASES, CHECKS } = await import('../eval/chatCases')
+    const { GOLD_ANSWERS } = await import('../eval/goldAnswers')
+    const failed: string[] = []
+    for (const c of ALL_CASES) {
+      const text = GOLD_ANSWERS[c.id]
+      if (!text) continue
+      for (const id of c.expect) {
+        if (!CHECKS[id].test(text)) failed.push(`${c.id}: ${CHECKS[id].label}`)
+      }
+    }
+    expect(failed).toEqual([])
+  })
+})
+
+// 예비 케이스 12개 실측(2026-08-06)에서 나온 차이. 지웅님은 닫고, 모델은 열었다.
+describe('닫아주기 · 자기비하 (예비 케이스 실측)', () => {
+  const p = (msg: string) =>
+    buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+
+  it('매 턴 질문으로 끝내지 말라고 지시한다', () => {
+    expect(p('고마워 진짜')).toContain('매 턴 질문으로 끝내지 말 것')
+    expect(p('고마워 진짜')).toContain('닫아주는 게 나을 때가 있다')
+  })
+
+  it('위로·축하·감사엔 한 문장이면 된다고 알려준다', () => {
+    expect(p('나 합격했어!!')).toContain('한 문장이면 충분하다')
+  })
+
+  it('"나도 그때~"는 아주 드물게 쓰라고 못박는다', () => {
+    expect(p('오늘 헬스장 다녀왔어')).toContain('아주 드물게')
+  })
+})
+
+// P11 "니가 뭘 안다고" — 모델이 세 판 연속 변명했다. 예시엔 못 넣는다(시험 케이스라
+// 넣으면 유출이다). 규칙으로만 막는다.
+describe('시비·반박엔 변명하지 않는다', () => {
+  it('반박에 변명 말고 짧게 받아치라고 지시한다', () => {
+    const msg = '니가 뭘 안다고'
+    const out = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+    expect(out).toContain('변명하지 말 것')
+    expect(out).toContain('짧게 받아치고 끝낸다')
+  })
+
+  it('자기비하도 닫아주기 대상에 들어간다', () => {
+    const msg = '난 왜 이렇게 의지가 약하지'
+    const out = buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+    expect(out).toContain('자기비하')
   })
 })
