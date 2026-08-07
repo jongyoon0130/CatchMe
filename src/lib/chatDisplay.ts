@@ -131,3 +131,14 @@ export function meBubbleRadius(index: number, total: number): string {
   if (index === total - 1) return 'chat-bubble-me chat-bubble-me-group-last'
   return 'chat-bubble-me chat-bubble-me-group-mid'
 }
+
+/**
+ * `**강조**` 를 조각으로 쪼갠다 — 홀수 인덱스가 굵게 그릴 부분.
+ *
+ * 온보딩 문구 38개가 마크다운 굵게를 쓰는데 그리는 코드가 없어서
+ * 별표가 글자로 그대로 보였다. 문구를 고치는 대신 그리는 쪽을 고친다.
+ * 짝이 안 맞는 별표는 그대로 둔다(원문 보존).
+ */
+export function splitBold(text: string): string[] {
+  return text.split(/\*\*(.+?)\*\*/g)
+}

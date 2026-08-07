@@ -8,6 +8,8 @@ import { splitMessageParagraphs, formatChatTime, stripApiTurnTimestampFromConten
 import {
   buildReplyPlan,
   insertReplyAfterUser,
+  planSend,
+  type SendPlan,
 } from '../../lib/chatReplyPlan'
 import {
   fetchAIResponse,
@@ -502,53 +504,32 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     return fallbackId
   }
 
+  const [toast, setToast] = useState<{ text: string; warn?: boolean } | null>(null)
+  const flashToast = (text: string, warn = false) => {
+    setToast({ text, warn })
+    setTimeout(() => setToast(null), warn ? 2600 : 1600)
+  }
+
+  const currentSendPlan = () =>
+    planSend(Date.now(), lastSendAt.current, last503At.current, SEND_COOLDOWN_MS, POST_503_COOLDOWN_MS)
+
+  /** 'wait'면 그만큼 입력 중 표시를 띄운 채 기다린다. typing이 send를 막아 큐는 항상 1개 */
+  const awaitSendSlot = async (plan: SendPlan) => {
+    if (plan.kind !== 'wait') return
+    setTyping(true)
+    await new Promise((r) => setTimeout(r, plan.ms))
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text || typing || !chatReady) return
 
-    const now = Date.now()
-    const since503 = now - last503At.current
-    if (last503At.current > 0 && since503 < POST_503_COOLDOWN_MS) {
-      const waitSec = Math.ceil((POST_503_COOLDOWN_MS - since503) / 1000)
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: text,
-        timestamp: now,
-      }
-      const cooldownMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'self',
-        content: `(Google 서버 503 — ${waitSec}초만 더 쉬었다 보내줘. 연속으로 보내면 더 막혀 ㅠ)`,
-        timestamp: now + 1,
-      }
-      setMessages((m) => [...m, userMsg, cooldownMsg])
-      setInput('')
-      hideRetryBanner()
+    const plan = currentSendPlan()
+    if (plan.kind === 'blocked') {
+      // 말풍선을 만들지 않는다 — 입력창에 글이 그대로 남아 그냥 다시 보내면 된다
+      flashToast(`Google 서버가 막혔어 — ${plan.waitSec}초 뒤에 다시 보내줘`, true)
       return
     }
-
-    const sinceLast = now - lastSendAt.current
-    if (lastSendAt.current > 0 && sinceLast < SEND_COOLDOWN_MS) {
-      const waitSec = Math.ceil((SEND_COOLDOWN_MS - sinceLast) / 1000)
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: text,
-        timestamp: now,
-      }
-      const cooldownMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'self',
-        content: `(잠깐 — ${waitSec}초만 더 쉬었다 보내줘. 너무 빨리 연속으로 보내면 Google 쪽에서 막혀 ㅠ)`,
-        timestamp: now + 1,
-      }
-      setMessages((m) => [...m, userMsg, cooldownMsg])
-      setInput('')
-      hideRetryBanner()
-      return
-    }
-    lastSendAt.current = now
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() }
     const workingMessages = [...messages, userMsg]
@@ -556,6 +537,10 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     setInput('')
     hideRetryBanner()
     learnFromMessage(text)
+
+    await awaitSendSlot(plan)
+    lastSendAt.current = Date.now()
+
     const result = await requestReply(workingMessages)
     const failedId = getFailedMessageId(result, userMsg.id)
     if (failedId) showRetryBannerForFailure(failedId)
@@ -564,23 +549,16 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   const retryReplyForMessage = async (userMessageId: string) => {
     if (typing || !chatReady) return
 
-    const now = Date.now()
-    const since503 = now - last503At.current
-    if (last503At.current > 0 && since503 < POST_503_COOLDOWN_MS) {
-      const waitSec = Math.ceil((POST_503_COOLDOWN_MS - since503) / 1000)
-      window.alert(`Google 503 — ${waitSec}초만 더 쉬었다 다시 시도해줘.`)
+    const plan = currentSendPlan()
+    if (plan.kind === 'blocked') {
+      flashToast(`Google 서버가 막혔어 — ${plan.waitSec}초 뒤에 다시 시도해줘`, true)
       return
     }
-
-    const sinceLast = now - lastSendAt.current
-    if (lastSendAt.current > 0 && sinceLast < SEND_COOLDOWN_MS) {
-      const waitSec = Math.ceil((SEND_COOLDOWN_MS - sinceLast) / 1000)
-      window.alert(`잠깐 — ${waitSec}초만 더 쉬었다 다시 시도해줘.`)
-      return
-    }
-    lastSendAt.current = now
 
     hideRetryBanner()
+    await awaitSendSlot(plan)
+    lastSendAt.current = Date.now()
+
     const result = await requestReply(messages, userMessageId)
     const failedId = getFailedMessageId(result, userMessageId)
     if (failedId) showRetryBannerForFailure(failedId)
@@ -595,12 +573,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
       return
     }
     persistSelf(resetProfilePromptBulk(self))
-  }
-
-  const [toast, setToast] = useState<string | null>(null)
-  const flashToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 1600)
   }
 
   /** 제안된 일정을 실제 계획표(홈)에 넣는다 */
@@ -1066,7 +1038,9 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
         ) : null}
       {toast && (
         <div className="px-3 pt-2 -mb-0.5">
-          <span className="text-[11px] text-status-ok">{toast}</span>
+          <span className={`text-[11px] ${toast.warn ? 'text-status-warn' : 'text-status-ok'}`}>
+            {toast.text}
+          </span>
         </div>
       )}
       <div className="chat-composer-bar px-3 pt-2.5">
