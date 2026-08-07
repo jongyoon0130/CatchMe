@@ -4,6 +4,7 @@ import { emptyProfile, LIFE_DOMAIN_LABELS, ADVICE_TONE_LABELS, DILEMMA_SPECS } f
 import { collectStyleSamples, extractStyleRules } from '../../lib/selfEngine'
 import { saveOnboardingProgress, loadOnboardingProgress, clearOnboardingProgress, ONBOARDING_PROGRESS_VERSION } from '../../lib/storage'
 import { APP_TAGLINE } from '../../lib/brand'
+import { splitBold } from '../../lib/chatDisplay'
 import { FutureMeLogo } from '../brand/FutureMeLogo'
 import { Button } from '../ui'
 import {
@@ -12,6 +13,7 @@ import {
   FEARED_SELF_OPTIONS,
   LIFE_DOMAIN_ORDER,
   ONBOARDING_STEPS,
+  onboardingProgress,
   SPEECH_TONE_OPTIONS,
   TRAIT_SHIFT_OPTIONS,
   WEEKLY_ACTION_OPTIONS,
@@ -70,7 +72,6 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const step = ONBOARDING_STEPS[stepIdx]
-  const totalSteps = ONBOARDING_STEPS.length
 
   const goBack = () => {
     if (history.current.length < 2) return
@@ -184,7 +185,9 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
     else advance()
   }
 
-  const progress = Math.round(((stepIdx + 1) / totalSteps) * 100)
+  // 봇은 "핵심 질문 15개면 바로 시작할 수 있어"라고 말하는데 헤더가 1/39를 보여주면
+  // 유저는 핵심 안내를 보기 전에 나간다. 핵심 구간에선 핵심만 세고, 넘어가면 심화로 바꾼다.
+  const { label: progressLabel, percent: progress } = onboardingProgress(stepIdx)
 
   return (
     <div className="h-full flex flex-col max-w-lg mx-auto">
@@ -210,9 +213,7 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline justify-between mb-1">
-              <span className="text-[10px] text-muted">
-                {stepIdx + 1} / {totalSteps}
-              </span>
+              <span className="text-[10px] text-muted">{progressLabel}</span>
               <span className="text-xs text-muted shrink-0">{progress}%</span>
             </div>
             <div className="h-[3px] bg-surface-2 rounded-full overflow-hidden">
@@ -554,10 +555,15 @@ function Row({
           role === 'user' ? 'chat-bubble-me' : 'chat-bubble-them'
         }`}
       >
-        {content}
+        {renderBold(content)}
       </div>
     </div>
   )
+}
+
+/** 홀수 조각만 굵게 — splitBold 참고 */
+function renderBold(text: string) {
+  return splitBold(text).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part))
 }
 
 function ShortTextInput({

@@ -446,3 +446,24 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     lines: ['미래의 너에게 **제일 자주** 묻고 싶은 주제'],
   },
 ]
+
+/** 핵심 코스 길이 — finish-offer까지 (지금은 15) */
+export const CORE_STEP_COUNT =
+  ONBOARDING_STEPS.findIndex((s) => s.kind === 'finish-offer') + 1
+
+/**
+ * 헤더에 띄울 진행 표시.
+ *
+ * 전체 39개로 세면 "핵심 15개면 시작할 수 있어"라는 안내와 어긋나서
+ * 유저가 15번째 안내를 보기도 전에 나간다. 핵심 구간은 핵심만 세고,
+ * 그 뒤(선택인 심화 코스)는 따로 센다.
+ */
+export function onboardingProgress(stepIdx: number): { label: string; percent: number } {
+  const core = CORE_STEP_COUNT
+  if (stepIdx < core) {
+    return { label: `${stepIdx + 1} / ${core}`, percent: Math.round(((stepIdx + 1) / core) * 100) }
+  }
+  const deepIdx = stepIdx - core + 1
+  const deepTotal = ONBOARDING_STEPS.length - core
+  return { label: `심화 ${deepIdx} / ${deepTotal}`, percent: Math.round((deepIdx / deepTotal) * 100) }
+}
