@@ -90,6 +90,41 @@ export function buildReplyPlan(messages: ChatMessage[], focusMessageId?: string)
   }
 }
 
+/**
+ * 전송 쿨다운을 어떻게 처리할지.
+ *
+ * 예전엔 쿨다운에 걸리면 user 말과 "(잠깐 — N초만...)" 말풍선을 대화에 넣고 끝냈다.
+ * 그러면 두 가지가 망가진다: 미래의 나가 Google 서버 얘기를 해서 몰입이 깨지고,
+ * 답 못 받은 user 말이 대화에 남아 buildReplyPlan이 skippedUserMessages로 넣어
+ * **영영 답하지 않는다**(재시도 배너도 안 뜬다).
+ *
+ * 그래서 8초짜리 짧은 쿨다운은 막지 않고 그만큼 기다렸다 보낸다 — 유저에겐
+ * "답이 조금 늦게 온" 것으로만 보인다. 90초짜리 503 쿨다운은 기다리기엔 너무 길어
+ * 보내지 않되, 말풍선 대신 안내만 띄우고 입력은 입력창에 그대로 남긴다.
+ */
+export type SendPlan =
+  | { kind: 'go' }
+  | { kind: 'wait'; ms: number }
+  | { kind: 'blocked'; waitSec: number }
+
+export function planSend(
+  now: number,
+  lastSendAt: number,
+  last503At: number,
+  sendCooldownMs: number,
+  post503CooldownMs: number,
+): SendPlan {
+  const since503 = now - last503At
+  if (last503At > 0 && since503 < post503CooldownMs) {
+    return { kind: 'blocked', waitSec: Math.ceil((post503CooldownMs - since503) / 1000) }
+  }
+  const sinceLast = now - lastSendAt
+  if (lastSendAt > 0 && sinceLast < sendCooldownMs) {
+    return { kind: 'wait', ms: sendCooldownMs - sinceLast }
+  }
+  return { kind: 'go' }
+}
+
 /** 재시도 성공 시 user 바로 뒤 에러 말풍선 제거 후 self 답 삽입 */
 export function insertReplyAfterUser(
   messages: ChatMessage[],
