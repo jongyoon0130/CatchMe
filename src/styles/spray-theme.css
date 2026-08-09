@@ -33,9 +33,9 @@
 
   --au-sh-xs: 2px 2px 0 rgba(20, 20, 20, 0.12);
   --au-sh-sm: 3px 3px 0 #141414;
-  --au-sh-md: 4px 4px 0 #141414;
-  --au-sh-lg: 5px 5px 0 #141414;
-  --au-sh-ink: 4px 4px 0 #141414;
+  --au-sh-md: 2px 2px 0 #141414;
+  --au-sh-lg: 2px 2px 0 #141414;
+  --au-sh-ink: 2px 2px 0 #141414;
 
   --au-r-xs: 12px;
   --au-r-sm: 16px;
@@ -222,7 +222,7 @@ body::after {
 /* ── 내비 ── */
 
 .goal-app .goal-nav {
-  background: color-mix(in srgb, var(--au-surface) 88%, transparent);
+  background: var(--goal-bg);
   border-bottom: 2px solid var(--au-ink);
 }
 
@@ -238,6 +238,11 @@ body::after {
   color: var(--au-ink);
 }
 
+.app-bottom-nav {
+  /* 3D 그림자(2px)가 잘리지 않도록 safe-area 아래 여유 */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px) !important;
+}
+
 .app-bottom-nav-inner {
   background: var(--au-surface);
   border: 2px solid var(--au-ink) !important;
@@ -245,6 +250,7 @@ body::after {
   box-shadow: var(--au-sh-md) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  margin-bottom: 0;
 }
 
 .app-bottom-nav-item:has(.app-bottom-nav-icon.on) {
@@ -264,6 +270,32 @@ body::after {
 
 /* ── CTA · FAB · 칩 ── */
 
+.app-fab {
+  position: fixed;
+  right: max(1.25rem, calc(50% - 14rem));
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 12px);
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
+  z-index: 20;
+  padding: 0;
+  cursor: pointer;
+}
+
+.app-fab--solo {
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.tab-panel-inactive .app-fab {
+  display: none !important;
+}
+
 .goal-app .goal-cta {
   background: var(--spray-accent);
   color: var(--au-ink);
@@ -277,7 +309,7 @@ body::after {
   color: var(--au-ink);
   font-weight: 700;
   border: 2px solid var(--au-ink);
-  box-shadow: var(--au-sh-lg);
+  box-shadow: var(--au-sh-md);
 }
 
 .goal-app .goal-tier-repeat-chip.on,
@@ -294,6 +326,7 @@ body::after {
 .goal-app .goal-routine-freq-chip,
 .goal-app .goal-cadence-tab {
   border: 2px solid var(--au-ink);
+  box-shadow: 2px 2px 0 var(--au-ink);
 }
 
 .goal-app .goal-add-line {

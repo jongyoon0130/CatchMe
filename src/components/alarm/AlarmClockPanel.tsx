@@ -21,33 +21,24 @@ import {
 } from '../../lib/alarmDismissPhrase'
 import { ensureDismissPhrasesForAlarms, resolveDismissPhraseSync } from '../../lib/alarmDismissPhraseEngine'
 import { bootstrapAlarmDelivery } from '../../lib/alarmBootstrap'
-import { loadAlarmSettingsSnapshot } from '../../lib/alarmSettingsStatus'
-import { autoSyncAlarmsToNative } from '../../lib/nativeAlarm'
-import {
-  loadAlarmAlertMode,
-  saveAlarmAlertMode,
-  ALARM_ALERT_MODE_CHANGE,
-  type AlarmAlertMode,
-} from '../../lib/alarmAlertMode'
 import { useAuth } from '../../contexts/AuthContext'
+import { APP_NAME } from '../../lib/brand'
+import { BrandMark } from '../brand/BrandMark'
 import { AlarmEditSheet } from './AlarmEditSheet'
 import { DismissPhraseEditSheet } from './DismissPhraseEditSheet'
-import { AlarmSettingsSheet } from './AlarmSettingsSheet'
-import { AlarmAlertModePicker } from './AlarmAlertModePicker'
+import { SettingsGearButton } from '../settings/SettingsGearButton'
+import { AppFab } from '../ui/AppFab'
 
 /** 핸드폰 시계 앱처럼 — 알람 목록 + 토글 + 추가 */
 export function AlarmClockPanel() {
   const { user } = useAuth()
   const [alarms, setAlarms] = useState<UserAlarm[]>(() => loadUserAlarms())
   const [editing, setEditing] = useState<UserAlarm | null | 'new'>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [needsSetup, setNeedsSetup] = useState(false)
   const [nextLabel, setNextLabel] = useState<string | null>(null)
   const [nextTarget, setNextTarget] = useState<ClockAlarmTrigger | null>(null)
   const [nextPhrase, setNextPhrase] = useState<string | null>(null)
   const [nextPhraseSource, setNextPhraseSource] = useState<AlarmDismissPhrase['source'] | null>(null)
   const [phraseEditing, setPhraseEditing] = useState(false)
-  const [alertMode, setAlertMode] = useState<AlarmAlertMode>(() => loadAlarmAlertMode())
   // 길게 눌러 여러 개 골라 지우기
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -55,12 +46,14 @@ export function AlarmClockPanel() {
   const longPressed = useRef(false)
 
   const refresh = useCallback(() => {
-    setAlarms(loadUserAlarms())
-    void loadAlarmSettingsSnapshot().then((snap) => setNeedsSetup(snap.needsAttention))
+    const list = loadUserAlarms()
+    setAlarms(list)
     const next = getNextAlarmPreview()
     setNextTarget(next)
-    setNextLabel(next ? `${formatAlarmClockTime(next.time)} · ${next.label}` : null)
     if (next) {
+      const alarm = list.find((a) => a.id === next.alarmId)
+      const suffix = alarm && !alarm.enabled ? ' · 꺼짐' : ''
+      setNextLabel(`${formatAlarmClockTime(next.time)} · ${next.label}${suffix}`)
       const stored = loadDismissPhrase(next.alarmId, next.dateKey)
       if (stored?.phrase) {
         setNextPhrase(stored.phrase)
@@ -74,7 +67,7 @@ export function AlarmClockPanel() {
             alarmLabel: next.label,
           }),
         )
-        void ensureDismissPhrasesForAlarms(loadUserAlarms()).then(() => {
+        void ensureDismissPhrasesForAlarms(list).then(() => {
           const generated = loadDismissPhrase(next.alarmId, next.dateKey)
           if (generated?.phrase) {
             setNextPhrase(generated.phrase)
@@ -83,6 +76,7 @@ export function AlarmClockPanel() {
         })
       }
     } else {
+      setNextLabel(null)
       setNextPhrase(null)
       setNextPhraseSource(null)
     }
@@ -101,12 +95,6 @@ export function AlarmClockPanel() {
       window.clearInterval(timer)
     }
   }, [refresh])
-
-  useEffect(() => {
-    const onModeChange = () => setAlertMode(loadAlarmAlertMode())
-    window.addEventListener(ALARM_ALERT_MODE_CHANGE, onModeChange)
-    return () => window.removeEventListener(ALARM_ALERT_MODE_CHANGE, onModeChange)
-  }, [])
 
   useEffect(() => {
     void bootstrapAlarmDelivery({ askPermission: false, forceRenew: true })
@@ -167,13 +155,6 @@ export function AlarmClockPanel() {
     refresh()
   }
 
-  const handleAlertModeChange = (mode: AlarmAlertMode) => {
-    if (mode === alertMode) return
-    saveAlarmAlertMode(mode)
-    setAlertMode(mode)
-    void autoSyncAlarmsToNative(true)
-  }
-
   const handleSave = (draft: Pick<UserAlarm, 'time' | 'label' | 'repeatDays' | 'resolve'>) => {
     if (editing === 'new') {
       addUserAlarm(draft)
@@ -184,11 +165,15 @@ export function AlarmClockPanel() {
   }
 
   return (
-    <div>
-      <div className="flex items-end justify-between mb-4">
-        <h1 className="text-[28px] font-extrabold tracking-[-0.035em] text-ink">알람</h1>
+    <div className="relative h-full flex flex-col min-h-0">
+      <header className="goal-nav sticky top-0 z-10 shrink-0">
+        <BrandMark />
+        <div className="goal-crumb min-w-0 flex-1">
+          <p className="goal-crumb-lv f">알람</p>
+          <h1>{APP_NAME}</h1>
+        </div>
         {selectMode ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={exitSelectMode}
@@ -206,35 +191,11 @@ export function AlarmClockPanel() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="relative rounded-full border border-border bg-surface px-3 py-2 text-[13px] font-semibold text-ink/85"
-              aria-label="알람 설정"
-            >
-              설정
-              {needsSetup ? (
-                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-status-warn" aria-hidden />
-              ) : null}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing('new')}
-              className="nb-btn nb-btn--accent rounded-full px-4 py-2 text-[13px] active:scale-100"
-            >
-              + 추가
-            </button>
-          </div>
+          <SettingsGearButton />
         )}
-      </div>
+      </header>
 
-      <p className="text-[11px] text-muted/75 mb-3 leading-relaxed">
-        알람을 켜두면 <strong className="font-medium text-ink/80">설정한 시간</strong>에 울려요.
-        앱을 닫거나 잠금 화면에서도 울립니다.
-      </p>
-
-      <AlarmAlertModePicker value={alertMode} onChange={handleAlertModeChange} />
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-5 pt-4 pb-28">
 
       {nextLabel ? (
         <p className="text-[11px] text-ink/70 mb-3">
@@ -267,15 +228,8 @@ export function AlarmClockPanel() {
         <div className="nb-card nb-card--soft rounded-2xl px-4 py-10 text-center">
           <p className="text-sm text-muted mb-1">등록된 알람이 없어요</p>
           <p className="text-[12px] text-muted/70 mb-4">
-            위 <strong className="font-medium">+ 추가</strong>로 첫 알람을 만들어보세요
+            오른쪽 아래 <strong className="font-medium">+</strong> 버튼으로 첫 알람을 만들어보세요
           </p>
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="nb-btn nb-btn--accent rounded-full px-5 py-2.5 text-sm"
-          >
-            알람 추가
-          </button>
         </div>
       ) : (
         <>
@@ -368,12 +322,10 @@ export function AlarmClockPanel() {
           </ul>
         </>
       )}
+      </div>
 
-      {settingsOpen ? (
-        <AlarmSettingsSheet
-          onClose={() => setSettingsOpen(false)}
-          onChanged={refresh}
-        />
+      {!selectMode ? (
+        <AppFab onClick={() => setEditing('new')} aria-label="알람 추가" />
       ) : null}
 
       {phraseEditing && nextTarget && nextPhrase ? (

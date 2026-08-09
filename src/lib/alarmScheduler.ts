@@ -33,10 +33,11 @@ let nextAlarmTimer: ReturnType<typeof setTimeout> | null = null
 let ticking = false
 let preparingPhrases = false
 
+/** 알람 탭 UI — 꺼진 알람도 다음 다짐 미리보기에 포함 */
 export function getNextAlarmPreview(now = new Date()): ClockAlarmTrigger | null {
   const dateKey = dateKeyFrom(now)
   const fired = loadFiredAlarmKeys(dateKey)
-  return findNextClockAlarm(loadUserAlarms(), now, fired)
+  return findNextClockAlarm(loadUserAlarms(), now, fired, { includeDisabled: true })
 }
 
 async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
@@ -100,7 +101,7 @@ export async function tickAlarms(now = new Date()): Promise<number> {
   ticking = true
   try {
     const settings = loadAlarmSettings()
-    if (!settings.enabled) return 0
+    if (!settings.enabled || !settings.lockScreenAlarmEnabled) return 0
 
     const dateKey = dateKeyFrom(now)
     pruneOldFiredKeys(dateKey)
@@ -129,9 +130,11 @@ export function planExactAlarmWake(now = new Date()): void {
   }
 
   const settings = loadAlarmSettings()
-  if (!settings.enabled) return
+  if (!settings.enabled || !settings.lockScreenAlarmEnabled) return
 
-  const next = getNextAlarmPreview(now)
+  const dateKey = dateKeyFrom(now)
+  const fired = loadFiredAlarmKeys(dateKey)
+  const next = findNextClockAlarm(loadUserAlarms(), now, fired)
   if (!next) return
 
   const [hour, minute] = next.time.split(':').map(Number)

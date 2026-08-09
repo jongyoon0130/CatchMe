@@ -1,5 +1,5 @@
 /** Future Me — circular character + clock logo */
-export const LOGO_SRC = '/logo.png?v=4'
+export const LOGO_SRC = '/logo.png?v=5'
 
 interface Props {
   size?: number

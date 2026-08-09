@@ -6,6 +6,7 @@ import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
 import { planSummaryLine } from '../../lib/goalTemplateEngine'
 import { GoalCreateWizard } from './GoalCreateWizard'
 import { GoalDrilldownHome } from './GoalDrilldownHome'
+import { AppFab } from '../ui/AppFab'
 import { GoalNav, GoalShell } from './GoalShell'
 
 type Mode = 'home' | 'drill' | 'create' | 'list'
@@ -122,14 +123,7 @@ export function GoalPlanSheet({ profile, onClose, embedded = false }: Props) {
   return (
     <GoalShell embedded={embedded}>
       <GoalDrilldownHome plans={plans} profile={profile} onPlansChange={setPlans} onBack={onClose} />
-      <button
-        type="button"
-        className={`goal-fab${embedded ? ' goal-fab-with-nav' : ''}`}
-        onClick={() => setMode('create')}
-        aria-label="새 목표"
-      >
-        +
-      </button>
+      <AppFab onClick={() => setMode('create')} aria-label="새 목표" solo={!embedded} />
     </GoalShell>
   )
 }

@@ -3,8 +3,6 @@ import { getLockScreenAlarmStatus } from './alarmPushClient'
 import { readNotifyEnv, type NotifyEnv } from './notify'
 import { isIosNative } from './platform'
 import { getNativeAlarmStatus, type NativeAlarmStatus } from './nativeAlarm'
-import { loadUserAlarms } from './userAlarms'
-import { loadTaskReminderStatus } from './taskReminderSync'
 
 export type AlarmSettingStatus = 'ok' | 'warn' | 'error' | 'unknown'
 
@@ -44,15 +42,11 @@ function permissionLabel(p: string | undefined): string {
   }
 }
 
-function nativeItems(
-  native: NativeAlarmStatus,
-  enabledCount: number,
-  taskReminders: { permission: string; scheduledCount: number },
-): AlarmSettingItem[] {
-  const items: AlarmSettingItem[] = [
+function nativePermissionItems(native: NativeAlarmStatus): AlarmSettingItem[] {
+  return [
     {
       id: 'alarmkit',
-      label: '잠금 화면 알람 (AlarmKit)',
+      label: '잠금 화면 알람 권한 (AlarmKit)',
       status: permissionStatus(native.alarmKitPermission ?? (native.alarmKitEntitled ? 'granted' : 'prompt')),
       detail: permissionLabel(native.alarmKitPermission ?? (native.alarmKitEntitled ? 'granted' : 'prompt')),
     },
@@ -62,43 +56,7 @@ function nativeItems(
       status: permissionStatus(native.notificationPermission),
       detail: permissionLabel(native.notificationPermission),
     },
-    {
-      id: 'task-reminders',
-      label: '할 일 시간 알림',
-      status:
-        taskReminders.permission === 'granted' && taskReminders.scheduledCount > 0
-          ? 'ok'
-          : taskReminders.permission === 'granted'
-            ? 'unknown'
-            : taskReminders.permission === 'denied'
-              ? 'error'
-              : 'warn',
-      detail:
-        taskReminders.permission !== 'granted'
-          ? '홈에서 시간 저장 시 권한 요청 — 허용하면 자동 예약'
-          : taskReminders.scheduledCount > 0
-            ? `${taskReminders.scheduledCount}개 예약됨 (홈에서 시간 저장 시 갱신)`
-            : '시간 있는 일간 할 일 저장하면 자동 예약',
-    },
-    {
-      id: 'scheduled',
-      label: '예약된 알람',
-      status: enabledCount > 0 && native.scheduledCount > 0 ? 'ok' : enabledCount > 0 ? 'warn' : 'unknown',
-      detail:
-        enabledCount > 0
-          ? `${native.scheduledCount}개 예약 · 켜진 알람 ${enabledCount}개`
-          : '켜진 알람이 없어요',
-    },
   ]
-  if (native.message?.trim()) {
-    items.push({
-      id: 'native-note',
-      label: '상태',
-      status: 'unknown',
-      detail: native.message.trim(),
-    })
-  }
-  return items
 }
 
 async function webItems(): Promise<AlarmSettingItem[]> {
@@ -158,13 +116,11 @@ async function webItems(): Promise<AlarmSettingItem[]> {
 
 export async function loadAlarmSettingsSnapshot(): Promise<AlarmSettingsSnapshot> {
   const env = readNotifyEnv()
-  const enabledCount = loadUserAlarms().filter((a) => a.enabled).length
   const nativeIos = isIosNative()
 
   if (nativeIos) {
     const native = await getNativeAlarmStatus()
-    const taskReminders = await loadTaskReminderStatus()
-    const items = nativeItems(native, enabledCount, taskReminders)
+    const items = nativePermissionItems(native)
     const needsAttention = items.some((item) => item.status === 'warn' || item.status === 'error')
     return { items, needsAttention, isNativeIos: true, env, native }
   }

@@ -11,9 +11,12 @@ import {
 import { loadProfileById, saveProfileRecord } from '../../lib/storage'
 import { getPrimaryProfileId } from '../../lib/primaryProfile'
 import { achievedPlans, activeGoalsLite, readGoalPlansLite, totalDoneCount } from '../../lib/goalPlanBridge'
-import { ProfileIdentitySection } from './ProfileIdentitySection'
 import { ProfileFutureVision } from './ProfileFutureVision'
 import { ProfileDetailSheet } from './ProfileDetailSheet'
+import { SettingsGearButton } from '../settings/SettingsGearButton'
+import { AccountMenuButton } from '../auth/AccountMenuButton'
+import { BrandMark } from '../brand/BrandMark'
+import { APP_NAME } from '../../lib/brand'
 import { useAuth } from '../../contexts/AuthContext'
 import { deleteAccountWithConfirm } from '../../lib/accountActions'
 
@@ -71,7 +74,18 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
   if (!profile) {
     return (
       <div className="h-full overflow-y-auto bg-void">
-        <div className="max-w-lg mx-auto px-5 pt-6 pb-24 flex flex-col items-center justify-center min-h-full text-center gap-4">
+        <header className="goal-nav sticky top-0 z-10 max-w-lg mx-auto">
+          <BrandMark />
+          <div className="goal-crumb min-w-0 flex-1">
+            <p className="goal-crumb-lv f">프로필</p>
+            <h1>{APP_NAME}</h1>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <AccountMenuButton />
+            <SettingsGearButton />
+          </div>
+        </header>
+        <div className="max-w-lg mx-auto px-5 pb-24 pt-[18px] flex flex-col items-center justify-center min-h-[70vh] text-center gap-4">
           <p className="text-sm text-muted leading-relaxed">
             아직 프로필이 없어요.
             <br />
@@ -94,7 +108,18 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
 
   return (
     <div className="h-full overflow-y-auto bg-void">
-      <div className="max-w-lg mx-auto px-5 pt-6 pb-24 space-y-5">
+      <header className="goal-nav sticky top-0 z-10 max-w-lg mx-auto">
+        <BrandMark />
+        <div className="goal-crumb min-w-0 flex-1">
+          <p className="goal-crumb-lv f">프로필</p>
+          <h1>{APP_NAME}</h1>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <AccountMenuButton />
+          <SettingsGearButton />
+        </div>
+      </header>
+      <div className="max-w-lg mx-auto px-5 pb-24 pt-[18px] space-y-5">
         {/* 1. 정체성 — 지금의 나 → 5년 뒤의 나 */}
         <section>
           <div className="flex items-center gap-4">
@@ -120,10 +145,7 @@ export function ProfileScreen({ onOpenChat: _onOpenChat, onOpenHome, onCreate, r
           <ProfileDetailSheet profile={profile} onClose={() => setDetailOpen(false)} />
         )}
 
-        {/* 2. 지금 ↔ 미래 프로필 */}
-        <ProfileIdentitySection profile={profile} />
-
-        {/* 2b. 미래 비전 사진 */}
+        {/* 미래 비전 사진 */}
         <ProfileFutureVision profile={profile} />
 
         {/* 3. 여정 — 시간이 만드는 해자 */}

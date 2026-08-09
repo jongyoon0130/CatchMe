@@ -182,10 +182,6 @@ export function ProfileFutureVision({ profile }: Props) {
       />
 
       {error ? <p className="text-[11px] text-status-error leading-relaxed px-0.5">{error}</p> : null}
-
-      <p className="text-[10px] text-muted/60 leading-relaxed px-0.5">
-        AI 상상 이미지 · 실제와 다를 수 있음 · 로그인 시 계정에 동기화
-      </p>
     </section>
   )
 }

@@ -9,6 +9,7 @@ import {
   type PhraseCharState,
 } from '../../lib/alarmDismissMatch'
 import { stopAlarmSoundLoop } from '../../lib/alarmSound'
+import { loadAlarmSettings } from '../../lib/alarmStore'
 import { stopNativeActiveAlarm, autoSyncAlarmsToNative } from '../../lib/nativeAlarm'
 import { stopRingingAlarm, markPhraseSessionDone, type RingingAlarm } from '../../lib/alarmRingingStore'
 
@@ -209,26 +210,32 @@ export function AlarmDismissOverlay({
   const [typed, setTyped] = useState('')
   const [done, setDone] = useState(false)
   const { trigger, alarmKitId } = ringing
+  const typeToDismiss = loadAlarmSettings().typeToDismissEnabled
   // 빈 문구면 영원히 해제 불가능해진다 — 마지막 방어선
   const phrase = ringing.phrase?.trim() ? ringing.phrase : '안녕'
+
+  const performDismiss = useCallback(() => {
+    if (done) return
+    setDone(true)
+    stopAlarmSoundLoop()
+    markPhraseSessionDone(trigger)
+    stopRingingAlarm()
+    void (async () => {
+      await stopNativeActiveAlarm({ alarmId: trigger.alarmId, alarmKitId })
+      await autoSyncAlarmsToNative(true)
+    })()
+    window.setTimeout(onDismissed, 320)
+  }, [done, onDismissed, trigger, alarmKitId])
 
   const handleTyped = useCallback(
     (next: string) => {
       if (done) return
       setTyped(next)
       if (isDismissPhraseComplete(phrase, next)) {
-        setDone(true)
-        stopAlarmSoundLoop()
-        markPhraseSessionDone(trigger)
-        stopRingingAlarm()
-        void (async () => {
-          await stopNativeActiveAlarm({ alarmId: trigger.alarmId, alarmKitId })
-          await autoSyncAlarmsToNative(true)
-        })()
-        window.setTimeout(onDismissed, 320)
+        performDismiss()
       }
     },
-    [done, phrase, onDismissed, trigger, alarmKitId],
+    [done, phrase, performDismiss],
   )
 
   const progress = dismissMatchProgress(phrase, typed)
@@ -254,30 +261,48 @@ export function AlarmDismissOverlay({
             {timeLabel.replace(/^오전 |^오후 /, '')}
           </p>
           <p className="text-[12px] text-muted mt-2">
-            {timeLabel.startsWith('오전') ? '오전' : '오후'} · 맞게 칠수록 진하게, 틀리면 빨간색
+            {timeLabel.startsWith('오전') ? '오전' : '오후'}
+            {typeToDismiss ? ' · 맞게 칠수록 진하게, 틀리면 빨간색' : ' · 버튼으로 알람을 끌 수 있어요'}
           </p>
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-surface p-5 shadow-[0_8px_28px_rgba(20,22,28,0.06)] flex flex-col">
-          <p className="text-[12px] text-muted mb-4 leading-relaxed">
-            어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요. 틀린 글자는
-            지우고 다시 치면 돼요.
-          </p>
+          {typeToDismiss ? (
+            <>
+              <p className="text-[12px] text-muted mb-4 leading-relaxed">
+                어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요. 틀린 글자는
+                지우고 다시 치면 돼요.
+              </p>
 
-          <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />
+              <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />
 
-          <div className="mt-5 pt-4 border-t border-border/60">
-            <div className="flex items-center justify-between text-[11px] text-muted mb-1.5">
-              <span>진행</span>
-              <span className="tabular-nums font-medium text-ink/70">{progress}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-glow transition-[width] duration-150"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
+              <div className="mt-5 pt-4 border-t border-border/60">
+                <div className="flex items-center justify-between text-[11px] text-muted mb-1.5">
+                  <span>진행</span>
+                  <span className="tabular-nums font-medium text-ink/70">{progress}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-glow transition-[width] duration-150"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[12px] text-muted mb-4 leading-relaxed">오늘의 다짐이에요.</p>
+              <p className={`${PHRASE_CLASS} text-ink/90 mb-5`}>{phrase}</p>
+              <button
+                type="button"
+                disabled={done}
+                onClick={performDismiss}
+                className="w-full rounded-xl bg-ink py-3.5 text-sm font-bold text-surface disabled:opacity-50"
+              >
+                알람 끄기
+              </button>
+            </>
+          )}
         </div>
 
         {done ? (

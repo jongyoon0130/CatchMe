@@ -5,6 +5,7 @@ import { loadUserAlarms, type UserAlarm } from '../userAlarms'
 import type { NativeAlarmRecord } from './types'
 import { FutureMeAlarm, isNativeAlarmAvailable } from './plugin'
 import { loadAlarmAlertMode } from '../alarmAlertMode'
+import { loadAlarmSettings } from '../alarmStore'
 
 const AUTO_SYNC_DEBOUNCE_MS = 5_000
 let lastAutoSyncAt = 0
@@ -43,7 +44,7 @@ export async function syncAlarmsToNative(): Promise<{ ok: boolean; count: number
     try {
       const alarms = loadUserAlarms()
       await ensureDismissPhrasesForAlarms(alarms)
-      const records = buildNativeAlarmRecords()
+      const records = loadAlarmSettings().lockScreenAlarmEnabled ? buildNativeAlarmRecords() : []
       const result = await FutureMeAlarm.syncAlarms({
         alarms: records,
         alertMode: loadAlarmAlertMode(),

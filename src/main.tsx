@@ -12,6 +12,7 @@ import { loadAlarmAlertMode } from './lib/alarmAlertMode'
 import { setNativeAlarmAlertMode } from './lib/nativeAlarm/plugin'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { AppSettingsProvider } from './contexts/AppSettingsContext'
 import { AlarmDismissProvider } from './components/alarm/AlarmDismissProvider'
 
 initTheme()
@@ -45,9 +46,11 @@ void CapApp.addListener('appUrlOpen', ({ url }) => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <AlarmDismissProvider>
-        <App />
-      </AlarmDismissProvider>
+      <AppSettingsProvider>
+        <AlarmDismissProvider>
+          <App />
+        </AlarmDismissProvider>
+      </AppSettingsProvider>
     </AuthProvider>
   </StrictMode>,
 )

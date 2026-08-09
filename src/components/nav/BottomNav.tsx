@@ -93,7 +93,6 @@ export function BottomNav({ active, onChange }: Props) {
   return (
     <nav
       className="app-bottom-nav"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
       aria-label="메인 메뉴"
     >
       <div className="app-bottom-nav-inner">

@@ -11,6 +11,7 @@ import { deriveReminders } from './notifyReminders'
 import { syncRemindersToCloud } from './reminderSync'
 import { loadLocalGoalDataBundle } from './goalDataSync'
 import { isIosNative } from './platform'
+import { loadAlarmSettings } from './alarmStore'
 import {
   getNativeAlarmStatus,
   getNativeTaskReminderCount,
@@ -40,6 +41,15 @@ export async function syncTaskReminders(
   misc: MiscTodoItem[],
   now = new Date(),
 ): Promise<void> {
+  if (!loadAlarmSettings().taskRemindersEnabled) {
+    if (isIosNative()) {
+      await syncNativeTaskReminders([])
+    } else {
+      await syncRemindersToCloud([], [], now)
+    }
+    return
+  }
+
   const rows = deriveReminders(plans, misc, now, HORIZON_DAYS)
 
   if (isIosNative()) {

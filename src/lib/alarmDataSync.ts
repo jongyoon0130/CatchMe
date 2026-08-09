@@ -6,7 +6,7 @@ import {
   pushAlarmDataToCloud,
   type RemoteAlarmDataRow,
 } from './cloudSync'
-import { loadAlarmSettings, type AlarmSettings } from './alarmStore'
+import { loadAlarmSettings, DEFAULT_ALARM_SETTINGS, type AlarmSettings } from './alarmStore'
 import { loadUserAlarmsWithDeleted, type UserAlarm } from './userAlarms'
 
 const REVISION_KEY = 'futureme-alarm-data-revision'
@@ -121,8 +121,8 @@ export function remoteRowToAlarmBundle(row: RemoteAlarmDataRow): AlarmDataBundle
     dismissPhrases: Array.isArray(row.dismiss_phrases) ? (row.dismiss_phrases as AlarmDismissPhrase[]) : [],
     settings:
       row.alarm_settings && typeof row.alarm_settings === 'object'
-        ? (row.alarm_settings as AlarmSettings)
-        : { enabled: true },
+        ? { ...DEFAULT_ALARM_SETTINGS, ...(row.alarm_settings as Partial<AlarmSettings>) }
+        : { ...DEFAULT_ALARM_SETTINGS },
     updatedAt: row.updated_at,
   }
 }

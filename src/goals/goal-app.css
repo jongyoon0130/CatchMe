@@ -106,7 +106,7 @@ html, body, #root {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: var(--goal-surface);
+  background: var(--goal-bg);
   border-bottom: 1px solid var(--goal-line);
   min-height: 48px;
   flex-shrink: 0;
@@ -151,8 +151,7 @@ html, body, #root {
 .goal-app .goal-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  padding-bottom: 96px;
+  padding: 18px 16px 96px;
 }
 
 .goal-app .goal-home-title {
@@ -1713,7 +1712,7 @@ html, body, #root {
 
 .goal-app .goal-branch:hover {
   transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 var(--goal-ink, #141414);
+  box-shadow: 3px 3px 0 var(--goal-ink, #141414);
 }
 
 .goal-app .goal-branch:active {
@@ -2617,4 +2616,5 @@ html, body, #root {
 }
 
 /* 탭 페이저: 홈이 활성이 아닐 때, 홈의 fixed FAB가 다른 탭에 비쳐 보이지 않게 */
-.tab-panel-inactive .goal-fab { display: none !important; }
+.tab-panel-inactive .goal-fab,
+.tab-panel-inactive .app-fab { display: none !important; }

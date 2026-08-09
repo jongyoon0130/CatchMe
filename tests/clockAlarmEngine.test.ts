@@ -68,4 +68,24 @@ describe('clockAlarmEngine', () => {
     expect(next?.time).toBe('19:00')
     expect(dateKeyFrom(new Date('2026-07-27T18:00:00'))).toBe('2026-07-27')
   })
+
+  it('UI 미리보기는 꺼진 알람도 다음 후보에 넣는다', () => {
+    const list = [
+      alarm({ id: 'on', time: '19:00' }),
+      alarm({ id: 'off', time: '21:00', enabled: false }),
+    ]
+    const next = findNextClockAlarm(list, new Date('2026-07-27T18:00:00'), new Set(), {
+      includeDisabled: true,
+    })
+    expect(next?.time).toBe('19:00')
+
+    const onlyOff = [alarm({ id: 'off', time: '21:00', enabled: false })]
+    const preview = findNextClockAlarm(onlyOff, new Date('2026-07-27T18:00:00'), new Set(), {
+      includeDisabled: true,
+    })
+    expect(preview?.time).toBe('21:00')
+
+    const firing = findNextClockAlarm(onlyOff, new Date('2026-07-27T18:00:00'), new Set())
+    expect(firing).toBeNull()
+  })
 })

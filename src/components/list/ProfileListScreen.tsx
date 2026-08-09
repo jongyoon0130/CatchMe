@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../../lib/brand'
 import { formatListTime, type ProfileSummary } from '../../lib/storage'
 import { FutureMeLogo } from '../brand/FutureMeLogo'
+import { BrandMark } from '../brand/BrandMark'
+import { SettingsGearButton } from '../settings/SettingsGearButton'
 import { SwipeableListRow } from './SwipeableListRow'
 
 interface Props {
@@ -52,6 +54,7 @@ export function ProfileListScreen({
   return (
     <div className="h-full flex flex-col max-w-[480px] mx-auto">
       <header className="goal-nav sticky top-0 z-10">
+        <BrandMark />
         <div className="goal-crumb min-w-0 flex-1">
           <p className="goal-crumb-lv f">채팅</p>
           <h1>{APP_NAME}</h1>
@@ -67,6 +70,7 @@ export function ProfileListScreen({
               +
             </button>
           )}
+          <SettingsGearButton />
         </div>
       </header>
 

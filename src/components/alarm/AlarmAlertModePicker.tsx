@@ -11,9 +11,10 @@ const OPTIONS: { id: AlarmAlertMode; label: string }[] = [
 interface Props {
   value: AlarmAlertMode
   onChange: (mode: AlarmAlertMode) => void
+  className?: string
 }
 
-export function AlarmAlertModePicker({ value, onChange }: Props) {
+export function AlarmAlertModePicker({ value, onChange, className = 'mb-3' }: Props) {
   const handleSelect = (mode: AlarmAlertMode) => {
     onChange(mode)
     // 고른 순간 해당 모드 그대로 피드백 — 소리면 한 번 울리고, 진동이면 짧게 떨림
@@ -21,7 +22,7 @@ export function AlarmAlertModePicker({ value, onChange }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface px-2 pt-1.5 pb-2.5 mb-3">
+    <div className={`rounded-xl border border-border bg-surface px-2 pt-1.5 pb-2.5 ${className}`.trim()}>
       <div className="grid grid-cols-3 w-full">
         {OPTIONS.map((opt) => {
           const active = value === opt.id

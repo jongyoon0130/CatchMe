@@ -28,9 +28,8 @@ export function computeOneShotDateKey(time24: string, now = new Date()): string 
   return dateKeyFrom(at)
 }
 
-/** 오늘 이 알람이 울려야 하는 요일인지 */
-export function userAlarmActiveOnDate(alarm: UserAlarm, date: Date): boolean {
-  if (!alarm.enabled) return false
+/** 오늘 이 알람이 울려야 하는 요일인지 (enabled 무시 — UI 미리보기용) */
+export function userAlarmScheduledOnDate(alarm: UserAlarm, date: Date): boolean {
   const time = normalizeTaskTime(alarm.time)
   if (!time) return false
   if (!alarm.repeatDays.length) {
@@ -40,11 +39,24 @@ export function userAlarmActiveOnDate(alarm: UserAlarm, date: Date): boolean {
   return alarm.repeatDays.includes(date.getDay())
 }
 
-export function collectClockAlarms(alarms: UserAlarm[], date: Date): ClockAlarmTrigger[] {
+/** 오늘 이 알람이 울려야 하는 요일인지 */
+export function userAlarmActiveOnDate(alarm: UserAlarm, date: Date): boolean {
+  if (!alarm.enabled) return false
+  return userAlarmScheduledOnDate(alarm, date)
+}
+
+export function collectClockAlarms(
+  alarms: UserAlarm[],
+  date: Date,
+  opts?: { includeDisabled?: boolean },
+): ClockAlarmTrigger[] {
   const dateKey = dateKeyFrom(date)
   const out: ClockAlarmTrigger[] = []
   for (const alarm of alarms) {
-    if (!userAlarmActiveOnDate(alarm, date)) continue
+    const active = opts?.includeDisabled
+      ? userAlarmScheduledOnDate(alarm, date)
+      : userAlarmActiveOnDate(alarm, date)
+    if (!active) continue
     const time = normalizeTaskTime(alarm.time)
     if (!time) continue
     out.push({ alarmId: alarm.id, label: alarm.label, time, dateKey })
@@ -85,13 +97,14 @@ export function findNextClockAlarm(
   alarms: UserAlarm[],
   now: Date,
   fired: ReadonlySet<string>,
+  opts?: { includeDisabled?: boolean },
 ): ClockAlarmTrigger | null {
   let best: { trigger: ClockAlarmTrigger; at: number } | null = null
 
   for (let offset = 0; offset < 8; offset++) {
     const day = new Date(now)
     day.setDate(day.getDate() + offset)
-    for (const trigger of collectClockAlarms(alarms, day)) {
+    for (const trigger of collectClockAlarms(alarms, day, opts)) {
       if (fired.has(clockAlarmDedupKey(trigger))) continue
       const [hour, minute] = trigger.time.split(':').map(Number)
       const at = new Date(day)

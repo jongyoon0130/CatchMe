@@ -162,7 +162,7 @@ body::before {
 }
 
 .goal-app .goal-scroll {
-  padding: 4px 18px 148px;
+  padding: 18px 18px 148px;
   scrollbar-width: none;
   background: var(--au-bg);
 }
@@ -177,10 +177,8 @@ body::before {
   gap: 12px;
   padding: 14px 18px 10px;
   min-height: 56px;
-  background: color-mix(in srgb, var(--au-bg) 92%, transparent);
-  backdrop-filter: saturate(1.6) blur(18px);
-  -webkit-backdrop-filter: saturate(1.6) blur(18px);
-  border-bottom: none;
+  background: var(--goal-bg);
+  border-bottom: 1px solid var(--goal-line);
 }
 
 .goal-app .goal-nav-back {
