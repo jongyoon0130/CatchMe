@@ -15,7 +15,8 @@
     "test": "bun test",
     "chat:eval": "bun run eval/run.ts",
     "chat:pick": "bun run eval/generate.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "memories:preview": "bun run eval/memories.ts"
   },
   "dependencies": {
     "@capacitor-community/apple-sign-in": "^7.1.0",
