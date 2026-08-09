@@ -38,6 +38,7 @@ export async function signInWithOAuthNative(
     options: {
       redirectTo,
       skipBrowserRedirect: true,
+      queryParams: provider === 'google' ? { prompt: 'select_account' } : {},
     },
   })
   if (error) throw error

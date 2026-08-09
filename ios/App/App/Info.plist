@@ -47,6 +47,10 @@
 	<true/>
 	<key>NSAlarmKitUsageDescription</key>
 	<string>설정한 아침 다짐 알람을 울리기 위해 AlarmKit 알람 접근이 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>프로필 미래 카메라에 올릴 사진을 고르기 위해 사진 보관함 접근이 필요합니다.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>미래 카메라에 촬영한 사진을 올리기 위해 카메라 접근이 필요합니다.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSSupportsLiveActivities</key>

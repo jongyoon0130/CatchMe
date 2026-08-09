@@ -1,4 +1,6 @@
 import { deleteAccountInCloud } from './cloudSync'
+import { clearLastAuthUserId } from './localAccountScope'
+import { supabase } from './supabase'
 
 const CONFIRM_MSG =
   '계정을 삭제할까요?\n\n' +
@@ -16,6 +18,8 @@ export async function deleteAccountWithConfirm(): Promise<boolean> {
   if (!window.confirm(CONFIRM_MSG)) return false
   try {
     await deleteAccountInCloud()
+    if (supabase) await supabase.auth.signOut({ scope: 'global' })
+    clearLastAuthUserId()
     localStorage.clear()
     sessionStorage.clear()
     window.location.reload()

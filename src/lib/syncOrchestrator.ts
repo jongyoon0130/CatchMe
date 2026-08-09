@@ -29,6 +29,7 @@ import { hasLocalGoalData, pushLocalGoalData, syncGoalDataOnLogin } from './goal
 import { hasLocalAlarmData, pushLocalAlarmData, syncAlarmDataOnLogin } from './alarmDataSync'
 import { pushLocalProfilePhotos, syncProfilePhotosOnLogin } from './profilePhotosSync'
 import { pushLocalSettings, syncSettingsOnLogin } from './settingsSync'
+import { clearLocalAppData, getLastAuthUserId, setLastAuthUserId } from './localAccountScope'
 
 /** tombstone이 제거된, 실제 프로필 데이터가 담긴 행 */
 type LiveRemoteProfileRow = RemoteProfileRow & { profile_data: SelfProfile }
@@ -234,6 +235,12 @@ export async function syncOnLogin(userId: string): Promise<SyncResult> {
   if (syncInFlight) return syncInFlight
 
   syncInFlight = (async () => {
+    const previousUserId = getLastAuthUserId()
+    if (previousUserId && previousUserId !== userId) {
+      await clearLocalAppData()
+    }
+    setLastAuthUserId(userId)
+
     setActiveSyncUser(userId)
     await ensureMigrated()
 

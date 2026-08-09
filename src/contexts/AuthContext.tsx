@@ -152,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: getOAuthRedirectUrl(),
+        queryParams: { prompt: 'select_account' },
       },
     })
     if (error) throw error
@@ -170,7 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return
     setActiveSyncUser(null)
-    await supabase.auth.signOut()
+    stopGoalDataRealtime()
+    await supabase.auth.signOut({ scope: 'global' })
   }, [])
 
   const uploadLocalData = useCallback(async () => {

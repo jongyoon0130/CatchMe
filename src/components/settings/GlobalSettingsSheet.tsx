@@ -2,6 +2,8 @@ import { createPortal } from 'react-dom'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 import { AlarmSettingsContent } from './AlarmSettingsContent'
 import { AlarmAlertModeSettingsSection } from './AlarmAlertModeSettingsSection'
+import { AccountSettingsSection } from './AccountSettingsSection'
+import { AppPermissionsSection } from './AppPermissionsSection'
 import { ChatApiSettingsSection } from './ChatApiSettingsSection'
 
 interface Props {
@@ -39,6 +41,8 @@ export function GlobalSettingsSheet({ onClose, onChanged }: Props) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y px-5 py-4 pb-8">
+          <AccountSettingsSection />
+
           <section className="mb-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">AI</p>
             <ChatApiSettingsSection onChanged={onChanged} />
@@ -46,10 +50,12 @@ export function GlobalSettingsSheet({ onClose, onChanged }: Props) {
 
           <AlarmAlertModeSettingsSection onChanged={onChanged} />
 
-          <section>
+          <section className="mb-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">알람</p>
             <AlarmSettingsContent onChanged={onChanged} />
           </section>
+
+          <AppPermissionsSection />
         </div>
       </div>
     </div>

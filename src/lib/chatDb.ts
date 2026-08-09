@@ -165,3 +165,20 @@ export async function clearLegacyChatDb(): Promise<void> {
     /* ignore */
   }
 }
+
+export async function clearAllChatsFromDb(): Promise<void> {
+  try {
+    await ensureLegacyDbMigrated()
+    const db = await openDb(DB_NAME)
+    if (!db.objectStoreNames.contains(STORE)) {
+      db.close()
+      return
+    }
+    const tx = db.transaction(STORE, 'readwrite')
+    tx.objectStore(STORE).clear()
+    await txDone(tx)
+    db.close()
+  } catch {
+    /* ignore */
+  }
+}
