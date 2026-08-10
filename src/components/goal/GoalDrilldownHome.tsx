@@ -3,6 +3,7 @@ import {
   MISC_PLAN_ID,
   loadMiscTodos,
   miscAggregatedForDate,
+  moveMiscTodoDate,
   removeMiscTodo,
   removeMiscTodos,
   toggleMiscTodo,
@@ -49,6 +50,7 @@ import {
   toggleAggregatedItem,
   updateAggregatedItemLabel,
   updateAggregatedItemTime,
+  moveAggregatedDailyItemDate,
   toggleDayItem,
   toggleMonthNodeItem,
   toggleWeekItemH,
@@ -69,6 +71,8 @@ import { GoalHomeTierAddRow } from './GoalHomeTierAddRow'
 import { GoalMotivationCard, GoalMotivationForm } from './GoalMotivationForm'
 import { GoalRoutineDashboard } from './GoalRoutineDashboard'
 import { GoalTaskTimeSheet } from './GoalTaskTimeSheet'
+import { GoalTodoActionSheet } from './GoalTodoActionSheet'
+import { GoalChangeDateSheet } from './GoalChangeDateSheet'
 import { GoalSwipeDelete } from './GoalSwipeDelete'
 import { goalPlanIconKind } from './GoalBranchIcons'
 import { EditableChecklist } from './GoalEditableChecklist'
@@ -91,6 +95,13 @@ type TimeEditTarget = {
   timeStart?: string
   timeEnd?: string
 }
+
+type TodoMenuTarget = {
+  item: AggregatedItem
+  tier: 'daily' | 'weekly' | 'monthly'
+}
+
+type ChangeDateTarget = TodoMenuTarget & { fromDate: Date }
 
 function sortDailyByTime(list: AggregatedItem[]): AggregatedItem[] {
   return [...list].sort((a, b) => {
@@ -141,6 +152,9 @@ export function GoalDrilldownHome({
     item: MiscTodoItem
     routine: MiscRoutine
   } | null>(null)
+  const [todoMenu, setTodoMenu] = useState<TodoMenuTarget | null>(null)
+  const [changeDateTarget, setChangeDateTarget] = useState<ChangeDateTarget | null>(null)
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
 
   useEffect(() => {
     const onSynced = () => {
@@ -280,6 +294,40 @@ export function GoalDrilldownHome({
       timeStart: it.timeStart,
       timeEnd: it.timeEnd,
     })
+  }
+
+  const deleteHomeTodo = (it: AggregatedItem, tier: 'daily' | 'weekly' | 'monthly') => {
+    if (it.planId === MISC_PLAN_ID) {
+      const routine = it.routineId ? routines.find((r) => r.id === it.routineId) : undefined
+      const row = routine ? miscTodos.find((m) => m.id === it.id) : undefined
+      if (routine && row) {
+        setRoutineDelete({ item: row, routine })
+        return
+      }
+      setMiscTodos(removeMiscTodo(profile.id, miscTodos, it.id))
+      return
+    }
+    const u = removeAggregatedItem(plans, it.planId, it.id, tier, tier === 'daily' ? selectedDate : undefined)
+    if (u) persist(u)
+  }
+
+  const handleChangeDateConfirm = (newDate: Date) => {
+    if (!changeDateTarget) return
+    const { item, tier } = changeDateTarget
+    if (tier !== 'daily') {
+      setChangeDateTarget(null)
+      return
+    }
+    if (item.planId === MISC_PLAN_ID) {
+      setMiscTodos(moveMiscTodoDate(profile.id, miscTodos, item.id, newDate))
+    } else {
+      const u = moveAggregatedDailyItemDate(plans, item.planId, item.id, changeDateTarget.fromDate, newDate)
+      if (u) persist(u)
+    }
+    setChangeDateTarget(null)
+    setCalYear(newDate.getFullYear())
+    setCalMonth(newDate.getMonth())
+    setSelectedDay(newDate.getDate())
   }
 
   const pop = () => {
@@ -487,6 +535,9 @@ export function GoalDrilldownHome({
                 categoryOptions={homeCategoryOptionsForTier(eligiblePlans, key)}
                 categoryId={it.planId}
                 onCategoryChange={(targetPlanId) => handleCategoryChange(it, key, targetPlanId)}
+                onOpenMenu={() => setTodoMenu({ item: it, tier: key })}
+                editingRequested={inlineEditId === it.id}
+                onEditingStarted={() => setInlineEditId(null)}
                 onToggle={() => {
                   if (it.planId === MISC_PLAN_ID) {
                     setMiscTodos(toggleMiscTodo(profile.id, miscTodos, it.id))
@@ -718,6 +769,45 @@ export function GoalDrilldownHome({
           timeEnd={timeEdit.timeEnd}
           onSave={handleTimeSave}
           onClose={() => setTimeEdit(null)}
+        />
+      ) : null}
+      {todoMenu ? (
+        <GoalTodoActionSheet
+          label={todoMenu.item.label}
+          tier={todoMenu.tier}
+          onEdit={() => {
+            setInlineEditId(todoMenu.item.id)
+            setTodoMenu(null)
+          }}
+          onDelete={() => {
+            const target = todoMenu
+            setTodoMenu(null)
+            deleteHomeTodo(target.item, target.tier)
+          }}
+          onSetTime={
+            todoMenu.tier === 'daily'
+              ? () => {
+                  openTimeEdit(todoMenu.item)
+                  setTodoMenu(null)
+                }
+              : undefined
+          }
+          onChangeDate={
+            todoMenu.tier === 'daily'
+              ? () => {
+                  setChangeDateTarget({ ...todoMenu, fromDate: selectedDate })
+                  setTodoMenu(null)
+                }
+              : undefined
+          }
+          onClose={() => setTodoMenu(null)}
+        />
+      ) : null}
+      {changeDateTarget ? (
+        <GoalChangeDateSheet
+          initialDate={changeDateTarget.fromDate}
+          onConfirm={handleChangeDateConfirm}
+          onClose={() => setChangeDateTarget(null)}
         />
       ) : null}
       {routineDelete ? (

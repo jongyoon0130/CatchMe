@@ -623,4 +623,48 @@ export function insertTierGoalAtDate(
   return next
 }
 
+function readDayItem(
+  h: GoalHierarchy,
+  weekId: string | null,
+  dayId: string,
+  itemId: string,
+): PlanCheckItem | null {
+  const day =
+    h.horizon === 'day-only'
+      ? h.days.find((d) => d.id === dayId)
+      : h.weeks.find((w) => w.id === weekId)?.days.find((d) => d.id === dayId)
+  return day?.items.find((i) => i.id === itemId) ?? null
+}
+
+/** 홈 일간 할 일 — 다른 날짜로 옮긴다 */
+export function moveAggregatedDailyItemDate(
+  plans: GoalPlan[],
+  planId: string,
+  itemId: string,
+  fromDate: Date,
+  toDate: Date,
+): GoalPlan | null {
+  const plan = plans.find((p) => p.id === planId)
+  if (!plan?.hierarchy) return null
+
+  const from = new Date(fromDate)
+  from.setHours(12, 0, 0, 0)
+  const to = new Date(toDate)
+  to.setHours(12, 0, 0, 0)
+  if (from.getTime() === to.getTime()) return null
+
+  const fromSlots = resolveDateSlots(plan.hierarchy, from)
+  const toSlots = resolveDateSlots(plan.hierarchy, to)
+  if (!fromSlots.dayId || !toSlots.dayId || !toSlots.inRange) return null
+
+  const item = readDayItem(plan.hierarchy, fromSlots.dayWeekId, fromSlots.dayId, itemId)
+  if (!item?.label.trim()) return null
+
+  let next = removeDayItem(plan, fromSlots.dayWeekId, fromSlots.dayId, itemId)
+  next =
+    insertTierGoalAtDate(next, to, 'daily', item.label, item.done, item.timeStart, item.timeEnd) ??
+    next
+  return next
+}
+
 export { getCurrentWeek, horizonShowsMonth, horizonShowsWeek }

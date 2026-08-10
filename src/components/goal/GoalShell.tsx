@@ -286,6 +286,9 @@ export function GoalCheckRow({
   onDrill,
   onLabelChange,
   onLabelCommit,
+  onOpenMenu,
+  editingRequested,
+  onEditingStarted,
   categoryOptions,
   categoryId,
   onCategoryChange,
@@ -303,6 +306,10 @@ export function GoalCheckRow({
   onDrill?: () => void
   onLabelChange?: (label: string) => void
   onLabelCommit?: (label: string) => void
+  /** 탭하면 수정 대신 메뉴(날짜 바꾸기 등)를 연다 */
+  onOpenMenu?: () => void
+  editingRequested?: boolean
+  onEditingStarted?: () => void
   categoryOptions?: GoalCategoryOption[]
   categoryId?: string
   onCategoryChange?: (planId: string) => void
@@ -314,6 +321,13 @@ export function GoalCheckRow({
   useEffect(() => {
     if (!editing) setDraft(text)
   }, [text, editing])
+
+  useEffect(() => {
+    if (!editingRequested) return
+    setDraft(text)
+    setEditing(true)
+    onEditingStarted?.()
+  }, [editingRequested, text, onEditingStarted])
 
   const finishEditing = () => {
     if (!draft.trim()) {
@@ -373,6 +387,10 @@ export function GoalCheckRow({
               type="button"
               className="goal-chk-tap"
               onClick={() => {
+                if (onOpenMenu) {
+                  onOpenMenu()
+                  return
+                }
                 setDraft(text)
                 setEditing(true)
               }}

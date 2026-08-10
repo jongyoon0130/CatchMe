@@ -2615,6 +2615,141 @@ html, body, #root {
   color: var(--goal-muted, #6b7583);
 }
 
+/* ── 할 일 액션 시트 / 날짜 바꾸기 ── */
+.goal-app .goal-todo-action-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--goal-surface, #fff);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.goal-app .goal-todo-action-title {
+  margin: 0 0 14px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--goal-ink);
+  line-height: 1.35;
+}
+
+.goal-app .goal-todo-action-quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.goal-app .goal-todo-action-quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--goal-line);
+  border-radius: 14px;
+  padding: 14px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--goal-surface-2, #f4f6f8);
+  color: var(--goal-ink);
+}
+
+.goal-app .goal-todo-action-quick-btn.danger {
+  color: #c0392b;
+}
+
+.goal-app .goal-todo-action-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+
+.goal-app .goal-todo-action-icon.edit {
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+.goal-app .goal-todo-action-icon.delete {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.goal-app .goal-todo-action-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--goal-line);
+}
+
+.goal-app .goal-todo-action-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--goal-ink);
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.goal-app .goal-todo-action-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.goal-app .goal-todo-action-dot.time {
+  background: rgba(236, 72, 153, 0.15);
+}
+
+.goal-app .goal-todo-action-dot.date {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.goal-app .goal-change-date-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: min(88dvh, 720px);
+  overflow-y: auto;
+  background: var(--goal-surface, #fff);
+  border-radius: 20px 20px 0 0;
+  padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.goal-app .goal-change-date-title {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--goal-ink);
+}
+
+.goal-app .goal-change-date-sheet .goal-mini-cal {
+  margin-bottom: 12px;
+}
+
+.goal-app .goal-change-date-confirm {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--goal-surface-2, #f4f6f8);
+  color: var(--goal-ink);
+}
+
 /* 탭 페이저: 홈이 활성이 아닐 때, 홈의 fixed FAB가 다른 탭에 비쳐 보이지 않게 */
 .tab-panel-inactive .goal-fab,
 .tab-panel-inactive .app-fab { display: none !important; }

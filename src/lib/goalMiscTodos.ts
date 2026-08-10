@@ -184,6 +184,24 @@ export function updateMiscTodoTime(
   return next
 }
 
+/** 일간 할 일을 다른 날짜로 옮긴다 (같은 id 유지) */
+export function moveMiscTodoDate(
+  profileId: string,
+  items: MiscTodoItem[],
+  itemId: string,
+  newDate: Date,
+): MiscTodoItem[] {
+  const item = items.find((it) => it.id === itemId && !it.deletedAt)
+  if (!item || item.tier !== 'daily') return items
+  const newKey = periodKeyForTier('daily', newDate)
+  if (item.periodKey === newKey) return items
+  const next = items.map((it) =>
+    it.id === itemId ? { ...it, periodKey: newKey, updatedAt: Date.now() } : it,
+  )
+  saveMiscTodos(profileId, next)
+  return next
+}
+
 function toAggregated(items: MiscTodoItem[]): AggregatedItem[] {
   return items
     .filter((it) => it.label.trim())

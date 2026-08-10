@@ -25,36 +25,73 @@ function TypingCursor() {
   )
 }
 
-function renderCharState(state: PhraseCharState, key: string) {
-  if (state.kind === 'wrong') {
-    // 한컴타자처럼 — 화면에는 항상 목표 글자를 그대로 그리고 색만 빨갛게.
-    // 오타 글자를 끼워 넣으면 폭이 달라 뒷글자들이 밀린다.
-    return (
-      <span key={key} className="text-status-error font-semibold underline decoration-status-error/60 decoration-2 underline-offset-4">
-        {state.char === ' ' ? '\u00A0' : state.char}
+function ghostChar(ch: string) {
+  return ch === ' ' ? '\u00A0' : ch
+}
+
+/** 한 글자 칸 — 회색(목표)과 입력을 같은 격자 셀에 포개서 베이스라인·자리가 맞게 */
+const CHAR_CELL =
+  'inline-grid align-baseline [grid-template-areas:"stack"] [grid-template-columns:1fr] [grid-template-rows:1fr]'
+
+function CharStack({
+  expected,
+  overlay,
+  overlayClass,
+}: {
+  expected: string
+  overlay?: string
+  overlayClass?: string
+}) {
+  const ghost = ghostChar(expected)
+  return (
+    <span className={CHAR_CELL}>
+      <span className="text-muted/28 [grid-area:stack] col-start-1 row-start-1 font-[inherit] leading-[inherit] tracking-[inherit]">
+        {ghost}
       </span>
-    )
-  }
+      {overlay ? (
+        <span
+          className={`[grid-area:stack] col-start-1 row-start-1 font-[inherit] leading-[inherit] tracking-[inherit] ${overlayClass ?? 'text-ink'}`}
+        >
+          {overlay}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+/** 회색 목표 글자는 항상 아래에 두고, 친 글자만 위에 겹쳐 그린다 */
+function renderCharState(state: PhraseCharState, key: string) {
   if (state.kind === 'extra') {
     return (
-      <span key={key} className="text-status-error font-semibold underline decoration-status-error/60 decoration-2 underline-offset-4">
-        {state.char === ' ' ? '\u00A0' : state.char}
+      <span key={key} className="text-status-error">
+        {ghostChar(state.char)}
       </span>
     )
   }
   if (state.char === '\n') return <br key={key} />
 
   if (state.kind === 'pending') {
+    return <CharStack key={key} expected={state.char} />
+  }
+
+  if (state.kind === 'wrong') {
     return (
-      <span key={key} className="text-muted/28">
-        {state.char}
-      </span>
+      <CharStack
+        key={key}
+        expected={state.char}
+        overlay={ghostChar(state.typed)}
+        overlayClass="text-status-error"
+      />
     )
   }
+
   return (
-    <span key={key} className="text-ink font-medium">
-      {state.char}
-    </span>
+    <CharStack
+      key={key}
+      expected={state.char}
+      overlay={ghostChar(state.char)}
+      overlayClass="text-ink"
+    />
   )
 }
 
@@ -131,12 +168,12 @@ function PhraseTypeMatch({
   }
 
   const hint = !value.length
-    ? '회색 글자를 그대로 따라 치세요 · 줄바꿈은 자동으로 넘어가요'
+    ? '회색 글자는 그대로 두고, 그 위에 따라 치세요 · 줄바꿈은 자동으로 넘어가요'
     : wrong
-      ? '빨간 글자는 지우고(⌫) 다시 치면 돼요'
+      ? '빨간 글자는 내가 친 글자예요 — 지우고(⌫) 다시 치면 돼요'
       : awaitingNextLine
         ? '이어서 다음 줄을 치면 돼요 — Enter는 안 눌러도 돼요'
-        : '틀리면 빨간색 — 지우고 다시 치면 돼요'
+        : '맞으면 검정, 틀리면 빨간색으로 내가 친 글자가 보여요'
 
   return (
     <div>
@@ -262,7 +299,7 @@ export function AlarmDismissOverlay({
           </p>
           <p className="text-[12px] text-muted mt-2">
             {timeLabel.startsWith('오전') ? '오전' : '오후'}
-            {typeToDismiss ? ' · 맞게 칠수록 진하게, 틀리면 빨간색' : ' · 버튼으로 알람을 끌 수 있어요'}
+            {typeToDismiss ? ' · 회색 위에 검정/빨강으로 따라치기' : ' · 버튼으로 알람을 끌 수 있어요'}
           </p>
         </div>
 
@@ -270,8 +307,8 @@ export function AlarmDismissOverlay({
           {typeToDismiss ? (
             <>
               <p className="text-[12px] text-muted mb-4 leading-relaxed">
-                어젯밤의 내가 정한 다짐이에요. 그대로 따라 치면 알람이 꺼져요. 틀린 글자는
-                지우고 다시 치면 돼요.
+                어젯밤의 내가 정한 다짐이에요. 회색 글자는 그대로 두고 그 위에 따라 치면
+                알람이 꺼져요. 틀린 글자는 빨간색으로 내가 친 그대로 보여요.
               </p>
 
               <PhraseTypeMatch phrase={phrase} value={typed} onChange={handleTyped} />
