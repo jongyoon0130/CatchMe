@@ -130,11 +130,12 @@ export type OnboardingStep =
   | { kind: 'ask-about'; lines: string[] }
 
 /**
- * 2단 구조 — 핵심 코스(1~15)와 심화 코스(16~).
+ * 질문 정의의 원본. **순서는 여기서 정해지지 않는다** — 실제 온보딩이 무엇을 어떤
+ * 순서로 묻는지는 아래 ONBOARDING_PAGES가 정한다.
  *
- * 핵심 코스는 personaModel의 core 티어(정체성·말투·생생한 하루·편지)를 채우는
- * 최소 질문이다. finish-offer에서 바로 대화를 시작할 수 있고, 심화 코스는
- * 이어서 하거나 나중에 프로필의 "페르소나 채우기"에서 채운다.
+ * 핵심(1~15)은 personaModel의 core 티어(정체성·말투·생생한 하루·편지)를 채우는
+ * 최소 질문이고, 이게 4페이지에 실린다. 심화(16~)는 온보딩에서 빠졌고 프로필의
+ * "페르소나 채우기"가 이어받는다 — 정의를 지우지 않는 이유가 그것이다.
  */
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   // ── 핵심 코스: 지금의 나 ────────────────────────────────────────────
@@ -143,7 +144,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     lines: [
       `안녕. Future Me야.`,
       `${FUTURE_YEARS_AHEAD}년 뒤 **미래의 너**와 대화할 수 있게 만들 거야.`,
-      '핵심 질문 15개면 바로 시작할 수 있어. 막히면 건너뛰고 나중에 채워도 돼.',
+      '네 장이면 끝나. 막히면 건너뛰고 나중에 채워도 돼.',
       '먼저 부를 이름이나 별명 알려줘.',
     ],
   },
@@ -451,19 +452,68 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 export const CORE_STEP_COUNT =
   ONBOARDING_STEPS.findIndex((s) => s.kind === 'finish-offer') + 1
 
+// ---------------------------------------------------------------------------
+// 4페이지 묶음
+//
+// 예전엔 화면 하나에 질문 하나였다. 39번을 넘겨야 첫 대화에 닿았고, 이름과 나이를
+// 따로 묻느라 두 화면을 썼다. 유저는 내용보다 "넘기는 동작"을 더 많이 겪었다.
+//
+// **문항을 줄이지 않는다. 묶는다.** 핵심 13개(안내 화면 2개 제외)를 그대로 4장에 담는다.
+// 원칙: 같은 시제·주제끼리 / 짧은 것 먼저 / 페이지당 서술형 최대 2개.
+//
+// 심화 24개는 온보딩에서 뺐다. 정의는 ONBOARDING_STEPS에 그대로 남겨둔다 —
+// 프로필의 "페르소나 채우기"(personaGaps)가 이어받을 자리다.
+// ---------------------------------------------------------------------------
+export interface OnboardingPage {
+  title: string
+  lead: string
+  steps: OnboardingStep[]
+}
+
 /**
- * 헤더에 띄울 진행 표시.
- *
- * 전체 39개로 세면 "핵심 15개면 시작할 수 있어"라는 안내와 어긋나서
- * 유저가 15번째 안내를 보기도 전에 나간다. 핵심 구간은 핵심만 세고,
- * 그 뒤(선택인 심화 코스)는 따로 센다.
+ * ONBOARDING_STEPS에서 골라온다. **인덱스로 참조하지 않는다** — 배열 순서만 바뀌어도
+ * 조용히 엉뚱한 질문이 실리고, 그건 아무도 눈치채지 못한다. 없으면 즉시 터뜨린다.
  */
-export function onboardingProgress(stepIdx: number): { label: string; percent: number } {
-  const core = CORE_STEP_COUNT
-  if (stepIdx < core) {
-    return { label: `${stepIdx + 1} / ${core}`, percent: Math.round(((stepIdx + 1) / core) * 100) }
-  }
-  const deepIdx = stepIdx - core + 1
-  const deepTotal = ONBOARDING_STEPS.length - core
-  return { label: `심화 ${deepIdx} / ${deepTotal}`, percent: Math.round((deepIdx / deepTotal) * 100) }
+const byKind = (kind: OnboardingStep['kind']): OnboardingStep => {
+  const found = ONBOARDING_STEPS.find((s) => s.kind === kind)
+  if (!found) throw new Error(`온보딩 단계를 찾지 못했다: kind=${kind}`)
+  return found
+}
+
+const byField = (field: ProfileField | FutureField): OnboardingStep => {
+  const found = ONBOARDING_STEPS.find((s) => 'field' in s && s.field === field)
+  if (!found) throw new Error(`온보딩 단계를 찾지 못했다: field=${field}`)
+  return found
+}
+
+export const ONBOARDING_PAGES: OnboardingPage[] = [
+  {
+    title: '지금의 너',
+    lead: '먼저 지금의 너를 알려줘. 짧게 답해도 돼.',
+    steps: [byKind('name'), byKind('age'), byField('currentRole'), byKind('concerns')],
+  },
+  {
+    // 서술 2개(내 말투 · 요즘 하루하루)를 붙인 게 의도다 — 같은 시제라 한 번에 쓰기 쉽다
+    title: '네 말투',
+    lead: '미래의 내가 네 말투로 말하려면 이게 필요해.',
+    steps: [byField('styleSample'), byField('lifeContext'), byKind('speech-tone')],
+  },
+  {
+    // 한 문장 → 영역 → 하루 타임라인. 점점 구체해지는 순서라 막히지 않는다
+    title: '5년 뒤의 너',
+    lead: '한 문장에서 시작해서 점점 구체적으로 가보자.',
+    steps: [byField('identityLine'), byKind('thriving-domains'), byField('typicalDay')],
+  },
+  {
+    title: '미래의 네가 지금의 너에게',
+    lead: '마지막이야. 미래의 내가 어떻게 말할지 정해줘.',
+    steps: [byField('futureVoiceSample'), byKind('advice'), byKind('weekly-action')],
+  },
+]
+
+/** 헤더에 띄울 진행 표시 — 이제 페이지 기준이다 (1/4). */
+export function onboardingProgress(pageIdx: number): { label: string; percent: number } {
+  const total = ONBOARDING_PAGES.length
+  const at = Math.min(Math.max(pageIdx + 1, 1), total)
+  return { label: `${at} / ${total}`, percent: Math.round((at / total) * 100) }
 }

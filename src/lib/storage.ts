@@ -26,9 +26,24 @@ const API_KEY_KEY = 'futureme-gemini-key'
 const MODEL_KEY = 'futureme-gemini-model'
 const SETTINGS_UPDATED_KEY = 'futureme-settings-updated-at'
 const API_CHECK_CACHE_KEY = 'futureme-api-check-cache'
-// v5: 온보딩이 핵심(15)/심화 2단 구조로 재배열 — 구버전 중간 저장과 이어지지 않음
-export const ONBOARDING_PROGRESS_KEY = 'futureme-onboarding-v5'
-export const ONBOARDING_PROGRESS_VERSION = 5
+// v6: 온보딩이 질문 하나=화면 하나에서 **4페이지 묶음**으로 바뀜.
+//     저장하던 값이 stepIdx(몇 번째 질문)에서 pageIdx(몇 번째 장)로 달라져서,
+//     구버전 중간 저장을 그대로 읽으면 엉뚱한 화면으로 간다. 키를 갈아 폐기한다.
+//     (이미 온보딩을 마친 프로필은 영향 없음 — 여긴 '하다 만' 진행 상태만 산다)
+export const ONBOARDING_PROGRESS_KEY = 'futureme-onboarding-v6'
+export const ONBOARDING_PROGRESS_VERSION = 6
+
+/**
+ * 온보딩 중간 저장에서 **두 곳이 같이 읽는 부분**.
+ *
+ * App은 "이어서 만들기?"를 물을지 정하려고 읽고, 온보딩 화면은 어디서부터 이어갈지
+ * 정하려고 읽는다. 이 이름이 한쪽만 바뀌면 확인 창이 안 뜨고 진행이 **조용히 지워진다** —
+ * 실제로 stepIdx → pageIdx로 바꾸다 그렇게 됐다. 같은 타입을 쓰게 해서 컴파일러가 잡는다.
+ */
+export interface OnboardingProgressHead {
+  version?: number
+  pageIdx?: number
+}
 const ONBOARDING_KEY = ONBOARDING_PROGRESS_KEY
 
 /** TalkBack / 구 aime-* 마이그레이션 */
