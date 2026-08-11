@@ -91,6 +91,22 @@ describe('buildFutureMemoryPrompt', () => {
     expect(prompt).toContain('방향만 틀어라')
   })
 
+  // 후보 27개를 보여드렸을 때 '시간이 지워준 것' 5개 중 4개가 별로라는 평가를 받았다.
+  // 유일하게 통과한 것("제일 창피했던 실수, 지금은 웃으면서 얘기해")만 장면이 있었고
+  // 나머지는 "그 마음이 없어져 있더라"처럼 대상이 흐릿했다.
+  it('시간이 지워준 것도 장면을 요구한다 — 흐릿하면 아무 말도 안 한 것', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('무엇이 지워졌는지 장면이 있어야 한다')
+  })
+
+  // 지웅님: 지금 취미(풋살·게임)가 5년 뒤까지 유지될지 모르는데
+  // "요즘 제일 좋아"라고 쓰면 미래의 일상을 단정하는 게 된다 — 예언 금지선과 같은 방향.
+  it('그냥 좋았던 장면은 과거형으로 묶는다 — 미래의 일상을 단정하지 않게', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('반드시 과거형으로')
+    expect(prompt).toContain('취미·관계는 5년 사이에 바뀐다')
+  })
+
   it('그렇다고 다 쉬웠던 척도 막는다 — 그건 잘난 척이 된다', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
     expect(prompt).toContain('다 쉬웠던 것처럼 쓰지도 말 것')
