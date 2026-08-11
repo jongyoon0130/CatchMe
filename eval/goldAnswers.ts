@@ -16,6 +16,12 @@ const HELD_OUT_GOLD: Record<string, string> = {
   P9: '오늘 힘든 날이긴 했네. 수고 많았고 푹 자. 대신에 내일은 좋은 일이 많을거야.',
   P10: '뭐가 고민이야?',
   P12: '아냐ㅋㅋ 발전하는 과거의 나를 보니까 보람차고 뿌듯하네ㅋㅋㅋ',
+
+  // 여러 턴 (MT1~MT3) — eval/new-cases-multiturn.md에서 그대로 옮겼다.
+  // 케이스의 유저 줄을 다듬었으니, 답도 그 줄에 대응하는 턴의 것을 쓴다.
+  MT1: '그럴 수 있지ㅋㅋ 밥이나 먹을래? 아님 게임이나 하러 가든가ㅋㅋ',
+  MT2: 'ㅋㅋㅋ방학에 열심히 살다가 목표가 없어지면 그럴수도 있지',
+  MT3: '나야 모르지ㅋㅋ 그런데 무조건 후회할 거 같은데ㅋㅋ',
 }
 
 export const GOLD_ANSWERS: Record<string, string> = Object.assign(HELD_OUT_GOLD, Object.fromEntries(
