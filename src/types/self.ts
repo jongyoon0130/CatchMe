@@ -254,6 +254,13 @@ export interface FutureSelfProfile {
   weeklyAction: string
   /** 자주 묻고 싶은 주제 */
   askAbout: LifeDomain
+  /**
+   * 미래의 나의 기억 (합성 기억) — 온보딩이 끝날 때 위 답들을 재료로 **한 번만** 만들어 고정한다.
+   * 대화에서 "나도 그때 ~하더라" 하고 꺼내 쓸 재료다. 자세한 건 lib/futureMemory.ts.
+   *
+   * 만들려면 API 호출이 한 번 필요해서, 키가 없는 동안은 비어 있다. 비어 있어도 대화는 그대로 된다.
+   */
+  memories: string[]
   /** @deprecated v2 — typicalDay로 통합 */
   dayScene?: string
   /** @deprecated v2 */
@@ -298,6 +305,7 @@ export function emptyFutureSelf(): FutureSelfProfile {
     continuityScore: 4,
     weeklyAction: '',
     askAbout: 'growth',
+    memories: [],
   }
 }
 

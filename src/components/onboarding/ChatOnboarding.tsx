@@ -19,8 +19,11 @@ import {
   loadOnboardingProgress,
   clearOnboardingProgress,
   ONBOARDING_PROGRESS_VERSION,
+  loadApiKey,
+  loadModel,
   type OnboardingProgressHead,
 } from '../../lib/storage'
+import { generateFutureMemories } from '../../lib/futureMemory'
 import { APP_TAGLINE } from '../../lib/brand'
 import { splitBold } from '../../lib/chatDisplay'
 import { FutureMeLogo } from '../brand/FutureMeLogo'
@@ -66,6 +69,8 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
   )
   const [pageIdx, setPageIdx] = useState(() => restored.current?.pageIdx ?? 0)
   const [draft, setDraft] = useState<SelfProfile>(() => restored.current?.draft ?? emptyProfile())
+  /** 마지막 장을 넘긴 뒤의 기억 화면. memories가 null이면 아직 만드는 중. */
+  const [reveal, setReveal] = useState<{ profile: SelfProfile; memories: string[] | null } | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
 
   const page = ONBOARDING_PAGES[pageIdx]!
@@ -112,10 +117,37 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
     p.completedAt = new Date().toISOString()
     if (!p.id) p.id = crypto.randomUUID()
     clearOnboardingProgress()
-    onComplete(p)
+
+    // 완주 보상 — 방금 쓴 답으로 "미래의 나의 기억"을 한 번 만들어 보여준다.
+    // 기억은 대화에 필수가 아니다. 그래서 **막지 않는다**:
+    //   키가 없으면(= 만들 수 없으면) 화면을 세우지 않고 바로 대화로 넘긴다.
+    //   만들다 실패해도 마찬가지다. 여기서 벽을 세우면 다 채워놓고 못 들어간다.
+    const key = loadApiKey()?.trim()
+    if (!key) {
+      onComplete(p)
+      return
+    }
+    setReveal({ profile: p, memories: null })
+    void generateFutureMemories(p, key, loadModel() ?? undefined).then((list) => {
+      if (!list.length) {
+        onComplete(p)
+        return
+      }
+      p.future.memories = list
+      setReveal({ profile: p, memories: list })
+    })
   }
 
   const { label: progressLabel, percent: progress } = onboardingProgress(pageIdx)
+
+  if (reveal) {
+    return (
+      <MemoryReveal
+        memories={reveal.memories}
+        onStart={() => onComplete(reveal.profile)}
+      />
+    )
+  }
 
   return (
     <div className="h-full flex flex-col max-w-lg mx-auto">
@@ -179,6 +211,56 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
       <div className="border-t border-border bg-surface/80 backdrop-blur-md p-4">
         <Button className="w-full" onClick={() => (isLast ? finish() : setPageIdx((i) => i + 1))} disabled={!canAdvance}>
           {!canAdvance ? '이름부터 알려줘' : isLast ? '미래의 나 만나기' : '다음'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 완주 보상 — 방금 쓴 답으로 만든 "미래의 나의 기억"을 보여준다.
+ *
+ * **고르게 하지 않는다.** 체크박스로 맞는 기억을 고르게 하는 안은 접었다(지웅님:
+ * "유저가 그걸 하는 게 안 귀찮고 흥미로울까?"). 틀린 기억은 나중에 대화 중에
+ * "그런 적 없는데ㅋㅋ" 하면 지우는 쪽으로 간다. 여기선 그냥 보여주고 시작한다.
+ */
+function MemoryReveal({ memories, onStart }: { memories: string[] | null; onStart: () => void }) {
+  const loading = memories === null
+  return (
+    <div className="h-full flex flex-col max-w-lg mx-auto">
+      <div className="flex-1 overflow-y-auto px-6 py-8">
+        <div className="flex justify-center mb-5">
+          <FutureMeLogo size={56} />
+        </div>
+        <h2 className="text-lg font-semibold text-ink text-center">미래의 나의 기억</h2>
+        <p className="text-[13px] text-muted text-center mt-1.5 mb-7 leading-relaxed">
+          네가 쓴 답으로 만든, 내가 지나온 장면들이야.
+          <br />
+          앞으로 대화할 때 여기서 꺼내 쓸게.
+        </p>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-1.5 py-10">
+            <span className="typing-dot w-2 h-2 rounded-full bg-muted" />
+            <span className="typing-dot w-2 h-2 rounded-full bg-muted" />
+            <span className="typing-dot w-2 h-2 rounded-full bg-muted" />
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {memories.map((m, i) => (
+              <li
+                key={i}
+                className="px-4 py-3 rounded-2xl bg-surface-2 border border-border text-[14px] leading-relaxed text-ink/85"
+              >
+                {m}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="border-t border-border bg-surface/80 backdrop-blur-md p-4">
+        <Button className="w-full" onClick={onStart} disabled={loading}>
+          {loading ? '기억을 꺼내는 중…' : '미래의 나 만나기'}
         </Button>
       </div>
     </div>

@@ -363,3 +363,38 @@ describe('여러 턴 정답지(MT1~MT3)가 채점을 통과한다', () => {
     expect(failed).toEqual([])
   })
 })
+
+// 합성 기억(PR②) — 온보딩 답은 "그대로 낭독하지 말 것"이라 막혀 있어서 모델이 꺼낼 재료가
+// 없었고, 그래서 매 턴 즉석에서 지어냈다(어제와 오늘의 과거가 달랐다). 이게 그 재료다.
+describe('미래의 나의 기억이 대화 프롬프트에 실린다', () => {
+  const withMemories = (memories: string[]) => {
+    const base = emptyProfile()
+    const p = { ...base, name: '지웅', future: { ...base.future, memories } }
+    const msg = '오늘 진짜 아무것도 못했어'
+    return buildSystemPrompt(p, analyzeMessage(msg), undefined, msg)
+  }
+
+  it('기억이 있으면 본문에 실린다', () => {
+    const out = withMemories(['포트폴리오 한 줄 안 써져서 30분만 더 버티자고 괴로워했었어'])
+    expect(out).toContain('내가 지나온 장면들')
+    expect(out).toContain('포트폴리오 한 줄 안 써져서')
+  })
+
+  it('목록을 읊지 말라는 선이 함께 실린다 — 재료지 대본이 아니다', () => {
+    const out = withMemories(['그 여름날 밤새 고민만 했어'])
+    expect(out).toContain('목록을 읊지 말 것')
+  })
+
+  it('기억이 없으면 블록 자체가 안 실린다 — 빈 제목만 남기지 않는다', () => {
+    // 키가 없으면 기억을 못 만든다. 그 상태에서도 프롬프트가 멀쩡해야 한다.
+    expect(withMemories([])).not.toContain('내가 지나온 장면들')
+  })
+
+  it('긴 대화(lite)에서도 살아남는다 — 목소리가 흐려지는 구간이 바로 거기다', () => {
+    const base = emptyProfile()
+    const p = { ...base, name: '지웅', future: { ...base.future, memories: ['그 여름날 밤새 고민만 했어'] } }
+    const msg = '비 엄청 온다'
+    const lite = buildSystemPrompt(p, analyzeMessage(msg), undefined, msg, true)
+    expect(lite).toContain('그 여름날 밤새 고민만 했어')
+  })
+})

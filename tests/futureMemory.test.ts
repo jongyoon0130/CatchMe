@@ -5,7 +5,7 @@ import {
   hasEnoughMaterial,
   parseFutureMemories,
 } from '../src/lib/futureMemory'
-import { emptyProfile } from '../src/types/self'
+import { emptyProfile, normalizeFutureSelf } from '../src/types/self'
 import type { SelfProfile } from '../src/types/self'
 
 function profileWithFuture(): SelfProfile {
@@ -39,11 +39,105 @@ describe('buildFutureMemoryPrompt', () => {
     expect(prompt).toContain('개발 공부하면서 앱 만드는 중')
   })
 
-  it('세 가지 방어가 프롬프트에 있다 — 재료 밖 금지·예언 금지·흔들린 순간', () => {
+  it('세 가지 방어가 프롬프트에 있다 — 지어내기 금지·예언 금지·우울하게 끝내기 금지', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
-    expect(prompt).toContain('밖으로 나가지 말 것')
+    expect(prompt).toContain('사람·사건·장소·직업은 만들지 말 것')
     expect(prompt).toContain('예언')
-    expect(prompt).toContain('흔들린 순간')
+    expect(prompt).toContain('힘든 대목에서 끝내지 말 것')
+  })
+
+  // 실측(2026-08-11, 지웅님 백업): 5개 중 지어낸 건 '밤새'와 '뒤처지는'뿐이었고
+  // 등장인물·사건·장소는 전부 온보딩 답에 있었다. 그 둘이 있어야 회상처럼 읽힌다.
+  it('지어내기 금지가 사실에만 걸린다 — 시간·정도·감정은 열어둔다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('시간·정도·감정은 채워도 된다')
+  })
+
+  /**
+   * 처음엔 "흔들린 순간을 잘 풀린 순간보다 적지 않게"라고 시켰다. 실제로 돌려보니
+   * 5개 중 4개가 **극복 없이 힘든 대목에서 끝났다** — 미래의 나가 우울한 사람이 됐다.
+   * 지웅님이 잡아냈다: 이 앱은 흔들림이 아니라 **극복**에 초점을 둬야 한다.
+   * 그래서 규칙을 "힘든 장면 금지"도 "절반 넣기"도 아닌 **"넘어선 이야기만"**으로 바꿨다.
+   */
+  it('힘든 대목에서 끝내지 말고 어떻게 됐는지까지 쓰라고 시킨다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('힘든 대목에서 끝내지 말 것')
+    expect(prompt).not.toContain('적지 않게')
+    expect(prompt).not.toContain('최소 2개')
+  })
+
+  /**
+   * 위를 고쳤더니 이번엔 5개가 **전부** "막혔지만 결국 됐어" 한 모양이 됐다.
+   * 지웅님이 잡아냈다 — 같은 모양 다섯 번이면 기억이 아니라 공식이다.
+   * (few-shot에서 "나도 그때~"가 83%까지 갔던 것과 같은 종류의 실패다.)
+   * 그래서 "전부 극복 서사"를 요구하지 않고 **결을 골고루** 요구한다.
+   */
+  it('한 모양으로 몰리지 말라고 시킨다 — 결 목록을 준다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('서로 다른 결')
+    expect(prompt).not.toContain('모든 기억은 넘어선 이야기')
+    for (const shape of ['넘어선 것', '결과를 아는 것', '시간이 지워준 것', '그냥 좋았던 장면', '예상 못 한 것']) {
+      expect(prompt).toContain(shape)
+    }
+  })
+
+  // '예상 못 한 것'이 처음엔 "생각보다 금방 자리 잡더라" 같은 **감상**으로만 나왔다.
+  // 지웅님: 예상 못 했더라도 **미래의 내가 실제로 할 만한 행동**이면 좋겠다.
+  // → 감상이 아니라 "지금 하고 있는 행동"으로 끝내게 하고, 없는 취미·직업은 못 만들게 묶었다.
+  it('예상 못 한 것은 감상이 아니라 지금 하는 행동으로 끝내게 한다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('안 할 것 같던 일을 지금 하고 있는 것')
+    expect(prompt).toContain('지금 하는 행동')
+    expect(prompt).toContain('방향만 틀어라')
+  })
+
+  // 후보 27개를 보여드렸을 때 '시간이 지워준 것' 5개 중 4개가 별로라는 평가를 받았다.
+  // 유일하게 통과한 것("제일 창피했던 실수, 지금은 웃으면서 얘기해")만 장면이 있었고
+  // 나머지는 "그 마음이 없어져 있더라"처럼 대상이 흐릿했다.
+  it('시간이 지워준 것도 장면을 요구한다 — 흐릿하면 아무 말도 안 한 것', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('무엇이 지워졌는지 장면이 있어야 한다')
+  })
+
+  // 지웅님: 지금 취미(풋살·게임)가 5년 뒤까지 유지될지 모르는데
+  // "요즘 제일 좋아"라고 쓰면 미래의 일상을 단정하는 게 된다 — 예언 금지선과 같은 방향.
+  it('그냥 좋았던 장면은 과거형으로 묶는다 — 미래의 일상을 단정하지 않게', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('반드시 과거형으로')
+    expect(prompt).toContain('취미·관계는 5년 사이에 바뀐다')
+  })
+
+  it('그렇다고 다 쉬웠던 척도 막는다 — 그건 잘난 척이 된다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('다 쉬웠던 것처럼 쓰지도 말 것')
+  })
+
+  // 규칙4를 고친 뒤 실측에서 5개 중 2개가 "네가 정말 대견해" 식 2인칭 칭찬으로 흘렀다.
+  // 기억은 "나도 그때 ~하더라"로 꺼낼 재료지 user 평가가 아니다 — 평가·아는 척 금지선과 같은 방향.
+  it('user를 평가하는 2인칭 칭찬을 막는다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('user를 평가하지 말 것')
+    expect(prompt).toContain('1인칭')
+  })
+})
+
+// 기억은 프로필 안에 산다. 불러오기(normalizeFutureSelf)가 모르는 필드를 떨어뜨리면
+// 저장은 되는데 다음에 열 때 사라진다 — 조용히 없어지는 종류라 여기서 잠근다.
+describe('기억이 저장·복원을 견딘다', () => {
+  it('새 프로필의 기억은 빈 배열이다', () => {
+    expect(emptyProfile().future.memories).toEqual([])
+  })
+
+  it('불러오기가 기억을 지우지 않는다', () => {
+    const saved = { ...profileWithFuture().future, memories: ['그 여름날 밤새 고민만 했다'] }
+    const round = normalizeFutureSelf(JSON.parse(JSON.stringify(saved)))
+    expect(round.memories).toEqual(['그 여름날 밤새 고민만 했다'])
+  })
+
+  it('기억이 없던 옛 프로필도 깨지지 않는다', () => {
+    const old = { ...profileWithFuture().future } as Record<string, unknown>
+    delete old.memories
+    expect(normalizeFutureSelf(old).memories).toEqual([])
   })
 })
 
