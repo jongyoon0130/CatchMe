@@ -307,3 +307,59 @@ describe('시비·반박엔 변명하지 않는다', () => {
     expect(out).toContain('자기비하')
   })
 })
+
+// 여러 턴 케이스 M1~M3(eval/new-cases-multiturn.md, 14턴)에서 관찰한 규칙 2개.
+// 이전 규칙 `❗매 턴 질문으로 끝내지 말 것`은 틀린 게 아니라 **조건이 빠져 있었다** —
+// 지웅님은 14턴 중 10턴을 질문으로 끝냈고 M1은 네 턴 연속이었다. 사건을 모르는 동안이었다.
+describe('여러 턴 규칙 — 모르는 동안은 묻고, 알고 나면 닫거나 민다', () => {
+  const p = (msg: string) =>
+    buildSystemPrompt({ ...emptyProfile(), name: '지웅' }, analyzeMessage(msg), undefined, msg)
+
+  it('사건을 모르는 동안은 계속 물어도 된다고 알려준다', () => {
+    expect(p('고마워 진짜')).toContain('모르는 동안은 계속 물어도 된다')
+  })
+
+  it('닫기 규칙이 "알고 나면"이라는 조건을 달고 있다', () => {
+    // 조건 없이 되돌리면 M1처럼 사건도 모른 채 위로부터 하게 된다
+    expect(p('고마워 진짜')).toContain('알고 나면 매 턴 질문으로 끝내지 말 것')
+  })
+
+  it('미는 것도 단정이 아니라 질문 형태라고 지시한다', () => {
+    expect(p('고마워 진짜')).toContain('미는 것도 단정이 아니라 질문 형태로')
+  })
+
+  it('user가 직접 물으면 되묻기로 도망가지 말라고 못박는다', () => {
+    // M3 `그만두면 후회할까?` — 모델이 여기서 되묻기로 가장 자주 도망간다
+    expect(p('그만두면 후회할까?')).toContain('직접 물으면 되묻기로 도망가지 말 것')
+    expect(p('그만두면 후회할까?')).toContain('의견은 준다')
+  })
+
+  it('모른다고 하되 예언은 하지 않는다는 선이 남아 있다', () => {
+    expect(p('그만두면 후회할까?')).toContain('예언은 하지 않는다')
+  })
+
+  it('힘든 턴에서 사건을 모르면 위로보다 묻기가 먼저다', () => {
+    // M1: 지웅님은 네 번 캐물을 때까지 위로도 조언도 하지 않았다.
+    // 기존 venting 가이드는 반대로 "먼저 감정을 짧게 받아주고"였다.
+    expect(p('하... 힘들다')).toContain('위로부터 하지 말고 먼저 묻는다')
+  })
+})
+
+// 정답지가 채점을 통과하는지는 위 '채점 기준이 정답지를 통과시키는가'가 전부 훑지만,
+// MT는 GOLD_ANSWERS에 없으면 조용히 건너뛴다. 빠지면 바로 알도록 따로 잠근다.
+describe('여러 턴 정답지(MT1~MT3)가 채점을 통과한다', () => {
+  it('셋 다 정답지가 있고, 걸어둔 기준을 모두 통과한다', async () => {
+    const { MULTITURN_CASES, CHECKS } = await import('../eval/chatCases')
+    const { GOLD_ANSWERS } = await import('../eval/goldAnswers')
+    expect(MULTITURN_CASES.length).toBe(3)
+    const failed: string[] = []
+    for (const c of MULTITURN_CASES) {
+      const text = GOLD_ANSWERS[c.id]
+      if (!text) { failed.push(`${c.id}: 정답지 없음`); continue }
+      for (const id of c.expect) {
+        if (!CHECKS[id].test(text)) failed.push(`${c.id}: ${CHECKS[id].label}`)
+      }
+    }
+    expect(failed).toEqual([])
+  })
+})
