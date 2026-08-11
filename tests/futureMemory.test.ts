@@ -81,6 +81,16 @@ describe('buildFutureMemoryPrompt', () => {
     }
   })
 
+  // '예상 못 한 것'이 처음엔 "생각보다 금방 자리 잡더라" 같은 **감상**으로만 나왔다.
+  // 지웅님: 예상 못 했더라도 **미래의 내가 실제로 할 만한 행동**이면 좋겠다.
+  // → 감상이 아니라 "지금 하고 있는 행동"으로 끝내게 하고, 없는 취미·직업은 못 만들게 묶었다.
+  it('예상 못 한 것은 감상이 아니라 지금 하는 행동으로 끝내게 한다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('안 할 것 같던 일을 지금 하고 있는 것')
+    expect(prompt).toContain('지금 하는 행동')
+    expect(prompt).toContain('방향만 틀어라')
+  })
+
   it('그렇다고 다 쉬웠던 척도 막는다 — 그건 잘난 척이 된다', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
     expect(prompt).toContain('다 쉬웠던 것처럼 쓰지도 말 것')
