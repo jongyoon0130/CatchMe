@@ -5,7 +5,7 @@ import {
   hasEnoughMaterial,
   parseFutureMemories,
 } from '../src/lib/futureMemory'
-import { emptyProfile } from '../src/types/self'
+import { emptyProfile, normalizeFutureSelf } from '../src/types/self'
 import type { SelfProfile } from '../src/types/self'
 
 function profileWithFuture(): SelfProfile {
@@ -39,11 +39,65 @@ describe('buildFutureMemoryPrompt', () => {
     expect(prompt).toContain('개발 공부하면서 앱 만드는 중')
   })
 
-  it('세 가지 방어가 프롬프트에 있다 — 재료 밖 금지·예언 금지·흔들린 순간', () => {
+  it('세 가지 방어가 프롬프트에 있다 — 지어내기 금지·예언 금지·넘어선 이야기', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
-    expect(prompt).toContain('밖으로 나가지 말 것')
+    expect(prompt).toContain('사람·사건·장소·직업은 만들지 말 것')
     expect(prompt).toContain('예언')
-    expect(prompt).toContain('흔들린 순간')
+    expect(prompt).toContain('넘어선 이야기')
+  })
+
+  // 실측(2026-08-11, 지웅님 백업): 5개 중 지어낸 건 '밤새'와 '뒤처지는'뿐이었고
+  // 등장인물·사건·장소는 전부 온보딩 답에 있었다. 그 둘이 있어야 회상처럼 읽힌다.
+  it('지어내기 금지가 사실에만 걸린다 — 시간·정도·감정은 열어둔다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('시간·정도·감정은 채워도 된다')
+  })
+
+  /**
+   * 처음엔 "흔들린 순간을 잘 풀린 순간보다 적지 않게"라고 시켰다. 실제로 돌려보니
+   * 5개 중 4개가 **극복 없이 힘든 대목에서 끝났다** — 미래의 나가 우울한 사람이 됐다.
+   * 지웅님이 잡아냈다: 이 앱은 흔들림이 아니라 **극복**에 초점을 둬야 한다.
+   * 그래서 규칙을 "힘든 장면 금지"도 "절반 넣기"도 아닌 **"넘어선 이야기만"**으로 바꿨다.
+   */
+  it('힘든 대목에서 끝내지 말고 넘어선 데까지 쓰라고 시킨다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('힘들었던 장면으로 끝내지 말 것')
+    expect(prompt).toContain('지나왔다는 게 이 기억의 핵심')
+    expect(prompt).not.toContain('적지 않게')
+    expect(prompt).not.toContain('최소 2개')
+  })
+
+  it('그렇다고 다 쉬웠던 척도 막는다 — 그건 잘난 척이 된다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('다 쉬웠던 것처럼 쓰지도 말 것')
+  })
+
+  // 규칙4를 고친 뒤 실측에서 5개 중 2개가 "네가 정말 대견해" 식 2인칭 칭찬으로 흘렀다.
+  // 기억은 "나도 그때 ~하더라"로 꺼낼 재료지 user 평가가 아니다 — 평가·아는 척 금지선과 같은 방향.
+  it('user를 평가하는 2인칭 칭찬을 막는다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('user를 평가하지 말 것')
+    expect(prompt).toContain('1인칭')
+  })
+})
+
+// 기억은 프로필 안에 산다. 불러오기(normalizeFutureSelf)가 모르는 필드를 떨어뜨리면
+// 저장은 되는데 다음에 열 때 사라진다 — 조용히 없어지는 종류라 여기서 잠근다.
+describe('기억이 저장·복원을 견딘다', () => {
+  it('새 프로필의 기억은 빈 배열이다', () => {
+    expect(emptyProfile().future.memories).toEqual([])
+  })
+
+  it('불러오기가 기억을 지우지 않는다', () => {
+    const saved = { ...profileWithFuture().future, memories: ['그 여름날 밤새 고민만 했다'] }
+    const round = normalizeFutureSelf(JSON.parse(JSON.stringify(saved)))
+    expect(round.memories).toEqual(['그 여름날 밤새 고민만 했다'])
+  })
+
+  it('기억이 없던 옛 프로필도 깨지지 않는다', () => {
+    const old = { ...profileWithFuture().future } as Record<string, unknown>
+    delete old.memories
+    expect(normalizeFutureSelf(old).memories).toEqual([])
   })
 })
 

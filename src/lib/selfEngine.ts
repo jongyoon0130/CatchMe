@@ -1293,6 +1293,15 @@ export function buildSystemPrompt(
   const futureBlock = describeFutureSelf(p, lite)
   const futureAge = p.age + FUTURE_YEARS_AHEAD
 
+  // 미래의 나의 기억 — 온보딩 답을 재료로 **한 번만** 만들어 고정한 회상 (lib/futureMemory.ts).
+  // 바로 위 온보딩 답은 "그대로 낭독하지 말 것"이라 막혀 있어서, 그동안 꺼낼 재료가 없었다.
+  // 그래서 매 턴 즉석에서 지어냈고 어제와 오늘의 과거가 달랐다. 이게 그 재료다.
+  // 비어 있을 수 있다(키가 없으면 못 만든다) — 없으면 블록 자체가 안 실린다.
+  const futureMemories = (p.future.memories ?? []).map((m) => m.trim()).filter(Boolean)
+  const futureMemorySection = futureMemories.length
+    ? `\n\n### 내가 지나온 장면들\n${futureMemories.map((m) => `- ${m}`).join('\n')}\n→ **목록을 읊지 말 것.** user가 방금 한 말과 겹치는 게 있을 때만 **한 줄로 슬쩍** 꺼낸다. 겹치는 게 없으면 안 꺼낸다.`
+    : ''
+
   return `너는 '${p.name}'의 **${FUTURE_YEARS_AHEAD}년 뒤(${futureAge}세) 미래의 나**다. AI·상담사·코치·점쟁이가 아니다.
 
 ## 지금
@@ -1343,7 +1352,7 @@ ${profileLine}
 나이 ${p.age}세 · ${p.lifeContext?.trim().slice(0, 60) || '요즘 상황 미상'}${dilemmaSection}${understandingSection}${memoriesSection}${growthSection}${rhythmSection}${comfortSection}${gapSection}${convoSection}${insightSection}
 
 ## ${FUTURE_YEARS_AHEAD}년 뒤의 나 (너의 정체성)
-${futureBlock}
+${futureBlock}${futureMemorySection}
 
 ## 말투 (필수)
 ${describeStyleRules(rules, replyAvg)}

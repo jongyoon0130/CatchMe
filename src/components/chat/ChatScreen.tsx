@@ -48,6 +48,7 @@ import {
   clearApiCheckCache,
   loadApiCheckCache,
 } from '../../lib/storage'
+import { generateFutureMemories } from '../../lib/futureMemory'
 import { addMiscTodo, loadMiscTodos } from '../../lib/goalMiscTodos'
 import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
 import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
@@ -376,6 +377,26 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing, revealProgress])
+
+  // 미래의 나의 기억 뒤늦게 채우기 — 온보딩 때 API 키가 없었거나 생성이 실패했으면 비어 있다.
+  // (이 기능이 생기기 전에 만든 프로필도 마찬가지다.) 키가 생긴 첫 순간에 한 번만 만든다.
+  // 실패하면 generateFutureMemories가 빈 배열을 주므로 그냥 다음 기회에 다시 시도한다.
+  const memoryFillTried = useRef(false)
+  useEffect(() => {
+    if (memoryFillTried.current) return
+    if (selfRef.current.future.memories?.length) return
+    const key = loadApiKey()?.trim()
+    if (!key || isBackgroundApiPaused()) return
+    memoryFillTried.current = true
+    void generateFutureMemories(selfRef.current, key, loadModel() ?? undefined).then((list) => {
+      if (!list.length) return
+      persistSelf({
+        ...selfRef.current,
+        future: { ...selfRef.current.future, memories: list },
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId])
 
   // 대화에서 자동축적: 말투(즉시) + 가치관·상황 인사이트(조심스럽게, 반복 시 신뢰↑)
   const learnFromMessage = (text: string) => {
