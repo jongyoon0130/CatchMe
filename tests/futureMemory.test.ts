@@ -39,11 +39,11 @@ describe('buildFutureMemoryPrompt', () => {
     expect(prompt).toContain('개발 공부하면서 앱 만드는 중')
   })
 
-  it('세 가지 방어가 프롬프트에 있다 — 지어내기 금지·예언 금지·넘어선 이야기', () => {
+  it('세 가지 방어가 프롬프트에 있다 — 지어내기 금지·예언 금지·우울하게 끝내기 금지', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
     expect(prompt).toContain('사람·사건·장소·직업은 만들지 말 것')
     expect(prompt).toContain('예언')
-    expect(prompt).toContain('넘어선 이야기')
+    expect(prompt).toContain('힘든 대목에서 끝내지 말 것')
   })
 
   // 실측(2026-08-11, 지웅님 백업): 5개 중 지어낸 건 '밤새'와 '뒤처지는'뿐이었고
@@ -59,12 +59,26 @@ describe('buildFutureMemoryPrompt', () => {
    * 지웅님이 잡아냈다: 이 앱은 흔들림이 아니라 **극복**에 초점을 둬야 한다.
    * 그래서 규칙을 "힘든 장면 금지"도 "절반 넣기"도 아닌 **"넘어선 이야기만"**으로 바꿨다.
    */
-  it('힘든 대목에서 끝내지 말고 넘어선 데까지 쓰라고 시킨다', () => {
+  it('힘든 대목에서 끝내지 말고 어떻게 됐는지까지 쓰라고 시킨다', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
-    expect(prompt).toContain('힘들었던 장면으로 끝내지 말 것')
-    expect(prompt).toContain('지나왔다는 게 이 기억의 핵심')
+    expect(prompt).toContain('힘든 대목에서 끝내지 말 것')
     expect(prompt).not.toContain('적지 않게')
     expect(prompt).not.toContain('최소 2개')
+  })
+
+  /**
+   * 위를 고쳤더니 이번엔 5개가 **전부** "막혔지만 결국 됐어" 한 모양이 됐다.
+   * 지웅님이 잡아냈다 — 같은 모양 다섯 번이면 기억이 아니라 공식이다.
+   * (few-shot에서 "나도 그때~"가 83%까지 갔던 것과 같은 종류의 실패다.)
+   * 그래서 "전부 극복 서사"를 요구하지 않고 **결을 골고루** 요구한다.
+   */
+  it('한 모양으로 몰리지 말라고 시킨다 — 결 목록을 준다', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('서로 다른 결')
+    expect(prompt).not.toContain('모든 기억은 넘어선 이야기')
+    for (const shape of ['넘어선 것', '결과를 아는 것', '시간이 지워준 것', '그냥 좋았던 장면', '예상 못 한 것']) {
+      expect(prompt).toContain(shape)
+    }
   })
 
   it('그렇다고 다 쉬웠던 척도 막는다 — 그건 잘난 척이 된다', () => {
