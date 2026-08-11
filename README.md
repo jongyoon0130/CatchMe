@@ -14,7 +14,8 @@
 
 - 사람의 의지는 날마다 흔들린다 → **이미 그 길을 지나온 5년 뒤의 나**가 북돋아준다
 - 예언·점쟁이가 아니라, "그때는 나도 그랬는데, 지나와 보니 —" 톤의 **경험자**
-- 프로필(채팅방) 여러 개, Google 로그인 시 **클라우드 동기화**, 로그인 없이도 로컬 전용으로 동작
+- 프로필(채팅방)은 **한 개만 새로 만들 수 있다** ([`primaryProfile.ts`](src/lib/primaryProfile.ts)의 `canCreateProfile`). 자료구조는 여러 개를 담지만 정책상 하나로 묶었다
+- Google 로그인 시 **클라우드 동기화**, 로그인 없이도 로컬 전용으로 동작
 
 > 이 프로젝트는 자문자답 앱 **TalkBack(톡백)** 을 포크해 방향을 바꾼 것이다. 코드 곳곳의
 > `talkback-*`/`aime-*` 상수는 구버전 데이터 마이그레이션용이니 지우면 안 된다.
@@ -143,7 +144,14 @@ sequenceDiagram
 | 36턴 초과분 | `updateConversationSummary`가 16턴마다 AI 요약으로 압축 |
 | 24턴마다 | `analyzeInsightsWithAI`가 가치관·상황을 JSON으로 추론해 축적 |
 
-API 키가 없으면 `generateLocalResponse()`가 규칙 기반 짧은 답으로 대체한다.
+**API 키가 없으면 채팅이 동작하지 않는다.** 대화창에 `(⚙️ Gemini API 키가 없어서 AI가
+답할 수 없어. 설정에서 키를 넣어줘.)`가 미래의 나 말풍선으로 들어간다
+([`ChatScreen.tsx`](src/components/chat/ChatScreen.tsx)의 `requestReply`).
+`generateLocalResponse()`라는 규칙 기반 대체 함수가 `selfEngine.ts`에 있지만
+**어디서도 호출되지 않는다**(죽은 코드).
+
+> 서버 프록시(Edge Function)로 옮기는 것이 출시 전 과제다 — 지금은 사용자가 직접
+> 키를 넣어야 첫 대화가 된다.
 
 ---
 
@@ -154,7 +162,7 @@ API 키가 없으면 `generateLocalResponse()`가 규칙 기반 짧은 답으로
 | 프로필 목록 인덱스 | localStorage | `futureme-profiles-index` |
 | 프로필 본문 | localStorage | `futureme-profile-{id}` |
 | **삭제 기록 (tombstone)** | localStorage | `futureme-profile-tombstones` (180일 후 자동 정리) |
-| Gemini API 키·모델 | localStorage | `futureme-gemini-key`, `futureme-gemini-model` — **클라우드에 올라가지 않음** |
+| Gemini API 키·모델 | localStorage **+ 클라우드** | `futureme-gemini-key`, `futureme-gemini-model` — ⚠️ 로그인하면 [`settingsSync.ts`](src/lib/settingsSync.ts)가 **키를 `futureme_settings.gemini_api_key`에 평문으로 동기화한다.** 제거 예정 |
 | 채팅 전체 기록 | IndexedDB `futureme` | store `chat`, key = `profileId` |
 | 온보딩 중간 진행 | localStorage | `futureme-onboarding-v4` |
 | 클라우드 (로그인 시) | Supabase | `futureme_profiles`, `futureme_chats`, `futureme_settings` (RLS로 본인만 접근) |
