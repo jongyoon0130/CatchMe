@@ -48,7 +48,7 @@ import {
   clearApiCheckCache,
   loadApiCheckCache,
 } from '../../lib/storage'
-import { generateFutureMemories } from '../../lib/futureMemory'
+import { generateFutureMemories, findDeniedMemory } from '../../lib/futureMemory'
 import { addMiscTodo, loadMiscTodos } from '../../lib/goalMiscTodos'
 import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
 import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
@@ -399,7 +399,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   }, [profileId])
 
   // 대화에서 자동축적: 말투(즉시) + 가치관·상황 인사이트(조심스럽게, 반복 시 신뢰↑)
-  const learnFromMessage = (text: string) => {
+  const learnFromMessage = (text: string, lastSelfReply: string) => {
     if (text.trim().length < 3) return
     const sample: StyleSample = {
       register: detectRegister(text),
@@ -410,8 +410,20 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     // 저장·부모 알림을 setSelf 업데이터 안에서 하면 React가 렌더 중에 실행해
     // 경고를 내고(StrictMode에선 두 번 저장된다) — 밖에서 계산하고 persistSelf로 한 번에.
     const samples = [...selfRef.current.styleSamples, sample].slice(-MAX_SAMPLES)
+
+    // 미래의 나가 방금 꺼낸 기억을 user가 아니라고 하면 그 줄을 버린다.
+    // 알림은 띄우지 않는다 — "기억을 삭제했습니다"가 뜨면 몰입이 깨진다.
+    // 다시 안 꺼내는 게 유일한 표시다. (판별 기준은 lib/futureMemory.ts)
+    const memories = selfRef.current.future.memories ?? []
+    const denied = findDeniedMemory(memories, text, lastSelfReply)
+    const future =
+      denied === null
+        ? selfRef.current.future
+        : { ...selfRef.current.future, memories: memories.filter((_, i) => i !== denied) }
+
     persistSelf({
       ...selfRef.current,
+      future,
       styleSamples: samples,
       styleRules: extractStyleRules(samples),
       insights: accumulateInsights(selfRef.current.insights ?? [], text),
@@ -557,7 +569,9 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     setMessages(workingMessages)
     setInput('')
     hideRetryBanner()
-    learnFromMessage(text)
+    // 정정은 **방금 꺼낸 기억**에 대해서만 일어난다 — 직전 답을 같이 넘긴다
+    const lastSelfReply = [...messages].reverse().find((m) => m.role === 'self')?.content ?? ''
+    learnFromMessage(text, lastSelfReply)
 
     await awaitSendSlot(plan)
     lastSendAt.current = Date.now()

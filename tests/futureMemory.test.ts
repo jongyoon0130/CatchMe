@@ -3,6 +3,7 @@ import {
   buildFutureMemoryPrompt,
   dropPredictions,
   hasEnoughMaterial,
+  findDeniedMemory,
   parseFutureMemories,
 } from '../src/lib/futureMemory'
 import { emptyProfile, normalizeFutureSelf } from '../src/types/self'
@@ -41,9 +42,16 @@ describe('buildFutureMemoryPrompt', () => {
 
   it('세 가지 방어가 프롬프트에 있다 — 지어내기 금지·예언 금지·우울하게 끝내기 금지', () => {
     const prompt = buildFutureMemoryPrompt(profileWithFuture())
-    expect(prompt).toContain('사람·사건·장소·직업은 만들지 말 것')
+    expect(prompt).toContain('사람·사건·장소·직업·사물·습관은 만들지 말 것')
     expect(prompt).toContain('예언')
     expect(prompt).toContain('힘든 대목에서 끝내지 말 것')
+  })
+
+  // 미리보기에서 실제로 새어나간 게 "컵라면"이었다. 사람·장소보다 **사소한 소품**이
+  // 더 잘 새고, user는 그걸 제일 먼저 알아챈다.
+  it('사물·습관도 지어내기 금지에 들어간다 — 컵라면이 새던 자리', () => {
+    const prompt = buildFutureMemoryPrompt(profileWithFuture())
+    expect(prompt).toContain('먹는 것·마시는 것·물건')
   })
 
   // 실측(2026-08-11, 지웅님 백업): 5개 중 지어낸 건 '밤새'와 '뒤처지는'뿐이었고
@@ -172,5 +180,58 @@ describe('dropPredictions', () => {
 
   it('회상은 남긴다', () => {
     expect(dropPredictions(['그때는 매일 새벽에 나가는 게 죽도록 싫었다'])).toHaveLength(1)
+  })
+})
+
+// 대화 중 정정 — 기억은 온보딩 때 한 번만 만든다. 한 번 지우면 되돌릴 수 없다.
+// 그래서 **놓치는 쪽으로 기울여** 놨다: 못 잡으면 user가 한 번 더 말하면 되지만,
+// 멀쩡한 기억을 지우면 방법이 없다. 아래 "지우면 안 되는" 케이스가 본체다.
+describe('findDeniedMemory', () => {
+  const MEM = [
+    '그때 밤에 컵라면 먹으면서 버티던 날들이 있었어',
+    '주말마다 풋살하고 땀 흘리던 그 여름날이 좋았어',
+    '운동을 꾸준히 하던 시절이 있었지',
+  ]
+
+  describe('지운다', () => {
+    it('미래의 나가 방금 꺼낸 걸 user가 아니라고 하면 그 기억을 버린다', () => {
+      const idx = findDeniedMemory(MEM, '나 컵라면 안 먹는데ㅋㅋ', '나도 그때 밤에 컵라면 먹으면서 버텼는데')
+      expect(idx).toBe(0)
+    })
+
+    it('"그런 적 없는데"도 잡는다', () => {
+      const idx = findDeniedMemory(MEM, '풋살 해본 적 없는데?', '주말에 풋살하던 거 생각나더라')
+      expect(idx).toBe(1)
+    })
+  })
+
+  describe('지우지 않는다 — 이쪽이 더 중요하다', () => {
+    it('오늘 얘기를 정정으로 오해하지 않는다', () => {
+      // 제일 위험한 오작동: 매일 나올 법한 말에 기억이 사라지는 것
+      expect(findDeniedMemory(MEM, '오늘 운동 안 했어', '운동은 좀 어때?')).toBeNull()
+      expect(findDeniedMemory(MEM, '요즘 풋살 안 하는데', '풋살은 요즘 어때?')).toBeNull()
+    })
+
+    it('미래의 나가 꺼내지도 않은 기억은 건드리지 않는다', () => {
+      // 직전 답에 없던 얘기를 user가 부정했다고 지우면, 엉뚱한 기억이 날아간다
+      expect(findDeniedMemory(MEM, '나 운동 안 하는데', '오늘 하루 어땠어?')).toBeNull()
+    })
+
+    it('단순 부정은 정정이 아니다', () => {
+      expect(findDeniedMemory(MEM, '컵라면 안 먹어', '나도 그때 컵라면 먹었는데')).toBeNull()
+    })
+
+    it('부정이 아예 없으면 안 지운다', () => {
+      expect(findDeniedMemory(MEM, '컵라면 좋아하지ㅋㅋ', '나도 그때 컵라면 먹었는데')).toBeNull()
+    })
+
+    it('겹치는 말이 없으면 어느 기억인지 모르므로 안 지운다', () => {
+      expect(findDeniedMemory(MEM, '그런 적 없는데?', '요즘 어때')).toBeNull()
+    })
+
+    it('기억이 없거나 직전 답이 없으면 아무것도 안 한다', () => {
+      expect(findDeniedMemory([], '컵라면 안 먹는데', '컵라면 얘기')).toBeNull()
+      expect(findDeniedMemory(MEM, '컵라면 안 먹는데', '')).toBeNull()
+    })
   })
 })
