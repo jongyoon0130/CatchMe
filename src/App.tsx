@@ -24,6 +24,7 @@ import {
   clearOnboardingProgress,
   loadOnboardingProgress,
   ONBOARDING_PROGRESS_VERSION,
+  type OnboardingProgressHead,
   parseBackup,
   applyBackup,
   saveChatAsync,
@@ -128,8 +129,10 @@ export default function App() {
   }
 
   const startOnboarding = () => {
-    const saved = loadOnboardingProgress<{ version?: number; stepIdx?: number }>()
-    if (saved?.version === ONBOARDING_PROGRESS_VERSION && saved.stepIdx && saved.stepIdx > 0) {
+    // 저장 단위는 pageIdx(몇 번째 장)다. 이름이 어긋나면 확인 창이 안 뜨고
+    // 조용히 처음부터 시작된다 — 그래서 모양을 storage.ts에 모아뒀다.
+    const saved = loadOnboardingProgress<OnboardingProgressHead>()
+    if (saved?.version === ONBOARDING_PROGRESS_VERSION && saved.pageIdx && saved.pageIdx > 0) {
       const resume = window.confirm(
         '진행 중인 만들기가 저장돼 있어요.\n\n확인 → 이어서 만들기\n취소 → 처음부터 새로 만들기',
       )
