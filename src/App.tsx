@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useSyncExternalStore } from 'react'
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react'
 import type { SelfProfile } from './types/self'
 import { ChatOnboarding } from './components/onboarding/ChatOnboarding'
 import { ChatScreen } from './components/chat/ChatScreen'
@@ -128,7 +128,7 @@ export default function App() {
     setProfile(next)
   }
 
-  const startOnboarding = () => {
+  const startOnboarding = useCallback(() => {
     // 저장 단위는 pageIdx(몇 번째 장)다. 이름이 어긋나면 확인 창이 안 뜨고
     // 조용히 처음부터 시작된다 — 그래서 모양을 storage.ts에 모아뒀다.
     const saved = loadOnboardingProgress<OnboardingProgressHead>()
@@ -143,7 +143,20 @@ export default function App() {
     }
     clearOnboardingProgress()
     setScreen('onboarding')
-  }
+  }, [])
+
+  // 처음 온 사람에게 텅 빈 목표 달력을 보여주면 뭘 해야 할지 알 수 없다.
+  // 프로필이 하나도 없으면 바로 "미래의 나 만들기"를 연다.
+  // ref 잠금이 핵심 — 없으면 만들기에서 나가도 프로필이 여전히 0개라 다시 튕겨 들어간다.
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!ready || autoStarted.current) return
+    autoStarted.current = true
+    if (summaries.length === 0) {
+      setActiveTab('chat')
+      startOnboarding()
+    }
+  }, [ready, summaries.length, startOnboarding])
 
   const handleBackFromChat = () => {
     void reconcileProfileSummariesFromChats().then(() => {
