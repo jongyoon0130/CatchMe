@@ -2,29 +2,23 @@ import { loadStoredApiKey } from './storage'
 
 const DEV_MODE_KEY = 'futureme-dev-mode'
 
-const builtInGeminiApiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() ?? ''
-
-export function getBuiltInGeminiApiKey(): string {
-  return builtInGeminiApiKey
-}
-
-export function hasBuiltInGeminiApiKey(): boolean {
-  return builtInGeminiApiKey.length > 0
-}
-
-/** localStorage 사용자 키 → 없으면 빌드 시 내장 키 */
+/**
+ * 이 기기에 저장된 사용자 키. **앱에 키를 내장하지 않는다.**
+ *
+ * 예전에는 `VITE_GEMINI_API_KEY`를 빌드에 박아 유저가 키를 안 넣어도 되게 했는데,
+ * Vite는 그 값을 빌드 결과물에 글자 그대로 넣는다. 즉 앱 파일을 열거나 네트워크
+ * 요청을 보면 우리 키가 그대로 보인다(요청 주소에 `?key=`로 붙는다).
+ * 키가 필요 없게 만드는 건 서버 프록시 쪽에서 한다.
+ *
+ * 키를 읽는 곳이 여기 하나뿐인 게 중요하다 — 채팅·온보딩·플래너·미래비전·알람이
+ * 모두 이 함수를 부르므로, 조달 방식을 바꿀 때 이 함수만 고치면 된다.
+ */
 export function resolveEffectiveApiKey(): string {
-  const stored = loadStoredApiKey()?.trim()
-  if (stored) return stored
-  return builtInGeminiApiKey
+  return loadStoredApiKey()?.trim() ?? ''
 }
 
 export function hasEffectiveApiKey(): boolean {
   return resolveEffectiveApiKey().length > 0
-}
-
-export function isUsingBuiltInApiKey(): boolean {
-  return !loadStoredApiKey()?.trim() && hasBuiltInGeminiApiKey()
 }
 
 export function isDeveloperMode(): boolean {

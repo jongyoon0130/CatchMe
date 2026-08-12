@@ -97,7 +97,6 @@ export type RemotePushSubscriptionRow = {
 
 export type RemoteSettingsRow = {
   gemini_model: string | null
-  gemini_api_key: string | null
   updated_at: number
 }
 
@@ -109,7 +108,6 @@ export type RemoteProfilePhotosRow = {
 
 export type SettingsCloudPayload = {
   geminiModel: string | null
-  geminiApiKey?: string | null
   updatedAt?: number
 }
 
@@ -347,11 +345,6 @@ export async function tombstoneProfileInCloud(profileId: string, deletedAt: numb
   noteCloudPushSuccess()
 }
 
-function isMissingGeminiApiKeyColumn(error: { message?: string } | null): boolean {
-  if (!error) return false
-  return /gemini_api_key/i.test(error.message ?? '') && /column|schema cache/i.test(error.message ?? '')
-}
-
 function isMissingProfilePhotosTable(error: { message?: string } | null): boolean {
   if (!error) return false
   return /futureme_profile_photos/i.test(error.message ?? '') && /relation|schema cache|does not exist/i.test(error.message ?? '')
@@ -364,17 +357,10 @@ export async function pushSettingsToCloud(payload: SettingsCloudPayload): Promis
   const row = {
     user_id: ctx.userId,
     gemini_model: payload.geminiModel,
-    gemini_api_key: payload.geminiApiKey ?? null,
     updated_at: payload.updatedAt ?? Date.now(),
   }
 
-  let { error } = await ctx.client.from('futureme_settings').upsert(row, { onConflict: 'user_id' })
-
-  if (isMissingGeminiApiKeyColumn(error)) {
-    console.info('[CatchMe/Cloud] gemini_api_key 컬럼 없음 — 모델만 동기화 (migration 참고)')
-    const { gemini_api_key: _drop, ...withoutKey } = row
-    ;({ error } = await ctx.client.from('futureme_settings').upsert(withoutKey, { onConflict: 'user_id' }))
-  }
+  const { error } = await ctx.client.from('futureme_settings').upsert(row, { onConflict: 'user_id' })
 
   if (error) {
     noteCloudPushFailure()
@@ -437,26 +423,10 @@ export async function fetchRemoteSettings(userId: string): Promise<RemoteSetting
   if (!supabase) return null
   const { data, error } = await supabase
     .from('futureme_settings')
-    .select('gemini_model, gemini_api_key, updated_at')
+    .select('gemini_model, updated_at')
     .eq('user_id', userId)
     .maybeSingle()
-  if (error) {
-    if (isMissingGeminiApiKeyColumn(error)) {
-      const fallback = await supabase
-        .from('futureme_settings')
-        .select('gemini_model, updated_at')
-        .eq('user_id', userId)
-        .maybeSingle()
-      if (fallback.error) throw fallback.error
-      if (!fallback.data) return null
-      return {
-        gemini_model: fallback.data.gemini_model,
-        gemini_api_key: null,
-        updated_at: fallback.data.updated_at,
-      }
-    }
-    throw error
-  }
+  if (error) throw error
   return data as RemoteSettingsRow | null
 }
 

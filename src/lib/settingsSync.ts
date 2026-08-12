@@ -5,22 +5,13 @@ import {
   pushSettingsToCloud,
   type RemoteSettingsRow,
 } from './cloudSync'
-import { hasBuiltInGeminiApiKey } from './geminiApiKey'
-import {
-  loadModel,
-  loadSettingsUpdatedAt,
-  loadStoredApiKey,
-  saveApiKeyLocal,
-  saveModelLocal,
-  setSettingsUpdatedAt,
-} from './storage'
+import { loadModel, loadSettingsUpdatedAt, saveModelLocal, setSettingsUpdatedAt } from './storage'
 
+// API 키는 payload에 넣지 않는다 — 이 기기 밖으로 나가지 않는다.
+// 예전에는 futureme_settings.gemini_api_key 에 평문으로 올라갔다.
 export function buildSettingsCloudPayload() {
-  const storedKey = loadStoredApiKey()?.trim() ?? ''
   return {
     geminiModel: loadModel(),
-    // 내장 키는 클라우드에 올리지 않음
-    geminiApiKey: storedKey || null,
     updatedAt: loadSettingsUpdatedAt() || Date.now(),
   }
 }
@@ -51,12 +42,6 @@ function applyRemoteSettings(remote: RemoteSettingsRow): void {
     if (remote.gemini_model) {
       saveModelLocal(remote.gemini_model)
     }
-    const remoteKey = remote.gemini_api_key?.trim() ?? ''
-    if (remoteKey) {
-      saveApiKeyLocal(remoteKey)
-    } else if (!hasBuiltInGeminiApiKey()) {
-      saveApiKeyLocal('')
-    }
     setSettingsUpdatedAt(remoteTs)
     const resolved = loadModel()
     if (resolved && remote.gemini_model && resolved !== remote.gemini_model.trim()) {
@@ -77,25 +62,10 @@ function applyRemoteSettings(remote: RemoteSettingsRow): void {
       void pushSettingsToCloud(buildSettingsCloudPayload()).catch(() => {})
     }
   }
-  const localStored = loadStoredApiKey()?.trim() ?? ''
-  if (remote.gemini_api_key?.trim() && !localStored) {
-    saveApiKeyLocal(remote.gemini_api_key)
-    return
-  }
-  // 원격에 빈 키만 있고 로컬도 없으면 내장 키 fallback 유지
-  if (!remote.gemini_api_key?.trim() && !localStored && hasBuiltInGeminiApiKey()) {
-    return
-  }
 }
 
 export function saveModelWithCloud(model: string): void {
   saveModelLocal(resolveModel(model))
-  setSettingsUpdatedAt(Date.now())
-  scheduleSettingsSync()
-}
-
-export function saveApiKeyWithCloud(key: string): void {
-  saveApiKeyLocal(key)
   setSettingsUpdatedAt(Date.now())
   scheduleSettingsSync()
 }

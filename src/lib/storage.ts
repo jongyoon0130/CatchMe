@@ -501,7 +501,7 @@ export function downloadBackup(profile: SelfProfile, messages: ChatMessage[]): v
 // API 키 · 모델 (전역)
 // ---------------------------------------------------------------------------
 
-/** 사용자가 직접 입력·저장한 키만 (내장 키 미포함) */
+/** 사용자가 이 기기에 직접 입력·저장한 키 */
 export function loadStoredApiKey(): string | null {
   return localStorage.getItem(API_KEY_KEY)
 }
@@ -511,16 +511,9 @@ export function loadApiKey(): string | null {
   return loadStoredApiKey()
 }
 
-export function saveApiKeyLocal(key: string): void {
-  localStorage.setItem(API_KEY_KEY, key)
-}
-
+/** API 키는 이 기기에만 둔다 — 클라우드로 보내지 않는다 */
 export function saveApiKey(key: string): void {
-  saveApiKeyLocal(key)
-  setSettingsUpdatedAt(Date.now())
-  void import('./settingsSync').then(({ scheduleSettingsSync }) => {
-    scheduleSettingsSync()
-  })
+  localStorage.setItem(API_KEY_KEY, key)
 }
 
 export function loadSettingsUpdatedAt(): number {
