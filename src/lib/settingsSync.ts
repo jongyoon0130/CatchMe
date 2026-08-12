@@ -5,7 +5,6 @@ import {
   pushSettingsToCloud,
   type RemoteSettingsRow,
 } from './cloudSync'
-import { hasBuiltInGeminiApiKey } from './geminiApiKey'
 import {
   loadModel,
   loadSettingsUpdatedAt,
@@ -54,7 +53,7 @@ function applyRemoteSettings(remote: RemoteSettingsRow): void {
     const remoteKey = remote.gemini_api_key?.trim() ?? ''
     if (remoteKey) {
       saveApiKeyLocal(remoteKey)
-    } else if (!hasBuiltInGeminiApiKey()) {
+    } else {
       saveApiKeyLocal('')
     }
     setSettingsUpdatedAt(remoteTs)
@@ -80,11 +79,6 @@ function applyRemoteSettings(remote: RemoteSettingsRow): void {
   const localStored = loadStoredApiKey()?.trim() ?? ''
   if (remote.gemini_api_key?.trim() && !localStored) {
     saveApiKeyLocal(remote.gemini_api_key)
-    return
-  }
-  // 원격에 빈 키만 있고 로컬도 없으면 내장 키 fallback 유지
-  if (!remote.gemini_api_key?.trim() && !localStored && hasBuiltInGeminiApiKey()) {
-    return
   }
 }
 
