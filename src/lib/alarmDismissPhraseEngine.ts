@@ -11,7 +11,8 @@ import {
   PINNED_DATE_KEY,
   type AlarmDismissPhrase,
 } from './alarmDismissPhrase'
-import { loadApiKey, loadModel } from './storage'
+import { resolveEffectiveApiKey } from './geminiApiKey'
+import { loadModel } from './storage'
 import { DEFAULT_GEMINI_MODEL, geminiGenerateContent, resolveModel } from './selfEngine'
 import { loadUserAlarms, type UserAlarm } from './userAlarms'
 
@@ -144,7 +145,7 @@ export async function generateDismissPhraseWithAI(opts: {
     alarmResolve: alarm?.resolve,
   })
 
-  const apiKey = loadApiKey()?.trim() ?? ''
+  const apiKey = resolveEffectiveApiKey()
   const model = loadModel() ?? DEFAULT_GEMINI_MODEL
 
   let phrase: string | null = null

@@ -67,7 +67,7 @@ export class FutureMeAlarmWeb extends WebPlugin implements FutureMeAlarmPlugin {
       return { ok: false, seconds }
     }
     window.setTimeout(() => {
-      const n = new Notification(options.label ?? 'Future Me 테스트', {
+      const n = new Notification(options.label ?? 'Catch Me 테스트', {
         body: `탭하면 따라치기 — ${options.phrase ?? '안녕'}`,
         tag: 'futureme-test',
       })

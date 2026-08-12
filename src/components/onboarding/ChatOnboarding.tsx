@@ -19,14 +19,14 @@ import {
   loadOnboardingProgress,
   clearOnboardingProgress,
   ONBOARDING_PROGRESS_VERSION,
-  loadApiKey,
+import { resolveEffectiveApiKey } from '../../lib/geminiApiKey'
   loadModel,
   type OnboardingProgressHead,
 } from '../../lib/storage'
 import { generateFutureMemories } from '../../lib/futureMemory'
 import { APP_TAGLINE } from '../../lib/brand'
 import { splitBold } from '../../lib/chatDisplay'
-import { FutureMeLogo } from '../brand/FutureMeLogo'
+import { CatchMeLogo } from '../brand/CatchMeLogo'
 import { Button } from '../ui'
 import {
   ADVICE_PRESETS,
@@ -122,7 +122,7 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
     // 기억은 대화에 필수가 아니다. 그래서 **막지 않는다**:
     //   키가 없으면(= 만들 수 없으면) 화면을 세우지 않고 바로 대화로 넘긴다.
     //   만들다 실패해도 마찬가지다. 여기서 벽을 세우면 다 채워놓고 못 들어간다.
-    const key = loadApiKey()?.trim()
+    const key = resolveEffectiveApiKey()
     if (!key) {
       onComplete(p)
       return
@@ -155,7 +155,7 @@ export function ChatOnboarding({ onComplete, onExitToList }: Props) {
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex items-center justify-center w-10 h-10 shrink-0">
-              <FutureMeLogo size={40} />
+              <CatchMeLogo size={40} />
             </div>
             <div className="min-w-0">
               <h1 className="text-base font-medium text-ink">미래의 나 만들기</h1>
@@ -230,7 +230,7 @@ function MemoryReveal({ memories, onStart }: { memories: string[] | null; onStar
     <div className="h-full flex flex-col max-w-lg mx-auto">
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <div className="flex justify-center mb-5">
-          <FutureMeLogo size={56} />
+          <CatchMeLogo size={56} />
         </div>
         <h2 className="text-lg font-semibold text-ink text-center">미래의 나의 기억</h2>
         <p className="text-[13px] text-muted text-center mt-1.5 mb-7 leading-relaxed">

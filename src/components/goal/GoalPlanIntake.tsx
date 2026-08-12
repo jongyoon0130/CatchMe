@@ -18,7 +18,7 @@ import { ROUTINE_FREQUENCY_LABELS, ROUTINE_HISTORY_LABELS } from '../../types/go
 import { GOAL_INTAKE_CORE_STEPS, buildIntakeFlow, type GoalIntakeStep } from '../../lib/goalPlannerConfig'
 import { buildGoalPlan, classifyGoalTemplate, migrateGoalPlan } from '../../lib/goalTemplateEngine'
 import { saveGoalPlan } from '../../lib/goalPlanStore'
-import { FutureMeLogo } from '../brand/FutureMeLogo'
+import { CatchMeLogo } from '../brand/CatchMeLogo'
 import { Button } from '../ui'
 
 type Bubble = { id: string; role: 'bot' | 'user'; content: string }
@@ -113,7 +113,7 @@ export function GoalPlanIntake({ profile, onComplete, onCancel }: Props) {
       <div className="px-5 pt-4 pb-3 border-b border-border/40 bg-surface/80">
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2 min-w-0">
-            <FutureMeLogo size={36} />
+            <CatchMeLogo size={36} />
             <div>
               <h1 className="text-base font-medium text-ink">목표 플래너 만들기</h1>
               <p className="text-[11px] text-muted">4문항 + 맞춤 2문항</p>

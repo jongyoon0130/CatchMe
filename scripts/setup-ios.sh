@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Future Me — iOS Capacitor 초기화 (Mac + Xcode 필요)
+# Catch Me — iOS Capacitor 초기화 (Mac + Xcode 필요)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="${HOME}/.bun/bin:${PATH}"

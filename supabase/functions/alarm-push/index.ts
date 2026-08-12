@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
     })
     const url = buildAlarmUrl(origin, params)
     const payload = JSON.stringify({
-      title: 'Future Me — 잠금 알람 테스트',
+      title: 'Catch Me — 잠금 알람 테스트',
       body: '탭하면 따라치기 화면이 열려요',
       tag: `futureme-test-${Date.now()}`,
       url,
@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
       const url = buildAlarmUrl(origin, params)
       const payload = JSON.stringify({
         title: alarm.label || '알람',
-        body: phrase ? '다짐을 따라 쳐야 꺼져요 — Future Me' : '알람 — Future Me',
+        body: phrase ? '다짐을 따라 쳐야 꺼져요 — Catch Me' : '알람 — Catch Me',
         tag: `clock:${dateKey}:${alarm.id}:${alarm.time}`,
         url,
         alarm: { alarmId: alarm.id, dateKey, time: alarm.time, label: alarm.label, phrase },

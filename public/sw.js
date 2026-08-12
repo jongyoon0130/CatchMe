@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Future Me 서비스 워커 — 푸시 수신 + 백그라운드 알람 예약
+// Catch Me 서비스 워커 — 푸시 수신 + 백그라운드 알람 예약
 // (메인 앱 JS는 iOS 백그라운드에서 멈추므로, 알람은 SW에서 울린다)
 // ---------------------------------------------------------------------------
 
@@ -152,7 +152,7 @@ async function fireScheduledAlarm(payload, phrase) {
   const url = absoluteUrl(`/index.html?${params.toString()}`)
 
   await self.registration.showNotification(payload.label, {
-    body: '다짐을 따라 쳐야 꺼져요 — Future Me',
+    body: '다짐을 따라 쳐야 꺼져요 — Catch Me',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     tag: payload.dedup,
@@ -206,7 +206,7 @@ async function scheduleOne(alarm, phrase, fired, now = new Date()) {
 function eventWait(promise) {
   // keepalive for older SW runtimes
   if (promise && typeof promise.then === 'function') {
-    promise.catch((err) => console.error('[FutureMe/sw] alarm fire failed', err))
+    promise.catch((err) => console.error('[CatchMe/sw] alarm fire failed', err))
   }
 }
 
@@ -268,7 +268,7 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const title = payload.title || 'Future Me'
+  const title = payload.title || 'Catch Me'
   const url = absoluteUrl(payload.url || '/index.html')
   const options = {
     body: payload.body || (hadData ? '다짐을 따라 쳐야 꺼져요' : '알림 내용을 불러오지 못했어'),

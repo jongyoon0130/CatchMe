@@ -80,7 +80,7 @@ enum TaskReminderScheduler {
 
                 let content = UNMutableNotificationContent()
                 content.title = title(for: row)
-                content.body = row.kind == "end" ? "끝났으면 홈에서 완료 표시해줘" : "Future Me"
+                content.body = row.kind == "end" ? "끝났으면 홈에서 완료 표시해줘" : "Catch Me"
                 content.sound = .default
                 content.userInfo = [
                     "type": "task-reminder",

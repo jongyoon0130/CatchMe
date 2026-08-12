@@ -4,7 +4,7 @@
 export function BrandMark({ size = 38 }: { size?: number }) {
   return (
     <img
-      src="/icons/brand-mark.png?v=5"
+      src="/icons/brand-mark.png?v=6"
       alt=""
       width={size}
       height={size}

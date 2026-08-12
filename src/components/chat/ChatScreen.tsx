@@ -4,7 +4,7 @@ import { INSIGHT_LABELS } from '../../types/self'
 import { Button } from '../ui'
 import { ProfileSheet } from '../profile/ProfileSheet'
 import { ChatMessageList } from './ChatMessageList'
-import { splitMessageParagraphs, formatChatTime, stripApiTurnTimestampFromContent } from '../../lib/chatDisplay'
+import { splitMessageParagraphs, stripApiTurnTimestampFromContent } from '../../lib/chatDisplay'
 import {
   buildReplyPlan,
   insertReplyAfterUser,
@@ -19,7 +19,6 @@ import {
   analyzeInsightsWithAI,
   mergeInsight,
   updateConversationSummary,
-  verifyApiKey,
   AI_ANALYZE_EVERY,
   geminiErrorUserMessage,
   shouldUpdateConversationSummary,
@@ -34,38 +33,31 @@ import {
   loadChatAsync,
   saveChat,
   saveChatAsync,
-  loadApiKey,
-  saveApiKey,
   loadModel,
-  saveModel,
   saveProfileRecord,
   deleteProfileRecord,
   downloadBackup,
   parseBackup,
   applyBackup,
   resolveCachedApiStatus,
-  saveApiCheckCache,
-  clearApiCheckCache,
-  loadApiCheckCache,
 } from '../../lib/storage'
 import { generateFutureMemories, findDeniedMemory } from '../../lib/futureMemory'
+import {
+  isDeveloperMode,
+  registerDeveloperModeUnlockTap,
+  resolveEffectiveApiKey,
+} from '../../lib/geminiApiKey'
+import { ChatApiSettingsSection } from '../settings/ChatApiSettingsSection'
 import { addMiscTodo, loadMiscTodos } from '../../lib/goalMiscTodos'
 import { getGoalAppOwnerId } from '../../lib/goalAppOwner'
 import { GOAL_DATA_SYNC_EVENT } from '../../lib/goalDataSync'
 import { dateKeyOf, shiftDateKey, todoDraftFromMessage, type PendingTodo } from '../../lib/chatToPlan'
 
 function readInitialApiStatus(): 'idle' | ApiCheckResult {
-  const key = loadApiKey()?.trim() ?? ''
+  const key = resolveEffectiveApiKey()
   const mdl = getActiveModel(loadModel())
   const cached = resolveCachedApiStatus(key, mdl)
   return cached === 'idle' ? 'idle' : cached
-}
-
-/** 저장된 키 — 끝 4자리만 노출 (···abcd) */
-function maskApiKeyDisplay(key: string): string {
-  if (!key) return ''
-  if (key.length <= 4) return '•'.repeat(key.length)
-  return `···${key.slice(-4)}`
 }
 
 const TODO_DATE_CHIPS = [
@@ -145,18 +137,9 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   }, [initialPrompt, onInitialPromptUsed])
   const [revealProgress, setRevealProgress] = useState<{ msgId: string; shown: number } | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [devMode, setDevMode] = useState(isDeveloperMode())
   const [showProfile, setShowProfile] = useState(false)
-  const [apiKey, setApiKey] = useState(loadApiKey() ?? '')
   const [apiStatus, setApiStatus] = useState<'idle' | 'testing' | ApiCheckResult>(readInitialApiStatus)
-  const [apiCheckedAt, setApiCheckedAt] = useState<number | null>(() => {
-    const key = loadApiKey()?.trim() ?? ''
-    const mdl = getActiveModel(loadModel())
-    if (resolveCachedApiStatus(key, mdl) === 'idle') return null
-    return loadApiCheckCache()?.checkedAt ?? null
-  })
-  const [showApiKey, setShowApiKey] = useState(false)
-  const [apiKeyFocused, setApiKeyFocused] = useState(false)
-  const apiKeyRevealed = showApiKey || apiKeyFocused
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
@@ -276,7 +259,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
 
   // 몇 메시지마다 AI가 최근 대화를 읽고 지속적 성격·가치관을 추론해 반영 (조심스럽게)
   const runAIAnalysis = async (history: ChatMessage[]) => {
-    const key = loadApiKey()?.trim()
+    const key = resolveEffectiveApiKey()
     if (!key || analyzing.current || isBackgroundApiPaused()) return
     analyzing.current = true
     try {
@@ -347,25 +330,6 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   useEffect(() => {
     autoGrow()
   }, [input])
-
-  // 저장 시 실제 테스트 호출로 연결 상태 확인
-  const saveAndVerify = async () => {
-    const key = apiKey.trim()
-    const resolved = getActiveModel()
-    saveApiKey(key)
-    saveModel(resolved)
-    if (!key) {
-      clearApiCheckCache()
-      setApiStatus('idle')
-      setApiCheckedAt(null)
-      return
-    }
-    setApiStatus('testing')
-    const result = await verifyApiKey(key, resolved)
-    setApiStatus(result)
-    saveApiCheckCache(result, key, resolved)
-    setApiCheckedAt(Date.now())
-  }
 
   // 설정 열 때 API 자동 ping 하지 않음 (429 유발 방지) — '저장' 버튼으로만 확인
 
@@ -460,7 +424,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     const plan = buildReplyPlan(workingMessages, focusMessageId)
     if (!plan) return { ok: false as const, reason: 'no_plan' as const }
 
-    const key = loadApiKey()
+    const key = resolveEffectiveApiKey()
     const mdl = getActiveModel(loadModel())
     const profileForAI = self
 
@@ -468,7 +432,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
       setTyping(true)
       await appendSelfReply(
         plan.focusMessageId,
-        '(⚙️ Gemini API 키가 없어서 AI가 답할 수 없어. 설정에서 키를 넣어줘.)',
+        '(⚙️ AI 연결 설정이 없어서 답할 수 없어. 잠시 후 다시 시도해줘.)',
       )
       return { ok: false as const, reason: 'no_key' as const, plan }
     }
@@ -705,7 +669,10 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
           </button>
           <button
             type="button"
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={() => {
+              if (!devMode && registerDeveloperModeUnlockTap()) setDevMode(true)
+              setShowSettings(!showSettings)
+            }}
             className="relative inline-flex items-center justify-center text-muted hover:text-ink p-2 rounded-lg hover:bg-ink/5"
             title={
               apiStatus === 'ok'
@@ -754,107 +721,13 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
 
       {showSettings && !selectMode && (
         <div className="px-5 py-4 bg-surface-2 border-b border-border animate-fade-up space-y-4">
-          <div>
-            <p className="text-xs text-muted mb-1">Gemini API Key (무료 · 없으면 로컬 엔진 사용)</p>
-            <p className="text-[11px] text-muted/70 mb-2">
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-ink/80 underline underline-offset-2">
-                aistudio.google.com/apikey
-              </a>{' '}
-              에서 무료로 발급 (구글 로그인만)
-            </p>
-            <div className="flex gap-2">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="text"
-                  value={apiKeyRevealed ? apiKey : maskApiKeyDisplay(apiKey)}
-                  readOnly={!apiKeyRevealed}
-                  onFocus={() => setApiKeyFocused(true)}
-                  onBlur={() => {
-                    setApiKeyFocused(false)
-                    setShowApiKey(false)
-                  }}
-                  onChange={(e) => {
-                    setApiKey(e.target.value)
-                    setApiStatus('idle')
-                    setApiCheckedAt(null)
-                  }}
-                  placeholder="AIza..."
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="w-full pl-3 pr-9 py-2 rounded-lg bg-surface border border-border text-sm font-mono focus:outline-none focus:border-accent"
-                />
-                {apiKey.length > 0 && (
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setShowApiKey((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted hover:text-ink transition-colors"
-                    title={showApiKey ? '키 숨기기' : '키 보기'}
-                    aria-label={showApiKey ? 'API 키 숨기기' : 'API 키 보기'}
-                  >
-                    {showApiKey ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden>
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-4-11-4a18.45 18.45 0 0 1 5.06-5.94" />
-                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 4 11 4a18.5 18.5 0 0 1-2.16 3.19" />
-                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-                        <path d="m1 1 22 22" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden>
-                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-              </div>
-              <Button size="sm" onClick={saveAndVerify} disabled={apiStatus === 'testing'}>
-                {apiStatus === 'testing' ? '확인 중…' : '저장'}
-              </Button>
-            </div>
-            {apiStatus !== 'idle' && (
-              <div className="mt-2 text-xs flex items-center gap-1.5">
-                {apiStatus === 'testing' && (
-                  <span className="text-muted flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
-                    연결 확인 중…
-                  </span>
-                )}
-                {apiStatus === 'ok' && (
-                  <span className="text-status-ok flex items-center gap-1.5 flex-wrap">
-                    <span className="w-1.5 h-1.5 rounded-full bg-status-ok shrink-0" />
-                    <span>
-                      ✓ 정상 호출 — AI가 응답합니다
-                      {apiCheckedAt ? (
-                        <span className="text-muted/60 font-normal">
-                          {' '}
-                          · {formatChatTime(apiCheckedAt)} 확인
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                )}
-                {apiStatus === 'bad_key' && (
-                  <span className="text-status-error flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-status-error" />
-                    ✕ 키가 올바르지 않아요 — 다시 확인해주세요
-                  </span>
-                )}
-                {apiStatus === 'rate_limit' && (
-                  <span className="text-status-warn flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-status-warn" />
-                    ⚠ API 한도 초과 — 1~2분 후 재시도
-                  </span>
-                )}
-                {apiStatus === 'error' && (
-                  <span className="text-status-warn flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-status-warn" />
-                    ⚠ 연결에 실패했어요 — 네트워크를 확인해주세요
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          {devMode ? (
+            <ChatApiSettingsSection
+              onChanged={() => {
+                setApiStatus(readInitialApiStatus())
+              }}
+            />
+          ) : null}
           <div>
             <p className="text-xs text-muted mb-2">대화에서 알게 된 것 (잠정)</p>
             {surfacedInsights.length ? (
@@ -916,7 +789,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
               <p className="text-[11px] text-status-error mt-1.5">✕ 파일 형식이 맞지 않아요</p>
             )}
             <p className="text-[11px] text-muted/50 mt-1.5">
-              다른 기기·브라우저로 옮기거나, 혹시 모를 분실 대비용이에요. API 키는 계정 동기화로 다른 기기에도 채워져요.
+              다른 기기·브라우저로 옮기거나, 혹시 모를 분실 대비용이에요.
             </p>
           </div>
         </div>

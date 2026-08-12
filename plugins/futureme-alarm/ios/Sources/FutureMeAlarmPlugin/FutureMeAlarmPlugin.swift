@@ -144,7 +144,7 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
                     "alarmKitScheduledCount": AlarmKitBridge.shared.alarmKitScheduledCount(),
                     "message": permission == "granted"
                         ? "AlarmKit 활성 — 20초 간격 재울림 체인 예약됨"
-                        : "설정 > Future Me > 알람에서 허용해주세요",
+                        : "설정 > Catch Me > 알람에서 허용해주세요",
                 ])
             }
             return
@@ -223,7 +223,7 @@ public class FutureMeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func scheduleTestNotification(_ call: CAPPluginCall) {
         let seconds = call.getInt("seconds") ?? 5
-        let label = call.getString("label") ?? "Future Me 테스트"
+        let label = call.getString("label") ?? "Catch Me 테스트"
         let phrase = call.getString("phrase") ?? "안녕"
         let alarmId = call.getString("alarmId") ?? "test"
         let time = call.getString("time") ?? "07:00"

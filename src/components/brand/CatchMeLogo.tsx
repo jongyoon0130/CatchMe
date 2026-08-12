@@ -1,5 +1,5 @@
-/** Future Me — circular character + clock logo */
-export const LOGO_SRC = '/logo.png?v=5'
+/** Catch Me — circular character + clock logo */
+export const LOGO_SRC = '/logo.png?v=6'
 
 interface Props {
   size?: number
@@ -8,11 +8,11 @@ interface Props {
   withBackground?: boolean
 }
 
-export function FutureMeLogo({ size = 48, className = '' }: Props) {
+export function CatchMeLogo({ size = 48, className = '' }: Props) {
   return (
     <img
       src={LOGO_SRC}
-      alt="Future Me"
+      alt="Catch Me"
       width={size}
       height={size}
       className={`shrink-0 block object-contain ${className}`}

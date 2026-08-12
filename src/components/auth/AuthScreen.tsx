@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../../lib/brand'
-import { FutureMeLogo } from '../brand/FutureMeLogo'
+import { CatchMeLogo } from '../brand/CatchMeLogo'
 import { useAuth } from '../../contexts/AuthContext'
 import { hasLocalData } from '../../lib/syncOrchestrator'
 
@@ -46,7 +46,7 @@ export function AuthScreen() {
   return (
     <div className="h-full flex flex-col items-center justify-center px-6 bg-void">
       <div className="w-full max-w-sm text-center">
-        <FutureMeLogo size={72} className="mx-auto mb-6" />
+        <CatchMeLogo size={72} className="mx-auto mb-6" />
         <h1 className="text-xl font-medium text-ink mb-2">{APP_NAME}</h1>
         <p className="text-sm text-muted mb-8 leading-relaxed">{APP_TAGLINE}</p>
 
@@ -86,8 +86,6 @@ export function AuthScreen() {
 
         <p className="text-[11px] text-muted/60 mt-6 leading-relaxed">
           로그인하면 프로필·채팅이 클라우드에 저장돼요.
-          <br />
-          Gemini API 키는 로그인한 계정에 동기화돼요.
         </p>
         <p className="text-[11px] text-muted/60 mt-3">
           <a

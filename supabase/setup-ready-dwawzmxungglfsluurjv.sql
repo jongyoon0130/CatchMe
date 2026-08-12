@@ -1,4 +1,4 @@
--- Future Me Studio — 알람 푸시 한방 설정
+-- Catch Me Studio — 알람 푸시 한방 설정
 -- project: dwawzmxungglfsluurjv
 -- SQL Editor에 붙여넣고 Run (1번 실행)
 

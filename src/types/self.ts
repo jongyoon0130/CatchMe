@@ -1,4 +1,4 @@
-// Future Me — 현재의 나 + 5년 뒤 미래의 나 페르소나
+// Catch Me — 현재의 나 + 5년 뒤 미래의 나 페르소나
 
 export type Register = 'casual' | 'reflective' | 'venting' | 'joyful' | 'comforting'
 

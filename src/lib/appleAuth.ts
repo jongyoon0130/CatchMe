@@ -39,7 +39,7 @@ async function saveAppleProfileName(
       ...(familyName ? { family_name: familyName } : {}),
     },
   })
-  if (error) console.warn('[FutureMe/Auth] Apple 이름 저장 실패:', error.message)
+  if (error) console.warn('[CatchMe/Auth] Apple 이름 저장 실패:', error.message)
 }
 
 async function signInWithAppleNative(client: SupabaseClient): Promise<void> {

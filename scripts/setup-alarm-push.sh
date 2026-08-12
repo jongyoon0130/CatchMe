@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Future Me — 알람 푸시 원클릭 설정 (Supabase CLI 로그인 필요)
+# Catch Me — 알람 푸시 원클릭 설정 (Supabase CLI 로그인 필요)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

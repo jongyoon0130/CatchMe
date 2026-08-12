@@ -1,4 +1,4 @@
-# Future Me — Supabase + Google / Apple 로그인 설정
+# Catch Me — Supabase + Google / Apple 로그인 설정
 
 클라우드 동기화와 Google·Apple 로그인을 쓰려면 **TalkBack과 별도** Supabase 프로젝트를 만들고 아래 순서대로 설정하세요.
 
@@ -48,7 +48,7 @@ App Store 제출을 위해 Google과 함께 Apple 로그인이 필요합니다.
 | Site URL | `https://futureme-beta.vercel.app` |
 | Redirect URLs | 아래 **모두** 추가 |
 
-예 (현재 Future Me 프로덕션):
+예 (현재 Catch Me 프로덕션):
 - `https://futureme-beta.vercel.app`
 - `https://future-me-studio.vercel.app`
 - `http://localhost:5173`

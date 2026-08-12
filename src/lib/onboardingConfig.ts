@@ -142,7 +142,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     kind: 'name',
     lines: [
-      `안녕. Future Me야.`,
+      `안녕. Catch Me야.`,
       `${FUTURE_YEARS_AHEAD}년 뒤 **미래의 너**와 대화할 수 있게 만들 거야.`,
       '네 장이면 끝나. 막히면 건너뛰고 나중에 채워도 돼.',
       '먼저 부를 이름이나 별명 알려줘.',

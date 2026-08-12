@@ -2,7 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { loadAlarmSettingsSnapshot } from '../lib/alarmSettingsStatus'
 import { ALARM_SETTINGS_CHANGE } from '../lib/alarmStore'
 import { getActiveModel } from '../lib/selfEngine'
-import { loadApiKey, loadModel, resolveCachedApiStatus } from '../lib/storage'
+import {
+  hasEffectiveApiKey,
+  resolveEffectiveApiKey,
+} from '../lib/geminiApiKey'
+import { loadModel, resolveCachedApiStatus } from '../lib/storage'
 import { GlobalSettingsSheet } from '../components/settings/GlobalSettingsSheet'
 
 type AppSettingsContextValue = {
@@ -15,7 +19,8 @@ type AppSettingsContextValue = {
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null)
 
 async function computeNeedsAttention(): Promise<boolean> {
-  const key = loadApiKey()?.trim() ?? ''
+  if (!hasEffectiveApiKey()) return true
+  const key = resolveEffectiveApiKey()
   const mdl = getActiveModel(loadModel())
   const api = resolveCachedApiStatus(key, mdl)
   const apiBad = api === 'bad_key' || api === 'rate_limit' || api === 'error'

@@ -1166,7 +1166,7 @@ function describeFutureSelf(p: SelfProfile, lite = false): string {
   return renderFutureSelfBlock(p, lite)
 }
 
-// 답변 관점 모드: Future Me 기본 = future (미래의 나)
+// 답변 관점 모드: Catch Me 기본 = future (미래의 나)
 export type ReplyMode = 'reflect' | 'future'
 
 const MODE_OVERLAY: Record<ReplyMode, string> = {
@@ -2022,7 +2022,7 @@ export function geminiErrorUserMessage(e: unknown): string {
   if (e instanceof GeminiApiError) {
     if (e.code === 'RATE_LIMIT') return rateLimitUserMessage(e.rateLimitKind)
     if (e.code === 'BAD_KEY') {
-      return '(⚙️에서 Gemini API 키를 다시 확인해줘. 키가 안 맞는 것 같아.)'
+      return '(AI 연결에 문제가 있어. 잠시 후 다시 시도해줘.)'
     }
     if (e.code === 'EMPTY_RESPONSE') {
       return '(Google이 빈 답을 줬어. 30초 뒤 같은 말 한 번 더 보내봐.)'
@@ -2049,7 +2049,7 @@ export function geminiErrorUserMessage(e: unknown): string {
   }
   if (e instanceof Error && e.message === 'RATE_LIMIT') return rateLimitUserMessage('unknown')
   if (e instanceof Error && e.message === 'BAD_KEY') {
-    return '(⚙️에서 Gemini API 키를 다시 확인해줘. 키가 안 맞는 것 같아.)'
+    return '(AI 연결에 문제가 있어. 잠시 후 다시 시도해줘.)'
   }
   return '(AI 연결에 문제가 있어. 잠시 뒤 다시 시도하거나 ⚙️에서 키·네트워크를 확인해줘.)'
 }
@@ -2110,7 +2110,7 @@ function parseRateLimitKind(body: string): RateLimitKind {
 function logGeminiUsage(label: string, model: string, usage?: GeminiUsage): void {
   if (!usage) return
   lastGeminiUsage = { label, model, usage, at: Date.now() }
-  console.info('[FutureMe/Gemini]', label, {
+  console.info('[CatchMe/Gemini]', label, {
     model,
     promptTokens: usage.promptTokenCount,
     outputTokens: usage.candidatesTokenCount,
@@ -2131,7 +2131,7 @@ async function geminiGenerateOnce(
   const timeoutMs = geminiFetchTimeoutMs(label)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
-  console.info('[FutureMe/Gemini] fetch start', { label, model, timeoutMs })
+  console.info('[CatchMe/Gemini] fetch start', { label, model, timeoutMs })
 
   let res: Response
   try {
@@ -2143,7 +2143,7 @@ async function geminiGenerateOnce(
     })
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
-      console.info('[FutureMe/Gemini] fetch timeout', { label, timeoutMs })
+      console.info('[CatchMe/Gemini] fetch timeout', { label, timeoutMs })
       throw new GeminiApiError('HTTP', {
         httpStatus: 408,
         httpDetail: `Gemini fetch timeout after ${timeoutMs}ms`,
@@ -2308,7 +2308,7 @@ export async function fetchAIResponse(
   const focusInstruction = replyPlan?.focusInstruction ?? ''
   const lite = shouldUseLitePrompt(p, apiMessages.length)
   if (lite) {
-    console.info('[FutureMe/Gemini] lite prompt', {
+    console.info('[CatchMe/Gemini] lite prompt', {
       messages: apiMessages.length,
       summaryChars: p.conversationSummary?.trim().length ?? 0,
     })
@@ -2318,7 +2318,7 @@ export async function fetchAIResponse(
 
   const messageAnalysis = lastUser ? analyzeMessage(lastUser.content, apiMessages) : undefined
   if (messageAnalysis?.inConcretizationFlow || messageAnalysis?.vague) {
-    console.info('[FutureMe/Gemini] concretize turn', {
+    console.info('[CatchMe/Gemini] concretize turn', {
       vague: messageAnalysis.vague,
       inFlow: messageAnalysis.inConcretizationFlow,
       needs: messageAnalysis.needs,
@@ -2395,19 +2395,19 @@ export async function fetchAIResponse(
           if (!audit.ok) {
             if (!strictRetry) {
               // 1차 실패 → 강한 지시 + 낮은 온도로 다시
-              console.info('[FutureMe/Gemini] fact audit failed, retrying', audit.reason)
+              console.info('[CatchMe/Gemini] fact audit failed, retrying', audit.reason)
               strictRetry = true
               continue
             }
             // 재시도까지 실패 → 앱이 직접 지운다. 거짓 시간은 절대 유저에게 안 보낸다.
-            console.info('[FutureMe/Gemini] fact audit failed again, stripping', audit.reason)
+            console.info('[CatchMe/Gemini] fact audit failed again, stripping', audit.reason)
             return { text: stripInventedTimes(text, new Date(), allow) }
           }
         }
         return { text }
       }
       if (attempt === 0) {
-        console.info('[FutureMe/Gemini] retry chatReply (empty response)')
+        console.info('[CatchMe/Gemini] retry chatReply (empty response)')
         await sleep(1000)
       }
     }

@@ -24,7 +24,7 @@
 
 ### 서버도 DB도 이미 있다 — 새로 만드는 게 아니다
 
-Future Me는 **처음부터 Supabase 위에 올라가 있다.** 구글 로그인, 프로필·할 일이 다른 기기에서도 보이는 것 전부 Supabase가 하는 일이고, 설계도는 [supabase/schema.sql](../supabase/schema.sql)에 있다. 지금 표가 이미 4개다 — `futureme_profiles`, `futureme_chats`, `futureme_settings`, `futureme_goal_data`.
+Catch Me는 **처음부터 Supabase 위에 올라가 있다.** 구글 로그인, 프로필·할 일이 다른 기기에서도 보이는 것 전부 Supabase가 하는 일이고, 설계도는 [supabase/schema.sql](../supabase/schema.sql)에 있다. 지금 표가 이미 4개다 — `futureme_profiles`, `futureme_chats`, `futureme_settings`, `futureme_goal_data`.
 
 그래서 이번에 하는 일은 **이미 빌려 쓰는 것 위에 세 가지를 얹는 것**이 전부다.
 
@@ -42,7 +42,7 @@ Future Me는 **처음부터 Supabase 위에 올라가 있다.** 구글 로그인
 | 서비스 워커 | 앱이 꺼져 있어도 알림을 받아 띄우는 **작은 수신기** |
 | 구독 정보 | 형 폰의 **배송 주소**. "알림 받기"를 누르면 브라우저가 발급해준다 |
 | Supabase | **주소록 + 시계**. 매분 "지금 7시네? 7시 일정 있는 사람?" 확인 |
-| VAPID 키 | 우리 앱의 **신분증**. "이 알림은 Future Me가 보낸 게 맞다"는 증명 |
+| VAPID 키 | 우리 앱의 **신분증**. "이 알림은 Catch Me가 보낸 게 맞다"는 증명 |
 
 ### 실제로 도는 모습 (7/23 러닝 19:00~20:00)
 
@@ -313,7 +313,7 @@ VAPID 공개키를 Vercel에 넣다가 **새 변수를 만드는 대신 기존 `
 
 - **알림 본문 빈칸**(제목만 뜨고 본문이 안 보임): 아이폰은 `title`은 확실히 띄우지만,
   서버 payload가 `event.data`로 안 오면 `body`가 통째로 사라진다. 그런데 그동안 `title`이
-  `'Future Me'`(서비스 워커 기본값)라 **payload가 왔는지조차 구분이 안 됐다.** 실제 문구를
+  `'Catch Me'`(서비스 워커 기본값)라 **payload가 왔는지조차 구분이 안 됐다.** 실제 문구를
   `body`→`title`로 옮겨(§push-tick), 그 경우에도 내용이 보이고 도달 여부 진단도 되게 했다.
   서비스 워커도 `json()`→`JSON.parse(text())` 방어 파싱 + payload 미도달 시 빈칸 대신
   `"알림 내용을 불러오지 못했어"` 표시.

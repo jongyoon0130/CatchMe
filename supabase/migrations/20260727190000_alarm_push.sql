@@ -1,4 +1,4 @@
--- 알람 · 웹 푸시 (Future Me Studio)
+-- 알람 · 웹 푸시 (Catch Me Studio)
 -- Supabase SQL Editor 또는 `supabase db push` 로 실행
 
 create table if not exists public.futureme_alarm_data (

@@ -30,7 +30,7 @@ describe('alarmDismissPhrase', () => {
       currentRole: '',
       goals: [
         {
-          title: 'Future Me 앱',
+          title: 'Catch Me 앱',
           whyTruth: '매일 쓰는 도구를 만들고 싶어서',
         },
       ],
@@ -38,6 +38,6 @@ describe('alarmDismissPhrase', () => {
     }
     const phrase = buildFallbackDismissPhrase(ctx)
     expect(phrase.split('\n').length).toBeGreaterThanOrEqual(3)
-    expect(phrase).toContain('Future Me 앱')
+    expect(phrase).toContain('Catch Me 앱')
   })
 })

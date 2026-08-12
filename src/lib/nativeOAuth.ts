@@ -63,7 +63,7 @@ export function attachNativeOAuthListener(client: SupabaseClient): () => void {
         await Browser.close()
         await finishOAuthFromUrl(client, url)
       } catch (e) {
-        console.error('[FutureMe/Auth] OAuth callback failed:', e)
+        console.error('[CatchMe/Auth] OAuth callback failed:', e)
       } finally {
         pending = false
       }

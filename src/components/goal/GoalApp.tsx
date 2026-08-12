@@ -4,7 +4,7 @@ import { loadGoalPlans } from '../../lib/goalPlanStore'
 import { importGoalPlansSnapshot } from '../../lib/goalPlanSnapshot'
 import { GoalPlanSheet } from './GoalPlanSheet'
 
-/** Future Me 채팅과 분리된 독립 목표 앱 셸 */
+/** Catch Me 채팅과 분리된 독립 목표 앱 셸 */
 export function GoalApp({ embedded = false }: { embedded?: boolean }) {
   const profile = useMemo(() => getGoalAppProfile(), [])
   const [ready, setReady] = useState(false)
@@ -56,7 +56,7 @@ export function GoalApp({ embedded = false }: { embedded?: boolean }) {
           borderBottom: '1px solid var(--goal-line, #e5e8eb)',
         }}
       >
-        ← Future Me 앱으로 돌아가기 · 이 화면은 목표 앱 단독 미리보기예요
+        ← Catch Me 앱으로 돌아가기 · 이 화면은 목표 앱 단독 미리보기예요
       </a>
       <div style={{ flex: 1, minHeight: 0 }}>
         <GoalPlanSheet profile={profile} embedded={false} />

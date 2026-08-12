@@ -20,7 +20,7 @@ private let _futureMeAlarmIntentBootstrap: Void = {
 @available(iOS 26.0, *)
 struct FutureMeOpenDismissIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "따라치기"
-    static var description = IntentDescription("Future Me 앱을 열어 다짐을 따라 칩니다.")
+    static var description = IntentDescription("Catch Me 앱을 열어 다짐을 따라 칩니다.")
     static var openAppWhenRun: Bool = true
     static var supportedModes: IntentModes { .foreground(.immediate) }
     static var persistentIdentifier: String = "app.futureme.studio.open-dismiss"
@@ -47,7 +47,7 @@ struct FutureMeOpenDismissIntent: LiveActivityIntent {
 @available(iOS 26.0, *)
 struct FutureMeStopCaptureIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "알람 끄기"
-    static var description = IntentDescription("Future Me 알람 해제 처리")
+    static var description = IntentDescription("Catch Me 알람 해제 처리")
     static var persistentIdentifier: String = "app.futureme.studio.stop-capture"
 
     @Parameter(title: "AlarmKit ID")

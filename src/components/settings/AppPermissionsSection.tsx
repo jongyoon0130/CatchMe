@@ -30,7 +30,7 @@ export function AppPermissionsSection() {
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">권한</p>
       <p className="text-[11px] text-muted/80 leading-relaxed mb-3">
         각 기능을 처음 쓸 때 iPhone이 허용 여부를 물어봐요. 거절했거나 바꾸고 싶다면 iPhone 설정에서
-        Future Me 항목을 열어주세요.
+        Catch Me 항목을 열어주세요.
       </p>
       <ul className="space-y-2.5">
         {PERMISSIONS.map((item) => (

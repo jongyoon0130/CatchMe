@@ -6,6 +6,7 @@ import {
   findNextClockAlarm,
   type ClockAlarmTrigger,
 } from './clockAlarmEngine'
+import { APP_NAME } from './brand'
 import {
   ALARM_SETTINGS_CHANGE,
   loadAlarmSettings,
@@ -58,7 +59,7 @@ async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
 
   const result = await showAlarmNotification({
     title: trigger.label || '알람',
-    body: '다짐을 따라 쳐야 꺼져요 — Future Me',
+    body: `다짐을 따라 쳐야 꺼져요 — ${APP_NAME}`,
     tag: dedup,
     url: buildAlarmDeepLinkUrl(trigger, phrase),
   })
@@ -67,7 +68,7 @@ async function fireClockAlarm(trigger: ClockAlarmTrigger): Promise<void> {
   startAlarmSoundLoop()
 
   if (!result.ok && result.reason !== 'denied') {
-    console.info('[FutureMe/alarm] 알림 표시 실패', result)
+    console.info('[CatchMe/alarm] 알림 표시 실패', result)
   }
 
   if (!dismissPhraseForTrigger(trigger)) {

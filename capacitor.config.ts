@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'app.futureme.studio',
-  appName: 'Future Me',
+  appName: 'Catch Me',
   webDir: 'dist',
   ios: {
     contentInset: 'automatic',

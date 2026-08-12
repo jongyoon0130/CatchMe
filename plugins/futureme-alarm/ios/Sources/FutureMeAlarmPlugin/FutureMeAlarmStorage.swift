@@ -337,7 +337,7 @@ public enum FutureMeAlarmNotificationBridge {
 
         let content = UNMutableNotificationContent()
         content.title = metadata.label
-        content.body = "다짐을 따라 쳐야 알람이 꺼져요 — Future Me 앱을 열어주세요"
+        content.body = "다짐을 따라 쳐야 알람이 꺼져요 — Catch Me 앱을 열어주세요"
         if FutureMeAlarmStorage.pushUsesSound() {
             content.sound = .default
         }

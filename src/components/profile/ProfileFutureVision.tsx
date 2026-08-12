@@ -9,7 +9,7 @@ import {
   PROFILE_PHOTOS_SYNC_EVENT,
   type ProfilePhotos,
 } from '../../lib/profilePhotos'
-import { loadApiKey } from '../../lib/storage'
+import { resolveEffectiveApiKey } from '../../lib/geminiApiKey'
 import { geminiErrorUserMessage } from '../../lib/selfEngine'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -64,9 +64,9 @@ export function ProfileFutureVision({ profile }: Props) {
   })()
 
   const onGenerate = async () => {
-    const key = loadApiKey()?.trim()
+    const key = resolveEffectiveApiKey()
     if (!key) {
-      setError('채팅 ⚙️에서 Gemini API 키를 설정해주세요.')
+      setError('AI 연결을 사용할 수 없어요. 잠시 후 다시 시도해주세요.')
       return
     }
     if (generatedToday) {

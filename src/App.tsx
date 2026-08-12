@@ -10,7 +10,7 @@ import { AppShell } from './components/nav/AppShell'
 import { DEFAULT_MAIN_TAB, type MainTab } from './components/nav/types'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { APP_NAME } from './lib/brand'
-import { FutureMeLogo } from './components/brand/FutureMeLogo'
+import { CatchMeLogo } from './components/brand/CatchMeLogo'
 import { useAuth } from './contexts/AuthContext'
 import { useAlarmScheduler } from './hooks/useAlarmScheduler'
 import { subscribeCloudPushStatus, isCloudPushFailing } from './lib/syncStatus'
@@ -221,7 +221,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-muted bg-void">
-        <FutureMeLogo size={56} />
+        <CatchMeLogo size={56} />
         {APP_NAME} 불러오는 중…
       </div>
     )
@@ -234,7 +234,7 @@ export default function App() {
   if (!ready) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-muted bg-void">
-        <FutureMeLogo size={56} />
+        <CatchMeLogo size={56} />
         {APP_NAME} 불러오는 중…
       </div>
     )

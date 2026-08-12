@@ -26,6 +26,7 @@ export interface NotifyEnv {
 }
 
 import { isIosNative, isNativeApp } from './platform'
+import { APP_NAME } from './brand'
 
 const SW_URL = '/sw.js?v=8'
 const PENDING_PUSH_KEY = 'futureme-pending-push-sub'
@@ -75,7 +76,7 @@ export async function registerNotifyWorker(): Promise<ServiceWorkerRegistration 
     await reg.update().catch(() => {})
     return reg
   } catch (e) {
-    console.info('[FutureMe/notify] 서비스 워커 등록 실패', e)
+    console.info('[CatchMe/notify] 서비스 워커 등록 실패', e)
     return null
   }
 }
@@ -170,7 +171,7 @@ export async function showTestNotification(delayMs = 5000): Promise<TestNotifyRe
   await new Promise((resolve) => setTimeout(resolve, delayMs))
 
   try {
-    await reg.showNotification('Future Me', {
+    await reg.showNotification(APP_NAME, {
       body: '알림 테스트 — 여기까지 오면 성공이야.',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
@@ -187,7 +188,7 @@ export async function showTestNotification(delayMs = 5000): Promise<TestNotifyRe
 export function describeNotifyBlocker(env: NotifyEnv): string | null {
   if (isNativeApp()) {
     if (env.permission === 'denied') {
-      return '알림이 꺼져 있어요 — iPhone 설정 → Future Me → 알림에서 허용해주세요'
+      return `알림이 꺼져 있어요 — iPhone 설정 → ${APP_NAME} → 알림에서 허용해주세요`
     }
     return null
   }
@@ -234,7 +235,7 @@ export function describePushSubscribeFailure(
       }
       return '이 기기/브라우저는 푸시 알림을 지원하지 않아요'
     case 'denied':
-      return '알림 권한이 꺼져 있어요 — 설정에서 Future Me 알림을 허용해주세요'
+      return `알림 권한이 꺼져 있어요 — 설정에서 ${APP_NAME} 알림을 허용해주세요`
     case 'no_vapid':
       return '앱 푸시 키가 설정되지 않았어요 (VITE_VAPID_PUBLIC_KEY)'
     case 'no_worker':
@@ -378,7 +379,7 @@ export async function enableAlarmNotifications(): Promise<{
 // ---------------------------------------------------------------------------
 
 /**
- * VAPID 공개키 — "이 알림은 Future Me가 보낸 게 맞다"는 신분증의 공개 쪽.
+ * VAPID 공개키 — "이 알림은 Catch Me가 보낸 게 맞다"는 신분증의 공개 쪽.
  * 앱 번들에 들어가도 되는 값이다(비밀키는 절대 안 된다 — 그건 2단계에서 서버에만).
  */
 export function readVapidPublicKey(): string | null {

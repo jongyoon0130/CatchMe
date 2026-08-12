@@ -492,7 +492,7 @@ export function downloadBackup(profile: SelfProfile, messages: ChatMessage[]): v
   const a = document.createElement('a')
   const safeName = (profile.name || 'futureme').replace(/[^\w가-힣.-]/g, '')
   a.href = url
-  a.download = `futureme-backup-${safeName}-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `catchme-backup-${safeName}-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -501,8 +501,14 @@ export function downloadBackup(profile: SelfProfile, messages: ChatMessage[]): v
 // API 키 · 모델 (전역)
 // ---------------------------------------------------------------------------
 
-export function loadApiKey(): string | null {
+/** 사용자가 직접 입력·저장한 키만 (내장 키 미포함) */
+export function loadStoredApiKey(): string | null {
   return localStorage.getItem(API_KEY_KEY)
+}
+
+/** @deprecated API 호출은 resolveEffectiveApiKey() 사용 */
+export function loadApiKey(): string | null {
+  return loadStoredApiKey()
 }
 
 export function saveApiKeyLocal(key: string): void {

@@ -80,7 +80,7 @@ bun run ios:open
 1. Xcode → **Product → Archive**
 2. **Distribute App** → **App Store Connect** → Upload
 3. [appstoreconnect.apple.com](https://appstoreconnect.apple.com) → **My Apps** → **+** New App
-   - Name: Future Me
+   - Name: Catch Me
    - Bundle ID: `app.futureme.studio`
    - SKU: `futureme-studio`
 4. TestFlight → 내부 테스트 → 본인 iPhone 설치
@@ -98,7 +98,7 @@ Xcode 타깃 `App` → `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES`
 
 ### App Store Connect (한 번)
 
-1. **Future Me → 일반 → Mac** (또는 **가격 및 사용 가능 여부**)
+1. **Catch Me → 일반 → Mac** (또는 **가격 및 사용 가능 여부**)
 2. **「Apple Silicon Mac에서 iPad 앱 사용」** ✅ 켜기
 3. 새 빌드(TestFlight/App Store) 업로드 후 Mac에서도 배포됨
 
@@ -106,7 +106,7 @@ Xcode 타깃 `App` → `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES`
 
 1. Mac App Store에서 **TestFlight** 설치 (Apple Silicon)
 2. iPhone과 같은 **futureme** 그룹 / 같은 Apple ID
-3. Future Me → **설치** → Dock·Launchpad에 아이콘
+3. Catch Me → **설치** → Dock·Launchpad에 아이콘
 
 ### 제한
 

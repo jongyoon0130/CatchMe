@@ -1,4 +1,4 @@
--- Future Me cloud sync schema (Supabase SQL Editor에서 실행)
+-- Catch Me cloud sync schema (Supabase SQL Editor에서 실행)
 
 create table if not exists public.futureme_profiles (
   id uuid not null,

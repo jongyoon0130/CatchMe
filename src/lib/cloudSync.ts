@@ -206,7 +206,7 @@ export async function pushGoalDataToCloud(payload: GoalDataPayload): Promise<voi
 
   // 컬럼이 없는 옛 프로젝트에서는 반복 일정만 빼고 나머지는 계속 동기화한다
   if (isMissingRoutinesColumn(error)) {
-    console.info('[FutureMe/Cloud] routines 컬럼 없음 — 반복 일정 빼고 동기화 (SUPABASE_SETUP.md 참고)')
+    console.info('[CatchMe/Cloud] routines 컬럼 없음 — 반복 일정 빼고 동기화 (SUPABASE_SETUP.md 참고)')
     ;({ error } = await ctx.client.from('futureme_goal_data').upsert(base, { onConflict: 'user_id' }))
   }
 
@@ -246,7 +246,7 @@ export async function pushAlarmDataToCloud(payload: AlarmDataPayload): Promise<v
   )
   if (error) {
     // 알람·푸시는 부가 기능 — 실패해도 홈 "클라우드 저장 실패" 배너는 띄우지 않는다.
-    console.info('[FutureMe/Cloud] alarm data push failed', error.message)
+    console.info('[CatchMe/Cloud] alarm data push failed', error.message)
     throw error
   }
 }
@@ -283,7 +283,7 @@ export async function upsertPushSubscriptionToCloud(
   )
   if (error) {
     // 푸시 구독은 알림 배선용 — 목표·채팅 저장과 별개로 배너에 올리지 않는다.
-    console.info('[FutureMe/Cloud] push subscription upsert failed', error.message)
+    console.info('[CatchMe/Cloud] push subscription upsert failed', error.message)
     throw error
   }
 }
@@ -371,7 +371,7 @@ export async function pushSettingsToCloud(payload: SettingsCloudPayload): Promis
   let { error } = await ctx.client.from('futureme_settings').upsert(row, { onConflict: 'user_id' })
 
   if (isMissingGeminiApiKeyColumn(error)) {
-    console.info('[FutureMe/Cloud] gemini_api_key 컬럼 없음 — 모델만 동기화 (migration 참고)')
+    console.info('[CatchMe/Cloud] gemini_api_key 컬럼 없음 — 모델만 동기화 (migration 참고)')
     const { gemini_api_key: _drop, ...withoutKey } = row
     ;({ error } = await ctx.client.from('futureme_settings').upsert(withoutKey, { onConflict: 'user_id' }))
   }
@@ -402,7 +402,7 @@ export async function pushProfilePhotosToCloud(
   )
 
   if (isMissingProfilePhotosTable(error)) {
-    console.info('[FutureMe/Cloud] futureme_profile_photos 테이블 없음 — 사진 동기화 생략 (migration 참고)')
+    console.info('[CatchMe/Cloud] futureme_profile_photos 테이블 없음 — 사진 동기화 생략 (migration 참고)')
     return
   }
 

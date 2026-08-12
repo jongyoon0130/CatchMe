@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../../lib/brand'
 import { formatListTime, type ProfileSummary } from '../../lib/storage'
-import { FutureMeLogo } from '../brand/FutureMeLogo'
+import { CatchMeLogo } from '../brand/CatchMeLogo'
 import { BrandMark } from '../brand/BrandMark'
 import { SettingsGearButton } from '../settings/SettingsGearButton'
 import { SwipeableListRow } from './SwipeableListRow'
@@ -77,7 +77,7 @@ export function ProfileListScreen({
       {!hasProfiles ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center animate-fade-up">
           <div className="mb-8">
-            <FutureMeLogo size={72} />
+            <CatchMeLogo size={72} />
           </div>
           <h2 className="text-xl font-medium text-ink mb-2">{APP_NAME}</h2>
           <p className="text-sm text-muted mb-3">{APP_TAGLINE}</p>
@@ -104,7 +104,7 @@ export function ProfileListScreen({
             <p className="text-xs text-status-error mt-3">파일 형식이 맞지 않아요</p>
           )}
           <p className="text-[11px] text-muted/60 mt-4 max-w-xs leading-relaxed">
-            다른 기기·브라우저에서 내보낸 futureme-backup 파일을 바로 복원할 수 있어요.
+            다른 기기·브라우저에서 내보낸 catchme-backup(또는 예전 futureme-backup) 파일을 바로 복원할 수 있어요.
           </p>
         </div>
       ) : (

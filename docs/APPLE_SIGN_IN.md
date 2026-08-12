@@ -1,6 +1,6 @@
 # Sign in with Apple 설정
 
-Future Me는 Google과 함께 **Apple 로그인**을 제공합니다 (App Store 가이드라인 4.8).
+Catch Me는 Google과 함께 **Apple 로그인**을 제공합니다 (App Store 가이드라인 4.8).
 
 | 환경 | 방식 |
 |------|------|
@@ -92,7 +92,7 @@ bun run build:ios
 
 웹/Supabase OAuth 방식은 Apple **Secret Key(JWT)를 6개마다** 갱신해야 합니다.  
 iOS 네이티브 `signInWithIdToken`만 쓰는 경우에는 해당 없습니다.  
-Future Me는 웹도 OAuth를 쓰므로 **캘린더에 6개월마다 갱신**을 넣어두세요.
+Catch Me는 웹도 OAuth를 쓰므로 **캘린더에 6개월마다 갱신**을 넣어두세요.
 
 ---
 

@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
 
       // **메시지는 title에 넣는다.** 아이폰은 title은 확실히 띄우지만 body는 payload가
       // event.data로 안 오면 통째로 사라진다(제목만, 본문 빈칸). 실제 문구를 title에 두면
-      // 그 경우에도 내용이 보이고, title이 'Future Me'로 안 떨어지니 도달 여부 진단도 된다.
+      // 그 경우에도 내용이 보이고, title이 'Catch Me'로 안 떨어지니 도달 여부 진단도 된다.
       const goal = (r.goal_title ?? '').trim()
       const payload = JSON.stringify({
         title:

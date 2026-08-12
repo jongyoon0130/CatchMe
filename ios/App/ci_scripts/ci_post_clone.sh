@@ -5,7 +5,7 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
-echo "==> Future Me — ci_post_clone (repo: $REPO_ROOT)"
+echo "==> Catch Me — ci_post_clone (repo: $REPO_ROOT)"
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "==> Installing bun"

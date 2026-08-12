@@ -169,7 +169,7 @@ export function AlarmSettingsContent({ onChanged }: { onChanged?: () => void }) 
   return (
     <div>
       <p className="text-[11px] text-muted leading-relaxed mb-3">
-        토글은 FutureMe에서 쓸 기능이에요. 각 카드 아래 iPhone 허용 상태도 함께 확인하세요.
+        토글은 Catch Me에서 쓸 기능이에요. 각 카드 아래 iPhone 허용 상태도 함께 확인하세요.
       </p>
 
       <ul className="space-y-2 mb-4">
