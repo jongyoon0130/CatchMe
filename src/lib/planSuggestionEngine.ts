@@ -1,5 +1,6 @@
 import type { Goal, LifeDomain, SelfProfile, TaskPriority } from '../types/self'
 import { resolveModel } from './selfEngine'
+import { AI_PROXY_KEY, fetchGeminiViaProxy } from './aiProxy'
 import { completionStats } from './plannerStore'
 
 export type SuggestedMilestone = { title: string; targetDate?: string }
@@ -83,10 +84,14 @@ ${rhythmLine}
 {"summary":"","assumptions":[""],"milestones":[{"title":"","targetDate":"YYYY-MM-DD"}],"tasks":[{"title":"","scheduledFor":"YYYY-MM-DD","estimatedMinutes":30,"priority":"must|should|could","milestoneTitle":"","whyNow":""}],"caution":""}`
 
   const resolved = resolveModel(model)
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolved)}:generateContent?key=${encodeURIComponent(apiKey.trim())}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 } } }),
-  })
+  const requestBody = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 } } }
+  // 프록시로 보낼 때는 키를 붙이지 않는다 — 구글을 부르는 건 서버다.
+  const res = apiKey.trim() === AI_PROXY_KEY
+    ? await fetchGeminiViaProxy(requestBody)
+    : await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolved)}:generateContent?key=${encodeURIComponent(apiKey.trim())}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      })
   if (!res.ok) throw new Error(`Gemini ${res.status}`)
   const data = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
   const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''

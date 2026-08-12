@@ -10,6 +10,7 @@ import { AlarmSettingsContent } from './AlarmSettingsContent'
 import { AlarmAlertModeSettingsSection } from './AlarmAlertModeSettingsSection'
 import { AccountSettingsSection } from './AccountSettingsSection'
 import { AppPermissionsSection } from './AppPermissionsSection'
+import { AiStatusRow } from './AiStatusRow'
 import { ChatApiSettingsSection } from './ChatApiSettingsSection'
 
 interface Props {
@@ -80,12 +81,10 @@ export function GlobalSettingsSheet({ onClose, onChanged }: Props) {
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y px-5 py-4 pb-8">
           <AccountSettingsSection />
 
-          {devMode ? (
-            <section className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">AI</p>
-              <ChatApiSettingsSection onChanged={onChanged} />
-            </section>
-          ) : null}
+          <section className="mb-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">AI</p>
+            {devMode ? <ChatApiSettingsSection onChanged={onChanged} /> : <AiStatusRow />}
+          </section>
 
           <AlarmAlertModeSettingsSection onChanged={onChanged} />
 
