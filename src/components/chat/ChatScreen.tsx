@@ -349,7 +349,7 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
   useEffect(() => {
     if (memoryFillTried.current) return
     if (selfRef.current.future.memories?.length) return
-    const key = loadApiKey()?.trim()
+    const key = resolveEffectiveApiKey()
     if (!key || isBackgroundApiPaused()) return
     memoryFillTried.current = true
     void generateFutureMemories(selfRef.current, key, loadModel() ?? undefined).then((list) => {

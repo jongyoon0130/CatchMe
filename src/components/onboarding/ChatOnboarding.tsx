@@ -19,10 +19,10 @@ import {
   loadOnboardingProgress,
   clearOnboardingProgress,
   ONBOARDING_PROGRESS_VERSION,
-import { resolveEffectiveApiKey } from '../../lib/geminiApiKey'
   loadModel,
   type OnboardingProgressHead,
 } from '../../lib/storage'
+import { resolveEffectiveApiKey } from '../../lib/geminiApiKey'
 import { generateFutureMemories } from '../../lib/futureMemory'
 import { APP_TAGLINE } from '../../lib/brand'
 import { splitBold } from '../../lib/chatDisplay'
