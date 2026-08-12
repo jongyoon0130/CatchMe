@@ -81,7 +81,60 @@ Project → **Settings → Environment Variables**
 | env 없음 | 로그인 없이 로컬 전용 |
 | Google 로그인 | 프로필·채팅·홈 목표·할 일 클라우드 동기화 |
 | Apple 로그인 | Google과 동일 (웹 OAuth / iOS 네이티브) |
-| Gemini API 키 | **기기 localStorage만** (TalkBack과 동일) |
+| Gemini API 키 | **기기 localStorage만** — 클라우드로 보내지 않는다 (§5b 프록시를 켜면 유저는 넣을 필요도 없다) |
+
+## 5b. AI 프록시 (`gemini` 함수) — 유저가 키를 넣지 않아도 되게
+
+서버가 **우리 키 하나**로 구글을 대신 부른다. 유저 기기에는 키가 가지 않고,
+우리도 유저 키를 갖지 않는다.
+
+### 한 번만 하는 준비
+
+```bash
+# 1) 사용량 표 만들기 — Supabase SQL Editor에 붙여넣기
+#    supabase/migrations/20260812090000_ai_proxy_usage.sql 내용 전체
+
+# 2) 우리 Gemini 키를 서버에만 등록 (여기 말고는 어디에도 두지 않는다)
+bunx supabase secrets set GEMINI_API_KEY='발급받은_키'
+
+# 3) 하루 한도 (선택 — 기본 50)
+bunx supabase secrets set AI_DAILY_LIMIT='50'
+
+# 4) 함수 배포 — verify_jwt 기본값이라 로그인한 사람만 부를 수 있다
+bunx supabase functions deploy gemini
+```
+
+> ⚠️ `--no-verify-jwt` 를 붙이면 **아무나 우리 키로 AI를 쓸 수 있다.** 붙이지 말 것.
+
+### 배포됐는지 확인
+
+로그인 없이 부르면 막혀야 정상이다:
+
+```bash
+curl -s -X POST 'https://<프로젝트>.supabase.co/functions/v1/gemini' \
+  -H 'Content-Type: application/json' -d '{}' | head -c 200
+```
+
+`401` 이 나오면 성공 — 로그인한 사람만 통과한다는 뜻이다.
+
+로그인한 상태의 실제 응답까지 보려면, 앱에서 로그인한 뒤 브라우저 콘솔에서:
+
+```js
+const { data } = await window.supabase.auth.getSession()
+await fetch('https://<프로젝트>.supabase.co/functions/v1/gemini', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+  body: JSON.stringify({ body: { contents: [{ role: 'user', parts: [{ text: '안녕' }] }] } }),
+}).then(r => r.json()).then(console.log)
+```
+
+### 한도
+
+- 사람당 하루 `AI_DAILY_LIMIT` 회 (기본 50). 넘으면 429 + `PROXY_DAILY_LIMIT`
+- **채팅 한 턴 = 요청 한 건이 아니다.** 답변 외에 대화 요약·인사이트 추출이 가끔
+  따로 나가서, "하루 30턴"은 요청으로 50건쯤 된다
+- 무료 등급 한도는 **키가 아니라 구글 클라우드 프로젝트 단위**다. 유저가 늘면
+  우리 프로젝트 한도를 다 같이 나눠 쓴다
 
 ## 6. TalkBack과 분리
 
