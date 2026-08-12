@@ -3,3 +3,9 @@ id = "future-me-studio"
 
 [functions.alarm-push]
 verify_jwt = false
+
+# AI 프록시 — 기본값(true)과 같지만 일부러 적어둔다.
+# 위 alarm-push가 false라서, 안 적어두면 이것도 그런 줄 알기 쉽다.
+# 여기를 false로 하면 인터넷 아무나 우리 Gemini 키를 쓸 수 있다.
+[functions.gemini]
+verify_jwt = true

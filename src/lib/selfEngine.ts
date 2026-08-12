@@ -9,6 +9,7 @@ import type {
   AdviceTone,
 } from '../types/self'
 import { ADVICE_TONE_LABELS, BIG_FIVE_ITEMS, INSIGHT_LABELS, LIFE_DOMAIN_LABELS } from '../types/self'
+import { AI_PROXY_KEY, fetchGeminiViaProxy } from './aiProxy'
 
 /**
  * 힘들 때 원하는 말은 사람마다 다르다 — 그래서 온보딩에서 **직접 고르게** 해뒀다
@@ -1906,7 +1907,7 @@ export function filterMessagesForApi(messages: ApiDialogueMessage[]): ApiDialogu
 /** 백그라운드 인사이트 분석 주기 (user 메시지 기준) */
 export const AI_ANALYZE_EVERY = 24
 
-export type RateLimitKind = 'minute' | 'daily' | 'unknown'
+export type RateLimitKind = 'minute' | 'daily' | 'proxy_daily' | 'unknown'
 
 export type GeminiUsage = {
   promptTokenCount?: number
@@ -2056,6 +2057,9 @@ export function geminiErrorUserMessage(e: unknown): string {
 
 export function rateLimitUserMessage(kind: RateLimitKind = 'unknown'): string {
   switch (kind) {
+    // 우리 서버가 건 하루 한도 — 구글 한도가 아니라서 모델을 바꿔도 안 풀린다
+    case 'proxy_daily':
+      return '(오늘 대화 한도를 다 썼어. 내일 다시 이어가자.)'
     case 'daily':
       return '(오늘 API 일일 한도에 걸렸어 — 내일 다시 하거나 ⚙️에서 Flash-Lite로 바꿔줘 ㅠ)'
     case 'minute':
@@ -2079,6 +2083,8 @@ export function getLastGeminiUsage() {
 function parseRateLimitKind(body: string): RateLimitKind {
   const lower = body.toLowerCase()
   const compact = lower.replace(/[\s_\-./]/g, '')
+  // 우리 프록시가 준 429 (supabase/functions/gemini) — 구글 한도와 구분한다
+  if (compact.includes('proxydailylimit')) return 'proxy_daily'
   // Gemini quotaId: GenerateRequestsPerMinute… vs GenerateRequestsPerDay…
   if (
     /perminute|generatecontentrequestsperminute|generaterequestsperminute|requestsperminute|quotaperminute/.test(
@@ -2131,16 +2137,20 @@ async function geminiGenerateOnce(
   const timeoutMs = geminiFetchTimeoutMs(label)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
-  console.info('[CatchMe/Gemini] fetch start', { label, model, timeoutMs })
+  const viaProxy = apiKey === AI_PROXY_KEY
+  console.info('[CatchMe/Gemini] fetch start', { label, model, timeoutMs, viaProxy })
 
   let res: Response
   try {
-    res = await fetch(`${geminiModelUrl(model)}?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
+    // 프록시로 보낼 때는 키를 붙이지 않는다 — 구글을 부르는 건 서버다.
+    res = viaProxy
+      ? await fetchGeminiViaProxy(body, controller.signal)
+      : await fetch(`${geminiModelUrl(model)}?key=${encodeURIComponent(apiKey)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        })
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       console.info('[CatchMe/Gemini] fetch timeout', { label, timeoutMs })
