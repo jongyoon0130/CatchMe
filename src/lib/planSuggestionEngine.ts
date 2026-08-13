@@ -87,7 +87,7 @@ ${rhythmLine}
   const requestBody = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 } } }
   // 프록시로 보낼 때는 키를 붙이지 않는다 — 구글을 부르는 건 서버다.
   const res = apiKey.trim() === AI_PROXY_KEY
-    ? await fetchGeminiViaProxy(requestBody)
+    ? await fetchGeminiViaProxy(resolved, requestBody)
     : await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolved)}:generateContent?key=${encodeURIComponent(apiKey.trim())}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
