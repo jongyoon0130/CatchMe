@@ -42,6 +42,7 @@ import {
   resolveCachedApiStatus,
 } from '../../lib/storage'
 import { generateFutureMemories, findDeniedMemory } from '../../lib/futureMemory'
+import { CRISIS_REPLY, isCrisisMessage } from '../../lib/crisisDetect'
 import {
   isDeveloperMode,
   registerDeveloperModeUnlockTap,
@@ -424,6 +425,16 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     const plan = buildReplyPlan(workingMessages, focusMessageId)
     if (!plan) return { ok: false as const, reason: 'no_plan' as const }
 
+    // 위기 신호는 모델에 보내지 않는다. 이 턴만 멈추고 다음 메시지부터는 평소대로다 —
+    // 안내하고 문을 닫아버리면 오히려 혼자 남긴다.
+    // focus 말고 skipped(503으로 답을 못 받고 쌓인 말)도 함께 본다. 그것들도 맥락으로 실린다.
+    const userTextsThisTurn = [plan.focusContent, ...plan.skippedUserMessages.map((m) => m.content)]
+    if (userTextsThisTurn.some(isCrisisMessage)) {
+      setTyping(true)
+      await appendSelfReply(plan.focusMessageId, CRISIS_REPLY)
+      return { ok: false as const, reason: 'crisis' as const, plan }
+    }
+
     const key = resolveEffectiveApiKey()
     const mdl = getActiveModel(loadModel())
     const profileForAI = self
@@ -496,7 +507,8 @@ export function ChatScreen({ profileId, profile, onBack, onProfileDeleted, onPro
     fallbackId: string,
   ): string | null => {
     if (!result || result.ok) return null
-    if ('reason' in result && result.reason === 'no_plan') return null
+    // 위기 안내는 실패가 아니다 — 재시도 배너를 띄우면 같은 안내만 다시 뜬다
+    if ('reason' in result && (result.reason === 'no_plan' || result.reason === 'crisis')) return null
     if ('plan' in result && result.plan) return result.plan.focusMessageId
     return fallbackId
   }
