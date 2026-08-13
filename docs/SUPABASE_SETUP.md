@@ -74,6 +74,37 @@ Project → **Settings → Environment Variables**
 
 저장 후 **Redeploy**.
 
+### Xcode Cloud (iOS 앱) ← 빠뜨리기 쉬움
+
+**웹(Vercel)에 넣은 것과 별개로 여기에도 넣어야 합니다.** 앱은 Vercel이 아니라
+Xcode Cloud가 따로 빌드하기 때문에, 웹이 잘 된다고 앱도 되는 게 아닙니다.
+
+App Store Connect → **Xcode Cloud** → 워크플로 **[Edit]** → **[Environment]**
+→ *Environment Variables* 에 `+` 로 두 개:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+> 값에 따옴표를 붙이지 마세요. `.env` 파일에서 복사할 때 `VITE_...=` 앞부분과
+> 따옴표는 빼고 **값만** 넣습니다.
+
+**넣지 않으면 어떻게 되나 (2026-08-13에 실제로 겪음):**
+빌드는 그냥 성공하는데, 나온 앱에는 **로그인 화면이 아예 없고**(`AccountSettingsSection`이
+`configured=false`면 아무것도 안 그림) **AI도 안 됩니다**(AI는 로그인한 사람만 쓰는
+서버 프록시를 거친다 — §5b). 그런 앱이 TestFlight까지 나갔다.
+
+지금은 [`ios/App/ci_scripts/ci_post_clone.sh`](../ios/App/ci_scripts/ci_post_clone.sh)가
+빌드 앞에서 이 값을 확인하고, 없으면 **빌드를 멈추고** 무엇이 없는지 알려준다.
+값이 있으면 빌드 로그에 이렇게 찍히므로 TestFlight를 기다리지 않고 확인할 수 있다:
+
+```
+==> Supabase 환경변수 확인
+    VITE_SUPABASE_URL      = https://<프로젝트>.supabase.co
+    VITE_SUPABASE_ANON_KEY = (설정됨 · 208자)
+```
+
+환경변수를 바꿨으면 **빌드를 다시 돌려야** 반영됩니다.
+
 ## 5. 동작
 
 | 상황 | 동작 |
