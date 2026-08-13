@@ -31,15 +31,31 @@ const CORS = {
   'Access-Control-Max-Age': '86400',
 }
 
-/** 앱이 쓰는 유일한 모델 (src/lib/selfEngine.ts 의 DEFAULT_GEMINI_MODEL 과 같아야 한다) */
-const MODEL = 'gemini-3-flash-preview'
+/** 채팅·요약·계획 (src/lib/selfEngine.ts 의 DEFAULT_GEMINI_MODEL 과 같아야 한다) */
+const TEXT_MODEL = 'gemini-3-flash-preview'
+
+/** 미래 사진 (src/lib/futureVisionEngine.ts 의 GEMINI_IMAGE_MODELS 와 같아야 한다) */
+const IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image']
+
+/**
+ * 부를 수 있는 모델은 이 목록뿐이다.
+ * 클라이언트가 보낸 이름을 그대로 믿으면 훨씬 비싼 모델로 바꿔 부를 수 있다.
+ * 그렇다고 하나로 고정하면 사진이 글자 모델로 가서 그림이 안 나온다(실제로 그랬다).
+ */
+const ALLOWED_MODELS = new Set([TEXT_MODEL, ...IMAGE_MODELS])
 
 /**
  * 한 사람이 하루에 부를 수 있는 횟수.
  * 주의: 채팅 한 턴이 요청 한 건이 아니다. 답변 외에 대화 요약·인사이트 추출이
  * 가끔 따로 나가서, "하루 30턴"은 요청으로는 50건쯤 된다.
  */
-const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? '50')
+const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? '200')
+
+/**
+ * 미래 사진은 따로, 훨씬 적게 센다.
+ * 글자보다 몇십 배 비싸서, 채팅과 같은 통에 두면 사진 몇 장이 하루치를 다 태운다.
+ */
+const IMAGE_DAILY_LIMIT = Number(Deno.env.get('AI_IMAGE_DAILY_LIMIT') ?? '1')
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -69,9 +85,31 @@ Deno.serve(async (req) => {
   const user = userData?.user
   if (userError || !user) return json({ error: 'not_authenticated' }, 401)
 
+  // --- 무엇을 부르려는지 ---
+  // 한도를 세기 전에 본문을 읽는다. 잘못된 요청으로 한도가 깎이면 안 된다.
+  let body: unknown
+  let model = TEXT_MODEL
+  try {
+    const payload = await req.json()
+    body = payload?.body
+    if (typeof payload?.model === 'string' && payload.model) model = payload.model
+  } catch {
+    return json({ error: 'bad_request' }, 400)
+  }
+  if (!body || typeof body !== 'object') return json({ error: 'bad_request' }, 400)
+  if (!ALLOWED_MODELS.has(model)) {
+    console.error('[gemini] 허용되지 않은 모델', model)
+    return json({ error: 'model_not_allowed', model }, 400)
+  }
+
   // --- 오늘 한도 ---
+  // 사진은 글자보다 몇십 배 비싸서 따로 센다. 같은 통에 두면 사진 몇 장이 하루치를 태운다.
+  const isImage = IMAGE_MODELS.includes(model)
+  const kind = isImage ? 'image' : 'chat'
+  const limit = isImage ? IMAGE_DAILY_LIMIT : DAILY_LIMIT
+
   const { data: quota, error: quotaError } = await admin
-    .rpc('consume_ai_quota', { p_user: user.id, p_limit: DAILY_LIMIT })
+    .rpc('consume_ai_quota', { p_user: user.id, p_limit: limit, p_kind: kind })
     .single<{ allowed: boolean; used: number }>()
 
   if (quotaError) {
@@ -83,29 +121,21 @@ Deno.serve(async (req) => {
     return json(
       {
         error: {
-          status: 'PROXY_DAILY_LIMIT',
-          message: '오늘 대화 한도를 다 썼어요. 내일 다시 이어가요.',
-          used: quota?.used ?? DAILY_LIMIT,
-          limit: DAILY_LIMIT,
+          status: isImage ? 'PROXY_IMAGE_DAILY_LIMIT' : 'PROXY_DAILY_LIMIT',
+          message: isImage
+            ? '미래 사진은 하루에 한 번만 만들 수 있어요. 내일 다시 만들어봐요.'
+            : '오늘 대화 한도를 다 썼어요. 내일 다시 이어가요.',
+          used: quota?.used ?? limit,
+          limit,
         },
       },
       429,
     )
   }
 
-  // --- 구글 호출 ---
-  // 앱이 만든 요청 본문을 그대로 넘긴다. 프롬프트 구성은 여전히 앱 쪽 코드가 한다.
-  let body: unknown
-  try {
-    const payload = await req.json()
-    body = payload?.body
-  } catch {
-    return json({ error: 'bad_request' }, 400)
-  }
-  if (!body || typeof body !== 'object') return json({ error: 'bad_request' }, 400)
-
+  // model은 위에서 허용 목록으로 검사했다 — 임의의 값이 주소에 들어가지 않는다
   const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent` +
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
     `?key=${encodeURIComponent(geminiKey)}`
 
   let res: Response

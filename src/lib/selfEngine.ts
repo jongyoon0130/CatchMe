@@ -1907,7 +1907,7 @@ export function filterMessagesForApi(messages: ApiDialogueMessage[]): ApiDialogu
 /** 백그라운드 인사이트 분석 주기 (user 메시지 기준) */
 export const AI_ANALYZE_EVERY = 24
 
-export type RateLimitKind = 'minute' | 'daily' | 'proxy_daily' | 'unknown'
+export type RateLimitKind = 'minute' | 'daily' | 'proxy_daily' | 'proxy_image_daily' | 'unknown'
 
 export type GeminiUsage = {
   promptTokenCount?: number
@@ -2058,6 +2058,8 @@ export function geminiErrorUserMessage(e: unknown): string {
 export function rateLimitUserMessage(kind: RateLimitKind = 'unknown'): string {
   switch (kind) {
     // 우리 서버가 건 하루 한도 — 구글 한도가 아니라서 모델을 바꿔도 안 풀린다
+    case 'proxy_image_daily':
+      return '(미래 사진은 하루에 한 번만 만들 수 있어. 내일 다시 만들어보자.)'
     case 'proxy_daily':
       return '(오늘 대화 한도를 다 썼어. 내일 다시 이어가자.)'
     case 'daily':
@@ -2084,6 +2086,7 @@ function parseRateLimitKind(body: string): RateLimitKind {
   const lower = body.toLowerCase()
   const compact = lower.replace(/[\s_\-./]/g, '')
   // 우리 프록시가 준 429 (supabase/functions/gemini) — 구글 한도와 구분한다
+  if (compact.includes('proxyimagedailylimit')) return 'proxy_image_daily'
   if (compact.includes('proxydailylimit')) return 'proxy_daily'
   // Gemini quotaId: GenerateRequestsPerMinute… vs GenerateRequestsPerDay…
   if (
@@ -2144,7 +2147,7 @@ async function geminiGenerateOnce(
   try {
     // 프록시로 보낼 때는 키를 붙이지 않는다 — 구글을 부르는 건 서버다.
     res = viaProxy
-      ? await fetchGeminiViaProxy(body, controller.signal)
+      ? await fetchGeminiViaProxy(model, body, controller.signal)
       : await fetch(`${geminiModelUrl(model)}?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

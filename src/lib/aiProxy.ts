@@ -37,9 +37,14 @@ export function aiProxyUrl(): string | null {
  * 보낼 요청의 모양. 토큰을 받아서 만드는 순수 함수로 떼어놨다 —
  * 이 부분이 테스트에서 확인해야 할 전부인데, 여기 로그인 조회가 섞여 있으면
  * Supabase를 흉내내야 하고 그 흉내가 다른 테스트로 새어나간다(실제로 그랬다).
+ *
+ * model을 함께 보낸다. 채팅과 미래 사진이 서로 다른 모델을 쓰는데, 서버가
+ * 하나로 고정해버리면 사진이 글자 모델로 가서 그림이 안 나온다(실제로 그랬다).
+ * 아무 모델이나 되는 건 아니고 서버가 허용 목록으로 거른다.
  */
 export function buildProxyRequest(
   token: string,
+  model: string,
   body: object,
   signal?: AbortSignal,
 ): { url: string; init: RequestInit } {
@@ -53,17 +58,34 @@ export function buildProxyRequest(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ model, body }),
       signal,
     },
   }
 }
 
 /**
+ * 지금 로그인돼 있나 — **실제 호출과 같은 근거**로 본다.
+ *
+ * 화면에 "AI 연결됨"을 띄울 때 React의 세션 상태를 보면, 그게 실제 호출이 보는
+ * 값과 어긋날 수 있다. 실제로 "채팅은 되는데 설정에는 안 된다고 뜬다"가 나왔다.
+ * 판단 근거를 한 곳으로 모은다.
+ */
+export async function hasProxySession(): Promise<boolean> {
+  if (!supabase) return false
+  const { data } = await supabase.auth.getSession()
+  return Boolean(data.session?.access_token)
+}
+
+/**
  * 프록시로 generateContent 요청. 구글의 응답을 상태 코드까지 그대로 돌려주므로
  * 호출하는 쪽은 구글을 직접 부른 것과 같은 방식으로 처리하면 된다.
  */
-export async function fetchGeminiViaProxy(body: object, signal?: AbortSignal): Promise<Response> {
+export async function fetchGeminiViaProxy(
+  model: string,
+  body: object,
+  signal?: AbortSignal,
+): Promise<Response> {
   if (!supabase) throw new Error('ai_proxy_not_configured')
 
   const { data } = await supabase.auth.getSession()
@@ -71,6 +93,6 @@ export async function fetchGeminiViaProxy(body: object, signal?: AbortSignal): P
   // 로그인해야 부를 수 있다. 서버도 막지만, 여기서 걸러 헛요청을 줄인다.
   if (!token) throw new Error('ai_proxy_requires_login')
 
-  const { url, init } = buildProxyRequest(token, body, signal)
+  const { url, init } = buildProxyRequest(token, model, body, signal)
   return fetch(url, init)
 }
