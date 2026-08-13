@@ -26,6 +26,9 @@ const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  // 브라우저가 본 요청 전에 "보내도 되냐"를 매번 묻는다(측정값 235ms).
+  // 하루 동안 안 물어도 된다고 답해 그 왕복을 없앤다.
+  'Access-Control-Max-Age': '86400',
 }
 
 /** 앱이 쓰는 유일한 모델 (src/lib/selfEngine.ts 의 DEFAULT_GEMINI_MODEL 과 같아야 한다) */
