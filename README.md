@@ -106,7 +106,7 @@ Catch Me.
 | [`plugins/futureme-alarm/.../AlarmKitBridge.swift`](plugins/futureme-alarm/ios/Sources/FutureMeAlarmPlugin/AlarmKitBridge.swift) | 네이티브 알람 브릿지 |
 | [`src/lib/syncOrchestrator.ts`](src/lib/syncOrchestrator.ts) | 로컬 ↔ 클라우드 병합 규칙 |
 
-> 주석은 "무엇을 하는지"가 아니라 **"왜 이렇게 했는지, 무엇을 시도했다가 실패했는지"**를 적는 규칙으로 썼습니다. 설계 의도를 보시려면 주석을 함께 읽어 주세요.
+> 주석은 "무엇을 하는지"가 아니라 **왜 이렇게 했는지, 무엇을 시도했다가 실패했는지**를 적는 규칙으로 썼습니다. 설계 의도를 보시려면 주석을 함께 읽어 주세요.
 
 <br>
 
