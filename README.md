@@ -1,281 +1,155 @@
-# Catch Me
+<div align="center">
 
-> **대상:** 프로젝트를 처음 보는 사람
-> **목적:** "무엇을 만들었는지", "질문은 왜 이렇게 짰는지", "AI는 어떻게 '미래의 나'처럼 말하는지"를 한 번에 이해하기
-> **최종 업데이트:** 2026-07-14
-> **배포 URL:** [https://futureme-beta.vercel.app](https://futureme-beta.vercel.app)
-> **소스:** [https://github.com/jongyoon0130/FutureMe](https://github.com/jongyoon0130/FutureMe)
+# Catch Me.
 
----
+**5년 뒤의 나와 대화하고, 그 대화에서 나온 다짐을 목표 · 할 일 · 알람으로 옮기는 iOS 앱**
 
-## 1. 한 줄 요약
+[![App Store](https://img.shields.io/badge/App_Store-출시_완료-0D96F6?style=flat-square&logo=apple&logoColor=white)](https://apps.apple.com/kr/app/id6798162633)
+![iOS](https://img.shields.io/badge/iOS-26.0+-black?style=flat-square&logo=apple&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Swift](https://img.shields.io/badge/Swift-F05138?style=flat-square&logo=swift&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-399_passing-3FCF8E?style=flat-square)
 
-**Catch Me**는 온보딩에서 "지금의 나"와 "5년 뒤 되고 싶은 나"를 입력하면, **Gemini API**가 그 **미래의 나 페르소나**가 되어 카톡처럼 대화해주는 웹앱이다.
+**[App Store에서 받기](https://apps.apple.com/kr/app/id6798162633)** · [지원](https://future-me-studio.vercel.app/support.html) · [개인정보 처리방침](https://future-me-studio.vercel.app/privacy.html)
 
-- 사람의 의지는 날마다 흔들린다 → **이미 그 길을 지나온 5년 뒤의 나**가 북돋아준다
-- 예언·점쟁이가 아니라, "그때는 나도 그랬는데, 지나와 보니 —" 톤의 **경험자**
-- 프로필(채팅방)은 **한 개만 새로 만들 수 있다** ([`primaryProfile.ts`](src/lib/primaryProfile.ts)의 `canCreateProfile`). 자료구조는 여러 개를 담지만 정책상 하나로 묶었다
-- Google 로그인 시 **클라우드 동기화**, 로그인 없이도 로컬 전용으로 동작
+<br>
 
-> 이 프로젝트는 자문자답 앱 **TalkBack(톡백)** 을 포크해 방향을 바꾼 것이다. 코드 곳곳의
-> `talkback-*`/`aime-*` 상수는 구버전 데이터 마이그레이션용이니 지우면 안 된다.
+<img src="docs/images/chat.png" width="23%" alt="미래의 나와 대화">
+<img src="docs/images/home.png" width="23%" alt="목표와 할 일">
+<img src="docs/images/alarm.png" width="23%" alt="알람">
+<img src="docs/images/profile.png" width="23%" alt="프로필">
 
----
+</div>
 
-## 2. 왜 이렇게 만들었는가 (설계 의도)
+<br>
 
-| 목표 | 구현 방식 |
+## 어떤 앱인가
+
+자기계발 앱은 **할 일을 관리**해 줍니다. 그런데 사람이 흔들리는 이유는 관리가 안 돼서가 아니라, 오늘의 행동이 **되고 싶은 자신**과 어떻게 이어지는지 느껴지지 않기 때문입니다.
+
+Catch Me는 온보딩에서 "5년 뒤의 나"를 한 줄 목표가 아니라 **하루의 장면과 거기까지 도달한 서사**로 쓰게 합니다. 그러면 AI가 그 사람이 되어, 예언이 아니라 **"그때는 나도 그랬는데, 지나와 보니 —"** 톤으로 대화합니다.
+
+그리고 대화에서 나온 말을 길게 누르면 **계획표로 넘어갑니다.** 목표 → 루틴 → 알람으로 이어지고, 완료 회고가 다시 대화의 맥락으로 돌아옵니다.
+
+| 기능 | 설명 |
 | --- | --- |
-| 흔들리는 의지를 붙잡아주는 존재 | AI가 "5년 뒤 목표에 도달한 나"로서 담담하게 말함 (`buildSystemPrompt`) |
-| 미래가 생생해야 힘이 됨 | 온보딩에서 평범한 하루(typicalDay), 도달 경로(throughline)까지 구체적으로 수집 |
-| 말투가 진짜 나 같아야 함 | 말투 샘플 수집 + 자동 분석(stylometry), 채팅할수록 학습 |
-| 자기이해 → 용기 → 실행 | 대화에서 나온 말을 계획표로 보내기(메시지 꾹 누르기), 반복 일정(루틴), 완료 회고 |
-| 긴 대화도 맥락 유지 | 최근 16턴 원문 + 이전 대화는 AI 요약으로 압축 |
-| 데이터 신뢰 | 삭제 기록(tombstone)으로 "지운 프로필이 되살아나지 않게" 보장, 동기화 실패 시 배너 표시 |
+| **미래의 나와 대화** | 온보딩 답변으로 만든 페르소나가 내 말투를 학습해 1:1로 대화합니다 |
+| **목표 · 할 일 · 루틴** | 목표를 "왜 이루려는지 · 이룬 모습 · 5년 뒤의 나와의 연결"로 저장하고 오늘의 행동으로 쪼갭니다 |
+| **AI 알람** | iOS 26 AlarmKit으로 무음·방해금지에서도 울리는 시스템 알람 + 미래의 나가 보내는 한 마디 |
+| **미래 사진** | 사진 한 장으로 5년 뒤 내 모습을 AI가 생성합니다 |
 
-**플래너:** 목표를 `왜 이루려는지 · 이룬 모습 · 5년 뒤의 나와의 연결 · 기간`으로 저장하고, 오늘·이번 주의 행동과 완료 회고로 이어간다. AI는 마일스톤과 이번 주 행동을 **초안으로만 제안**하며, 사용자가 확인하기 전에는 어떤 일정도 저장하지 않는다. 계획을 대신 통제하는 방향은 의도적으로 배제한다.
+<br>
 
----
+## 어떻게 만들었나
 
-## 3. 사용자 관점 — 앱이 어떻게 흐르는가
-
-```mermaid
-flowchart TD
-    A[앱 실행] --> B{Supabase 설정?}
-    B -->|없음| C[프로필 목록 — 로컬 전용]
-    B -->|있음| L[Google 로그인] --> S[클라우드 동기화] --> C
-    C --> D[+ 새 프로필]
-    C --> E[기존 프로필 탭]
-    D --> F[온보딩 약 38단계]
-    F --> G[SelfProfile 생성]
-    G --> H[채팅 화면]
-    E --> H
-    H --> I[사용자가 먼저 말함]
-    I --> J[Gemini — 미래의 나 응답]
-    J --> H
-    H --> K[설정: API 키 / 백업 / 삭제]
-    H --> P[내 플래너: 목표 / 오늘 / 이번 주]
-    P --> R[완료 회고 → 미래의 나 맥락]
-    H --> M[← 목록]
-    M --> C
-```
-
-**중요한 UX 결정**
-
-- 채팅 시작 시 **자동 인사 없음** → 사용자가 먼저 말해야 함 (몰입감)
-- 온보딩 중간 저장 → 브라우저 닫아도 이어서 가능
-- 프로필 삭제는 해당 채팅방만 삭제되고, **삭제 기록이 남아** 다른 기기와의 동기화에서도 되살아나지 않음
-
----
-
-## 4. 온보딩 — 핵심 15문항 + 심화 24문항 (2단 구조)
-
-질문 흐름은 [src/lib/onboardingConfig.ts](src/lib/onboardingConfig.ts)의 `ONBOARDING_STEPS`로 정의되고, UI는 [ChatOnboarding.tsx](src/components/onboarding/ChatOnboarding.tsx)가 그린다.
-
-**핵심 코스 (15단계):** 이름 → 나이 → 역할·상황 → 하루하루 → 신경 쓰이는 영역(칩) → **말투 학습 샘플** → 대화 톤 → (미래 전환) → 정체성 한 문장 → 잘 풀렸으면 하는 영역 → **평범한 하루(생생함)** → **미래의 나 말투 샘플** → 편지(adviceLine) → 이번 주 작은 행동 → **분기: "지금 미래의 나 만나기" vs "더 깊게 만들기"**
-
-**심화 코스 (24단계):** 절대 못 놓는 것 → "잘 산다"의 정의 → 가치관 딜레마 → 힘들었던 순간 → 두려움 → 진짜 원하는 것 → 1년 뒤 성장상 → **도달 경로(throughline)** → 직업/루틴/돈/관계/건강/사는 곳 → 성취 → 넘어선 어려움 → 배운 것 → 피하고 싶은 미래 → 될 뻔했던 길 → 별거 아니었던 걱정 → 변한 성격 → 자아 연속성 → 자주 물을 주제
-
-핵심 코스는 [personaModel.ts](src/lib/personaModel.ts)의 **core 티어**(없으면 페르소나가 남처럼 말하는 필드)를 채우는 최소 질문이다. 건너뛴 질문은 프로필의 **페르소나 채우기**(충실도 % + 추천 질문)에서 언제든 이어서 채울 수 있고, 답변은 말투 학습에도 반영된다.
-
-설계 원리: 미래를 **한 줄 목표**가 아니라 **하루의 장면과 도달 서사**로 쓰게 하면 페르소나가 살아난다. 질문을 바꾸려면 `ONBOARDING_STEPS` 배열만 수정하면 된다.
-
----
-
-## 5. 데이터 모델 ([src/types/self.ts](src/types/self.ts))
+React로 만든 웹앱을 **Capacitor로 감싼 iOS 앱**이고, 서버는 **Supabase**를 씁니다. AI 키는 앱에 넣지 않고 **서버가 대신 호출**합니다.
 
 ```
-SelfProfile ─── 프로필(채팅방) 하나의 전체 데이터
-├─ 지금의 나: name, age, currentRole, lifeContext, concernDomains,
-│             fear/desire/avoidance/growthDirection, corePriority, successDef …
-├─ future: FutureSelfProfile ─── 5년 뒤의 나
-│   identityLine, typicalDay, throughline, career, income, relationship,
-│   health, achievement, obstacleOvercome, lesson, fearedSelves,
-│   futureVoiceSample, adviceLine(+adviceTone), weeklyAction …
-├─ 말투: styleSamples(원문) + styleRules(자동 분석 규칙서)
-├─ 대화 축적: insights(잠정 관찰), conversationSummary(오래된 대화 요약)
-├─ 지난 기록: savedDilemmas(고민), smallActions(작은 행동), futureSelfNotes(메모)
-│   — 지금은 새로 쌓지 않는다. 프로필의 "지난 기록"에서 보고 지울 수만 있다
-└─ 플래너: goals(목표), milestones(마일스톤), tasks(오늘·주간 행동), reflections(완료 회고)
+┌─ iOS 앱 ─────────────────────────────────────────────┐
+│  Capacitor WebView            futureme-alarm (Swift) │
+│  React 19 · TypeScript   ↔    AlarmKit · App Intents │
+└──────────────────────────┬───────────────────────────┘
+                           │  로그인 토큰(JWT)
+┌─ Supabase ───────────────┴───────────────────────────┐
+│  Auth              Postgres            Edge Functions│
+│  Apple · Google    RLS로 본인만 접근    AI 프록시 외 4개 │
+└──────────────────────────┬───────────────────────────┘
+                           │  서버가 보관한 키
+                    Google Gemini
 ```
 
-구버전(필드 구조가 다른) 프로필은 `normalizeFutureSelf()`가 자동 변환한다.
+**AI 키를 클라이언트에 두지 않습니다.** 사용자는 로그인만 하면 되고, 서버가 토큰을 검증한 뒤 모델 허용 목록과 일일 사용량을 확인하고 호출합니다. 이 구조가 다시 깨지지 않게 [요청 본문에 키가 없음을 확인하는 테스트](tests/aiProxyRequest.test.ts)를 두었습니다.
 
----
+**알람은 직접 만든 네이티브 플러그인**으로 동작합니다. iOS 26 AlarmKit을 쓰는 Capacitor 플러그인이 없어서 Swift로 작성했습니다. 알람이 울릴 때 앱은 실행 중이 아니므로, 네이티브가 자체 저장소를 갖고 앱이 다시 뜰 때 그동안의 일을 JS에 전달합니다.
 
-## 6. AI — "미래의 나"는 어떻게 만들어지는가
+<br>
 
-핵심 파일: [src/lib/selfEngine.ts](src/lib/selfEngine.ts)
+## 저장소 구조
 
-### 6-1. 한 턴의 처리 흐름
-
-```mermaid
-sequenceDiagram
-    participant U as 사용자
-    participant C as ChatScreen
-    participant P as chatReplyPlan
-    participant E as selfEngine
-    participant G as Gemini API
-
-    U->>C: 메시지 입력
-    C->>P: buildReplyPlan (어느 메시지에 답할지, 에러 말풍선 제외)
-    C->>E: fetchAIResponse()
-    E->>E: analyzeMessage (감정·주제·강도·모호함)
-    E->>E: buildSystemPrompt (미래의 나 정체성 + 프로필 + 말투 규칙)
-    E->>G: systemInstruction + 최근 16턴
-    G-->>E: 응답
-    E->>E: enforceReplyLimits (3문장 제한, 상담사 톤 제거)
-    E-->>C: 미래의 나 메시지
-    C->>C: IndexedDB 저장 + 클라우드 푸시 + 말투/인사이트 학습
+```
+Catch Me.
+├── src/                  프론트엔드 (React 19 + TypeScript)
+│   ├── components/         화면 — 채팅 · 온보딩 · 플래너 · 설정
+│   ├── lib/                핵심 로직 ★ 아래 "코드 둘러보기" 참고
+│   ├── types/              데이터 모델
+│   ├── hooks/  contexts/   상태 관리
+│   └── goals/  styles/     플래너 화면과 스타일
+│
+├── ios/                  Xcode 프로젝트 (Capacitor)
+├── plugins/
+│   └── futureme-alarm/     직접 만든 Swift 알람 플러그인 (AlarmKit)
+│
+├── supabase/
+│   ├── functions/          Edge Functions — AI 프록시, 계정 삭제, 푸시
+│   └── migrations/         DB 스키마와 RLS 정책
+│
+├── tests/                bun test — 48개 파일
+├── eval/                 AI 응답 품질 회귀 검사
+├── scripts/              App Store 제출 자동화 (App Store Connect API)
+├── docs/                 상세 문서 ↓
+│
+├── index.html            채팅 화면 진입점
+└── goals.html            플래너 화면 진입점
 ```
 
-### 6-2. 시스템 프롬프트 (`buildSystemPrompt`)
+### 코드 둘러보기
 
-- **정체성:** "너는 ○○의 5년 뒤(N세) 미래의 나다. AI·상담사·점쟁이가 아니다." 예언 금지, "지나와 보니 —" 톤 강제
-- **동적 블록:** 이번 말 분석 결과, 미래 프로필 전체(`describeFutureSelf`), 말투 규칙, 대화 요약, 인사이트
-- **답변 모드** (`ReplyMode`): `future`(기본 — 미래의 나 관점) · `reflect`(순수 반영)
-- **길이·금지:** 한 턴 최대 3문장, 번호·불릿 금지, user 말 되풀이 금지
+전체를 보실 필요는 없습니다. **이 다섯 개**만 보시면 설계 판단이 대부분 보입니다.
 
-### 6-3. 메모리 2단 구조
-
-| 구간 | 처리 |
+| 파일 | 무엇을 보게 되는가 |
 | --- | --- |
-| 최근 16메시지 (lite 모드 10) | API에 원문 전송 |
-| 36턴 초과분 | `updateConversationSummary`가 16턴마다 AI 요약으로 압축 |
-| 24턴마다 | `analyzeInsightsWithAI`가 가치관·상황을 JSON으로 추론해 축적 |
+| [`src/types/self.ts`](src/types/self.ts) | 데이터 모델. **여기서 시작**하면 나머지가 빨리 읽힙니다 |
+| [`src/lib/selfEngine.ts`](src/lib/selfEngine.ts) | `buildSystemPrompt` — 페르소나가 만들어지는 핵심 |
+| [`src/lib/geminiApiKey.ts`](src/lib/geminiApiKey.ts) | 흩어진 AI 키 조달을 한 지점으로 모은 설계 |
+| [`plugins/futureme-alarm/.../AlarmKitBridge.swift`](plugins/futureme-alarm/ios/Sources/FutureMeAlarmPlugin/AlarmKitBridge.swift) | 네이티브 알람 브릿지 |
+| [`src/lib/syncOrchestrator.ts`](src/lib/syncOrchestrator.ts) | 로컬 ↔ 클라우드 병합 규칙 |
 
-**API 키가 없으면 채팅이 동작하지 않는다.** 대화창에 `(⚙️ Gemini API 키가 없어서 AI가
-답할 수 없어. 설정에서 키를 넣어줘.)`가 미래의 나 말풍선으로 들어간다
-([`ChatScreen.tsx`](src/components/chat/ChatScreen.tsx)의 `requestReply`).
-`generateLocalResponse()`라는 규칙 기반 대체 함수가 `selfEngine.ts`에 있지만
-**어디서도 호출되지 않는다**(죽은 코드).
+> 주석은 "무엇을 하는지"가 아니라 **"왜 이렇게 했는지, 무엇을 시도했다가 실패했는지"**를 적는 규칙으로 썼습니다. 설계 의도를 보시려면 주석을 함께 읽어 주세요.
 
-> 서버 프록시(Edge Function)로 옮기는 것이 출시 전 과제다 — 지금은 사용자가 직접
-> 키를 넣어야 첫 대화가 된다.
+<br>
 
----
-
-## 7. 저장·동기화 구조
-
-| 데이터 | 저장소 | 키/구조 |
-| --- | --- | --- |
-| 프로필 목록 인덱스 | localStorage | `futureme-profiles-index` |
-| 프로필 본문 | localStorage | `futureme-profile-{id}` |
-| **삭제 기록 (tombstone)** | localStorage | `futureme-profile-tombstones` (180일 후 자동 정리) |
-| Gemini API 키·모델 | localStorage **+ 클라우드** | `futureme-gemini-key`, `futureme-gemini-model` — ⚠️ 로그인하면 [`settingsSync.ts`](src/lib/settingsSync.ts)가 **키를 `futureme_settings.gemini_api_key`에 평문으로 동기화한다.** 제거 예정 |
-| 채팅 전체 기록 | IndexedDB `futureme` | store `chat`, key = `profileId` |
-| 온보딩 중간 진행 | localStorage | `futureme-onboarding-v4` |
-| 클라우드 (로그인 시) | Supabase | `futureme_profiles`, `futureme_chats`, `futureme_settings` (RLS로 본인만 접근) |
-
-### 동기화 규칙 ([src/lib/syncOrchestrator.ts](src/lib/syncOrchestrator.ts))
-
-1. 로그인하면 로컬 vs 클라우드를 비교: 한쪽만 있으면 그쪽을 복사, 둘 다 있으면 **updated_at이 최신인 쪽이 승리** (프로필 단위)
-2. **삭제는 tombstone으로 전파**: 프로필을 지우면 클라우드 행을 없애는 대신 `{ __deleted: true, deletedAt }` 표식으로 바꾼다. 병합 때 "삭제 시각 vs 수정 시각, 늦은 쪽이 이긴다"(`deletionWins`) — 삭제 후 다른 기기에서 대화를 이어갔다면 부활, 아니면 모든 기기에서 삭제 유지
-3. 클라우드 저장이 실패하면 화면 상단에 **"클라우드 저장 실패" 배너**가 뜨고, 다음 저장·동기화 때 자동 재시도된다 ([src/lib/syncStatus.ts](src/lib/syncStatus.ts))
-
-주의: 채팅은 프로필 단위로 통째로 비교되므로, 두 기기에서 **동시에** 같은 프로필과 대화하면 늦게 저장한 쪽만 남는다. (메시지 단위 병합은 미구현 — §11)
-
----
-
-## 8. 기술 스택 & 실행
-
-| 항목 | 선택 |
-| --- | --- |
-| 프레임워크 | React 19 + TypeScript |
-| 빌드 | Vite 8 |
-| 스타일 | Tailwind CSS 4 |
-| 패키지 매니저·테스트 | Bun (`bun test` 내장 러너) |
-| AI | Google Gemini API (REST, 브라우저에서 직접 호출, 기본 `gemini-3-flash-preview`) |
-| 로그인·DB | Supabase (Google OAuth + Postgres, 선택 사항) |
-| 호스팅 | Vercel (`dist` 정적 배포) |
+## 직접 실행해보기
 
 ```bash
-cp .env.example .env   # Supabase 쓰려면 값 입력, 로컬 전용이면 그대로 둬도 됨
 bun install
-bun run dev            # http://localhost:5173
-bun test               # 테스트 (tests/)
-bun run build          # 타입검사 + dist 생성
-bun run lint           # Oxlint
+cp .env.example .env     # Supabase를 쓰려면 값 입력 (로그인 없이도 동작합니다)
+
+bun run dev              # 플래너 화면부터
+bun run dev:chat         # 채팅 화면부터
+bun test                 # 테스트
 ```
 
-- Supabase·Google 로그인 설정: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
-- AI 답변을 받으려면 앱 안 ⚙️ 설정에서 **본인 Gemini API 키**를 입력해야 한다 (로그인 시 계정에 동기화)
-- 로컬(localhost)과 배포 URL의 로컬 데이터는 분리된다 — 옮기려면 Google 로그인 동기화 또는 백업 JSON
-
-### ⚠️ 커밋 전에 git 이메일부터 (Vercel 배포가 막힌다)
-
-새 컴퓨터에서 `user.email`을 안 정해두면 git이 `이름@맥북이름.local` 같은 가짜 주소를
-자동으로 만들어 쓴다. 그 커밋이 main에 올라가면 **Vercel이 배포를 거부한다**
-("commit author email is not valid"). 클론하자마자 한 번 설정해두면 된다.
+**iOS 빌드**
 
 ```bash
-git config --global user.name "이름"
-git config --global user.email "깃허브에-등록된-이메일"
+bun run build:ios        # 웹 빌드 + 플러그인 동기화 + cap sync
+bun run ios:open         # Xcode 열기
 ```
 
-이메일은 **GitHub 계정에 등록·인증된 주소**여야 한다 (GitHub → Settings → Emails).
-공개하기 싫으면 같은 화면의 `...@users.noreply.github.com` 주소를 쓰면 된다.
+<br>
 
----
+## 기술 스택
 
-## 9. 주요 파일 지도
-
-| 파일 | 역할 |
+| 영역 | 사용 기술 |
 | --- | --- |
-| [src/App.tsx](src/App.tsx) | 화면 전환: 목록 ↔ 온보딩 ↔ 채팅, 동기화 배너 |
-| [src/types/self.ts](src/types/self.ts) | 데이터 모델 (SelfProfile, FutureSelfProfile) ★먼저 읽기 |
-| [src/lib/onboardingConfig.ts](src/lib/onboardingConfig.ts) | 온보딩 질문 정의 — 핵심/심화 2단 (질문 수정은 여기) |
-| [src/lib/personaModel.ts](src/lib/personaModel.ts) | ★페르소나 구조화: facet×tier, 충실도, 빈 곳 추천, 프롬프트 렌더링 |
-| [src/lib/selfEngine.ts](src/lib/selfEngine.ts) | 프롬프트 조립, Gemini 호출, 말투 분석, 답변 후처리 ★핵심 |
-| [src/lib/plannerStore.ts](src/lib/plannerStore.ts) | 플래너: 목표·마일스톤·작업·회고 (순수 함수) |
-| [src/lib/planSuggestionEngine.ts](src/lib/planSuggestionEngine.ts) | 목표 → 이번 주 행동 AI 초안 (JSON 검증 포함) |
-| [src/components/planner/PlannerScreen.tsx](src/components/planner/PlannerScreen.tsx) | 플래너 화면: 오늘/이번 주/목표 탭 |
-| [src/lib/storage.ts](src/lib/storage.ts) | localStorage CRUD, tombstone, 백업, 구버전 마이그레이션 |
-| [src/lib/chatDb.ts](src/lib/chatDb.ts) | IndexedDB 채팅 기록 |
-| [src/lib/cloudSync.ts](src/lib/cloudSync.ts) | Supabase 읽기/쓰기 + tombstone 행 |
-| [src/lib/syncOrchestrator.ts](src/lib/syncOrchestrator.ts) | 로컬↔클라우드 병합 규칙 |
-| [src/lib/syncStatus.ts](src/lib/syncStatus.ts) | 클라우드 저장 실패 상태 (UI 배너용) |
-| [src/lib/chatReplyPlan.ts](src/lib/chatReplyPlan.ts) | 어떤 메시지에 답할지·재시도 계획 |
-| [src/lib/growthStore.ts](src/lib/growthStore.ts) | 지난 기록(고민/작은 행동/메모) 정리 — 새로 쌓지는 않는다 |
-| [src/lib/chatToPlan.ts](src/lib/chatToPlan.ts) | 채팅 메시지 → 계획표 확인 카드 초안 |
-| [src/lib/goalRoutines.ts](src/lib/goalRoutines.ts) | 반복 일정(루틴) — 요일 규칙 + 2주치 자동 생성 |
-| [src/components/chat/ChatScreen.tsx](src/components/chat/ChatScreen.tsx) | 채팅 UI, API 호출, 설정, 백업 |
-| [src/components/onboarding/ChatOnboarding.tsx](src/components/onboarding/ChatOnboarding.tsx) | 온보딩 대화 UI |
-| [tests/](tests/) | bun test — 응답 계획·tombstone 병합 규칙 |
-| [supabase/schema.sql](supabase/schema.sql) | DB 테이블 + RLS 정책 |
+| 프론트엔드 | React 19 · TypeScript · Vite 8 · Tailwind CSS 4 |
+| iOS | Capacitor 7 · Swift (AlarmKit, App Intents) · iOS 26+ |
+| 백엔드 | Supabase — Auth · PostgreSQL + RLS · Edge Functions (Deno) |
+| AI | Google Gemini (Edge Function 프록시 경유) |
+| 알림 | Web Push (VAPID) · AlarmKit |
+| 도구 | Bun · Oxlint · Xcode Cloud · App Store Connect API |
 
-**읽는 순서 추천 (신규 개발자):** §3 흐름 → `types/self.ts` → `onboardingConfig.ts` → `selfEngine.ts`의 `buildSystemPrompt` → `ChatScreen.tsx` → `storage.ts`+`syncOrchestrator.ts`
+<br>
 
----
+## 더 읽을 문서
 
-## 10. 용어 정리
-
-| 용어 | 의미 |
+| 문서 | 내용 |
 | --- | --- |
-| SelfProfile | 채팅방 하나의 전체 프로필 (지금의 나 + future) |
-| 미래의 나 / self | AI가 말하는 쪽 (`role: 'self'`) |
-| throughline | 지금→5년 뒤에 도달한 경로 서사 ("future memory") |
-| 레지스터 | 말하는 상황 (일상/성찰/토로/기쁨/위로) |
-| stylometry | 텍스트에서 말투 규칙(반말, 어미, ㅋㅋ 빈도 등) 자동 추출 |
-| insight | 대화에서 조심스럽게 쌓는 잠정 관찰 |
-| tombstone | 삭제 기록 — 지운 프로필이 동기화로 되살아나지 않게 하는 표식 |
-| ReplyMode | 답변 관점 (future/reflect) |
-| 루틴 | 요일 반복 일정 — 등록해두면 앞으로 2주치 할 일이 자동으로 생긴다 |
-
----
-
-## 11. 한계 & 다음 단계
-
-> 상세 계획: [docs/ROADMAP.md](docs/ROADMAP.md) — 페르소나 × 플래너 로드맵과 우선순위
-
-| 현재 한계 | 방향 |
-| --- | --- |
-| Gemini API 키를 사용자가 직접 발급·입력 | 서버 프록시 + 사용량 관리 (키 노출 위험 제거) |
-| 채팅 병합이 프로필 단위 (동시 편집 시 한쪽 유실) | 메시지 단위 병합 |
-| 플래너와 대화의 연결이 아직 단방향 위주 | 완료 회고→대화 공급, 채팅 행동→플래너 승격 (P1) |
-| AI 계획 초안이 사용자 리듬을 모름 | 완료율·미룸 데이터를 제안 프롬프트에 반영 (P1) |
-| localStorage 용량(~5MB) 한계 | 프로필 본문도 IndexedDB로 이전 |
-
----
-
-*코드 변경 시* `ONBOARDING_STEPS`*,* `buildSystemPrompt`*, 저장 키, 동기화 규칙과 함께 이 README도 갱신할 것.*
+| [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) | 온보딩 질문 설계, 프롬프트 조립, 동기화 규칙 등 **전체 상세 설명** |
+| [docs/PRODUCT_PRINCIPLES.md](docs/PRODUCT_PRINCIPLES.md) | 기능을 넣을지 말지 판단하는 기준 |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 다음 과제와 우선순위 |
+| [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) · [docs/APPLE_SIGN_IN.md](docs/APPLE_SIGN_IN.md) | 로그인·백엔드 설정 |
+| [docs/IOS_NATIVE_ALARM.md](docs/IOS_NATIVE_ALARM.md) · [docs/ALARM_WHEN_APP_CLOSED.md](docs/ALARM_WHEN_APP_CLOSED.md) | 네이티브 알람 구현 기록 |
+| [docs/APP_STORE_LAUNCH.md](docs/APP_STORE_LAUNCH.md) | App Store 출시 과정 |

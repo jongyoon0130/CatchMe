@@ -37,3 +37,11 @@ ios/DerivedData
 .env*
 !.env.example
 eval/out/
+
+# 로컬 작업물 — 저장소에 올리지 않는다
+.claude/
+portfolio/
+app-store-screenshots/
+.review-frames/
+ios/App/App/config*.xml
+!ios/App/App/config.xml
